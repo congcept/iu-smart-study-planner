@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Course {
+  id                String        @id @default(uuid())
+  code              String        @unique
+  name              String
+  credits           Int
+  difficultyLevel   Int           @map("difficulty_level") @db.SmallInt
+  description       String?
+  category          CourseCategory @default(REQUIRED)
+  semesterOffered   Semester[]    @default([FALL, SPRING])
+  
+  // Self-relation for prerequisites
+  prerequisites     Prerequisite[] @relation("CoursePrerequisites")
+  isPrerequisiteFor Prerequisite[] @relation("PrerequisiteFor")
+  
+  // Student records
+  studentRecords    StudentRecord[]
+  
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  @@index([code])
+  @@index([category])
+  @@map("courses")
+}
+
+model Prerequisite {
+  id              String   @id @default(uuid())
+  courseId        String   @map("course_id")
+  prerequisiteId  String   @map("prerequisite_id")
+  isCorequisite   Boolean  @default(false) @map("is_corequisite")
+  isStrict        Boolean  @default(true) @map("is_strict")
+  
+  course          Course   @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite    Course   @relation("PrerequisiteFor", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([courseId, prerequisiteId])
+  @@index([courseId])
+  @@index([prerequisiteId])
+  @@map("prerequisites")
+}
+
+model User {
+  id              String          @id @default(uuid())
+  studentId       String          @unique @map("student_id")
+  name            String
+  email           String          @unique
+  password        String?
+  major           String?
+  enrollmentYear  Int?            @map("enrollment_year")
+  targetGraduationYear Int?       @map("target_graduation_year")
+  
+  // Relations
+  studentRecords  StudentRecord[]
+  studyPlans      StudyPlan[]
+  
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([studentId])
+  @@index([email])
+  @@map("users")
+}
+
+model StudentRecord {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  courseId    String    @map("course_id")
+  grade       String?   // e.g., "A", "B+", "C"
+  gradePoints Float?    @map("grade_points")
+  semester    String?   // e.g., "Fall 2023"
+  year        Int?
+  status      CourseStatus @default(COMPLETED)
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("student_records")
+}
+
+model StudyPlan {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  name        String
+  description String?
+  isActive    Boolean   @default(true) @map("is_active")
+  
+  // Relations
+  semesters   PlannedSemester[]
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("study_plans")
+}
+
+model PlannedSemester {
+  id          String    @id @default(uuid())
+  studyPlanId String    @map("study_plan_id")
+  semester    Semester
+  year        Int
+  
+  // JSON field to store course IDs and their positions
+  courses     Json      // Array of { courseId: string, position: number }
+  
+  totalCredits Int      @default(0) @map("total_credits")
+  difficultyScore Float? @map("difficulty_score")
+  
+  studyPlan   StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([studyPlanId, semester, year])
+  @@index([studyPlanId])
+  @@map("planned_semesters")
+}
+
+enum CourseCategory {
+  REQUIRED
+  ELECTIVE
+  CORE
+  MAJOR_ELECTIVE
+  GENERAL_EDUCATION
+  FREE_ELECTIVE
+}
+
+enum Semester {
+  FALL
+  SPRING
+  SUMMER
+}
+
+enum CourseStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  DROPPED
+}
