@@ -7,10 +7,10 @@ import { ProgressDashboard } from './features/progress/ProgressDashboard';
 import { Recommendations } from './features/recommendations/Recommendations';
 import { WorkloadAnalyzer } from './features/planner/WorkloadAnalyzer';
 import { Button, Card, LoadingSpinner } from './components/ui';
-import { 
-  LayoutDashboard, 
-  GitGraph, 
-  Lightbulb, 
+import {
+  LayoutDashboard,
+  GitGraph,
+  Lightbulb,
   Calculator,
   GraduationCap,
   Menu,
@@ -26,13 +26,13 @@ function App() {
   const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
-  
-  const { 
-    user, 
-    courses, 
-    studentRecords, 
-    setUser, 
-    setCourses, 
+
+  const {
+    user,
+    courses,
+    studentRecords,
+    setUser,
+    setCourses,
     setStudentRecords,
     completedCourseIds,
   } = useAppStore();
@@ -44,7 +44,7 @@ function App() {
   const initializeApp = async () => {
     try {
       setIsLoading(true);
-      
+
       // Check API health
       try {
         await healthCheck();
@@ -115,7 +115,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside 
+      <aside
         className={`
           fixed inset-y-0 left-0 z-50 bg-white shadow-lg transition-transform duration-300
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -139,8 +139,8 @@ function App() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors
-                ${activeTab === tab.id 
-                  ? 'bg-primary-50 text-primary-700 font-medium' 
+                ${activeTab === tab.id
+                  ? 'bg-primary-50 text-primary-700 font-medium'
                   : 'text-gray-700 hover:bg-gray-100'
                 }
               `}
@@ -165,7 +165,7 @@ function App() {
       </aside>
 
       {/* Main Content */}
-      <main 
+      <main
         className={`
           flex-1 transition-all duration-300
           ${isSidebarOpen ? 'ml-64' : 'ml-0'}
@@ -185,7 +185,7 @@ function App() {
                 {tabs.find(t => t.id === activeTab)?.label}
               </h2>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {apiStatus === 'error' && (
                 <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full">
@@ -233,8 +233,8 @@ function App() {
 
           {activeTab === 'curriculum' && (
             <div className="space-y-6">
-              <Card 
-                title="Curriculum Dependency Graph" 
+              <Card
+                title="Curriculum Dependency Graph"
                 subtitle="Visualize course prerequisites and dependencies"
               >
                 <CurriculumGraph
@@ -253,7 +253,7 @@ function App() {
                 <Card title="Selected Courses">
                   <div className="flex flex-wrap gap-2">
                     {selectedCourses.map(course => (
-                      <span 
+                      <span
                         key={course.id}
                         className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
                       >
@@ -271,7 +271,7 @@ function App() {
 
           {activeTab === 'recommendations' && (
             <div className="max-w-4xl mx-auto">
-              <Recommendations 
+              <Recommendations
                 userId={SAMPLE_USER_ID}
                 onAddToPlan={handleAddToPlan}
                 addedCourseIds={selectedCourses.map(c => c.id)}
@@ -281,7 +281,7 @@ function App() {
 
           {activeTab === 'planner' && (
             <div className="max-w-4xl mx-auto">
-              <WorkloadAnalyzer 
+              <WorkloadAnalyzer
                 selectedCourses={selectedCourses}
                 onClear={() => setSelectedCourses([])}
               />

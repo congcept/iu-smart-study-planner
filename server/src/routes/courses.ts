@@ -114,7 +114,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const validatedData = createCourseSchema.parse(req.body);
-    
+
     const course = await prisma.course.create({
       data: validatedData,
     });

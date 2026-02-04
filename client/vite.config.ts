@@ -15,10 +15,18 @@ export default defineConfig({
     },
   },
   server: {
+    // THÊM DÒNG NÀY: Cho phép truy cập từ bên ngoài Docker
+    host: true,
     port: 5173,
+
+    // THÊM DÒNG NÀY: Để tính năng Hot Reload hoạt động tốt trên Docker
+    watch: {
+      usePolling: true,
+    },
+
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://backend:3001', // Lưu ý: Trong Docker, nên dùng tên service 'backend' thay vì localhost
         changeOrigin: true,
       },
     },

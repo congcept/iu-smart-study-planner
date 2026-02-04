@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import type { StudentRecord, Course } from '../types';
-import { Card, ProgressBar, Badge } from '../components/ui';
-import { getUserProgress } from '../lib/api';
-import { 
-  GraduationCap, 
-  BookOpen, 
-  Target, 
+import type { StudentRecord, Course } from '@/types';
+import { Card, ProgressBar, Badge } from '@/components/ui';
+import { getUserProgress } from '@/lib/api';
+import {
+  GraduationCap,
+  BookOpen,
+  Target,
   TrendingUp,
   Award,
   Clock
 } from 'lucide-react';
-import { categoryLabels, statusColors } from '../lib/utils';
+import { categoryLabels, statusColors } from '@/lib/utils';
 
 interface ProgressDashboardProps {
   userId: string;
@@ -84,7 +84,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
             </div>
             <div className="text-sm text-gray-600">Courses Completed</div>
           </div>
-          
+
           <div className="p-4 bg-green-50 rounded-lg text-center">
             <Award size={32} className="mx-auto mb-2 text-green-600" />
             <div className="text-2xl font-bold text-gray-900">
@@ -92,7 +92,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
             </div>
             <div className="text-sm text-gray-600">Credits Earned</div>
           </div>
-          
+
           <div className="p-4 bg-amber-50 rounded-lg text-center">
             <Clock size={32} className="mx-auto mb-2 text-amber-600" />
             <div className="text-2xl font-bold text-gray-900">
@@ -100,7 +100,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
             </div>
             <div className="text-sm text-gray-600">In Progress</div>
           </div>
-          
+
           <div className="p-4 bg-purple-50 rounded-lg text-center">
             <BookOpen size={32} className="mx-auto mb-2 text-purple-600" />
             <div className="text-2xl font-bold text-gray-900">
@@ -118,7 +118,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
                 {progress.progress.completedCourses} / {progress.progress.totalCourses}
               </span>
             </div>
-            <ProgressBar 
+            <ProgressBar
               progress={progress.progress.completedCourses}
               max={progress.progress.totalCourses}
             />
@@ -131,7 +131,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
                 {progress.progress.completedCredits} / {progress.progress.totalCredits}
               </span>
             </div>
-            <ProgressBar 
+            <ProgressBar
               progress={progress.progress.completedCredits}
               max={progress.progress.totalCredits}
             />
@@ -157,7 +157,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
         <Card title="Completed Courses" subtitle={`${completed.length} courses finished`}>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {completed.map(record => (
-              <div 
+              <div
                 key={record.id}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
@@ -189,7 +189,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
         <Card title="In Progress" subtitle={`${inProgress.length} courses currently enrolled`}>
           <div className="space-y-2">
             {inProgress.map(record => (
-              <div 
+              <div
                 key={record.id}
                 className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
               >
@@ -216,7 +216,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
         <Card title="Available Next" subtitle={`${available.length} courses you can take`}>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {available.slice(0, 10).map(course => (
-              <div 
+              <div
                 key={course.id}
                 className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
               >

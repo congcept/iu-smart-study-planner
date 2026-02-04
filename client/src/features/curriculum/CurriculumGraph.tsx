@@ -12,8 +12,8 @@ import {
   NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { Course, CourseNodeData } from '../types';
-import { categoryColors, difficultyColors, difficultyLabels } from '../lib/utils';
+import type { Course, CourseNodeData } from '../../types';
+import { categoryColors, difficultyColors, difficultyLabels } from "../../lib/utils";
 import { CheckCircle2, Circle, Lock, BookOpen } from 'lucide-react';
 
 interface CurriculumGraphProps {
@@ -26,7 +26,7 @@ interface CurriculumGraphProps {
 
 const CourseNode: React.FC<NodeProps<CourseNodeData>> = ({ data }) => {
   const { course, isCompleted, isInProgress, isAvailable, onClick } = data;
-  
+
   const getStatusIcon = () => {
     if (isCompleted) return <CheckCircle2 size={16} className="text-green-500" />;
     if (isInProgress) return <Circle size={16} className="text-blue-500 fill-blue-500" />;
@@ -56,16 +56,16 @@ const CourseNode: React.FC<NodeProps<CourseNodeData>> = ({ data }) => {
         <span className="text-xs font-bold text-gray-600">{course.code}</span>
         {getStatusIcon()}
       </div>
-      
+
       <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2">
         {course.name}
       </h4>
-      
+
       <div className="flex items-center gap-2 text-xs">
         <span className={`w-2 h-2 rounded-full ${categoryColor}`} />
         <span className="text-gray-600">{course.credits} credits</span>
       </div>
-      
+
       <div className="flex items-center gap-1 mt-2">
         <span className={`text-xs font-medium ${difficultyColors[course.difficultyLevel]}`}>
           Level {course.difficultyLevel}
@@ -74,7 +74,7 @@ const CourseNode: React.FC<NodeProps<CourseNodeData>> = ({ data }) => {
           ({difficultyLabels[course.difficultyLevel]})
         </span>
       </div>
-      
+
       {course.prerequisites.length > 0 && (
         <div className="mt-2 pt-2 border-t border-gray-100">
           <span className="text-xs text-gray-500">
@@ -105,10 +105,10 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
     // Group courses by difficulty level and category
     const level = course.difficultyLevel;
     const categoryIndex = ['REQUIRED', 'CORE', 'ELECTIVE', 'MAJOR_ELECTIVE'].indexOf(course.category);
-    
+
     const x = categoryIndex >= 0 ? categoryIndex * 300 : 0;
     const y = (level - 1) * 150 + (index % 3) * 20;
-    
+
     return { x, y };
   }, []);
 
@@ -116,7 +116,7 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
     return courses.map((course, index) => {
       const isCompleted = completedIdsSet.has(course.id);
       const isInProgress = inProgressIdsSet.has(course.id);
-      
+
       // Check if available (all prerequisites completed)
       const isAvailable = course.prerequisites.every(
         p => completedIdsSet.has(p.prerequisiteId)
@@ -141,7 +141,7 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
 
   const initialEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
-    
+
     courses.forEach(course => {
       course.prerequisites.forEach(prereq => {
         edges.push({
@@ -161,7 +161,7 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
         });
       });
     });
-    
+
     return edges;
   }, [courses, completedIdsSet]);
 
@@ -181,7 +181,7 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
       >
         <Background color="#e2e8f0" gap={16} />
         <Controls />
-        <MiniMap 
+        <MiniMap
           nodeStrokeWidth={3}
           zoomable
           pannable

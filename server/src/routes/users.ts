@@ -126,7 +126,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const validatedData = createUserSchema.parse(req.body);
-    
+
     const user = await prisma.user.create({
       data: {
         ...validatedData,
@@ -243,7 +243,7 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
     const completedCourseIds = new Set(
       records.filter(r => r.status === CourseStatus.COMPLETED).map(r => r.courseId)
     );
-    
+
     const inProgressCourseIds = new Set(
       records.filter(r => r.status === CourseStatus.IN_PROGRESS).map(r => r.courseId)
     );

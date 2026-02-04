@@ -11,41 +11,41 @@ async function main() {
     { code: 'IT100', name: 'Introduction to Computing', credits: 3, difficultyLevel: 1, category: CourseCategory.REQUIRED, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'MA101', name: 'Calculus I', credits: 3, difficultyLevel: 3, category: CourseCategory.REQUIRED, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'PH101', name: 'Physics I', credits: 3, difficultyLevel: 3, category: CourseCategory.REQUIRED, semesterOffered: [Semester.FALL, Semester.SPRING] },
-    
+
     // Year 1 - Semester 2
     { code: 'IT101', name: 'Programming Fundamentals', credits: 3, difficultyLevel: 2, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'MA102', name: 'Calculus II', credits: 3, difficultyLevel: 3, category: CourseCategory.REQUIRED, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'PH102', name: 'Physics II', credits: 3, difficultyLevel: 3, category: CourseCategory.REQUIRED, semesterOffered: [Semester.FALL, Semester.SPRING] },
-    
+
     // Year 2 - Semester 1
     { code: 'IT102', name: 'Object-Oriented Programming', credits: 3, difficultyLevel: 3, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'MA203', name: 'Discrete Mathematics', credits: 3, difficultyLevel: 4, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT200', name: 'Data Structures', credits: 3, difficultyLevel: 4, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT201', name: 'Computer Architecture', credits: 3, difficultyLevel: 3, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
-    
+
     // Year 2 - Semester 2
     { code: 'IT202', name: 'Algorithms', credits: 3, difficultyLevel: 5, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT203', name: 'Database Systems', credits: 3, difficultyLevel: 3, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT204', name: 'Operating Systems', credits: 3, difficultyLevel: 4, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'MA205', name: 'Probability & Statistics', credits: 3, difficultyLevel: 3, category: CourseCategory.REQUIRED, semesterOffered: [Semester.FALL, Semester.SPRING] },
-    
+
     // Year 3 - Semester 1
     { code: 'IT300', name: 'Software Engineering', credits: 3, difficultyLevel: 3, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT301', name: 'Computer Networks', credits: 3, difficultyLevel: 4, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT302', name: 'Web Development', credits: 3, difficultyLevel: 2, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT303', name: 'Artificial Intelligence', credits: 3, difficultyLevel: 5, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.FALL] },
-    
+
     // Year 3 - Semester 2
     { code: 'IT304', name: 'Machine Learning', credits: 3, difficultyLevel: 5, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.SPRING] },
     { code: 'IT305', name: 'Mobile Development', credits: 3, difficultyLevel: 3, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.SPRING] },
     { code: 'IT306', name: 'Information Security', credits: 3, difficultyLevel: 4, category: CourseCategory.CORE, semesterOffered: [Semester.FALL, Semester.SPRING] },
     { code: 'IT307', name: 'Cloud Computing', credits: 3, difficultyLevel: 3, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.SPRING] },
-    
+
     // Year 4 - Semester 1
     { code: 'IT400', name: 'Capstone Project I', credits: 3, difficultyLevel: 4, category: CourseCategory.REQUIRED, semesterOffered: [Semester.FALL] },
     { code: 'IT401', name: 'Distributed Systems', credits: 3, difficultyLevel: 5, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.FALL] },
     { code: 'IT402', name: 'Data Mining', credits: 3, difficultyLevel: 4, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.FALL] },
-    
+
     // Year 4 - Semester 2
     { code: 'IT403', name: 'Capstone Project II', credits: 3, difficultyLevel: 4, category: CourseCategory.REQUIRED, semesterOffered: [Semester.SPRING] },
     { code: 'IT404', name: 'Blockchain Technology', credits: 3, difficultyLevel: 4, category: CourseCategory.ELECTIVE, semesterOffered: [Semester.SPRING] },
@@ -55,7 +55,7 @@ async function main() {
   // Create courses
   console.log('Creating courses...');
   const createdCourses: Record<string, any> = {};
-  
+
   for (const courseData of courses) {
     const course = await prisma.course.create({
       data: courseData,
@@ -125,7 +125,7 @@ async function main() {
   for (const prereq of prerequisites) {
     const course = createdCourses[prereq.course];
     const prerequisite = createdCourses[prereq.prerequisite];
-    
+
     if (course && prerequisite) {
       await prisma.prerequisite.create({
         data: {
@@ -154,7 +154,7 @@ async function main() {
   // Create sample student records (completed courses)
   console.log('\nCreating sample student records...');
   const completedCourses = ['IT100', 'MA101', 'PH101', 'IT101', 'MA102', 'PH102', 'IT102', 'MA203', 'IT200'];
-  
+
   for (let i = 0; i < completedCourses.length; i++) {
     const course = createdCourses[completedCourses[i]];
     if (course) {

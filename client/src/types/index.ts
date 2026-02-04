@@ -24,21 +24,21 @@ export interface Prerequisite {
   course?: Course;
 }
 
-export type CourseCategory = 
-  | 'REQUIRED' 
-  | 'ELECTIVE' 
-  | 'CORE' 
-  | 'MAJOR_ELECTIVE' 
-  | 'GENERAL_EDUCATION' 
+export type CourseCategory =
+  | 'REQUIRED'
+  | 'ELECTIVE'
+  | 'CORE'
+  | 'MAJOR_ELECTIVE'
+  | 'GENERAL_EDUCATION'
   | 'FREE_ELECTIVE';
 
 export type Semester = 'FALL' | 'SPRING' | 'SUMMER';
 
-export type CourseStatus = 
-  | 'PLANNED' 
-  | 'IN_PROGRESS' 
-  | 'COMPLETED' 
-  | 'FAILED' 
+export type CourseStatus =
+  | 'PLANNED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'FAILED'
   | 'DROPPED';
 
 // User Types
@@ -145,7 +145,7 @@ export interface AppState {
   activePlan: StudyPlan | null;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   setUser: (user: User | null) => void;
   setCourses: (courses: Course[]) => void;
@@ -154,7 +154,7 @@ export interface AppState {
   setActivePlan: (plan: StudyPlan | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  
+
   // Computed
   completedCourseIds: () => string[];
   availableCourses: () => Course[];
