@@ -57,9 +57,9 @@ export const formatSemester = (semester: string, year: number): string => {
 };
 
 export const calculateGPA = (records: { gradePoints?: number }[]): number => {
-  const validRecords = records.filter(r => r.gradePoints !== undefined);
+  const validRecords = records.filter((r) => r.gradePoints !== undefined);
   if (validRecords.length === 0) return 0;
-  
+
   const total = validRecords.reduce((sum, r) => sum + (r.gradePoints || 0), 0);
   return Math.round((total / validRecords.length) * 100) / 100;
 };

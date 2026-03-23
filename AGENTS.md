@@ -16,6 +16,7 @@ cd server && npm run dev        # Port 3001
 ## Build Commands
 
 ### Client
+
 ```bash
 npm run dev          # Dev server
 npm run build        # Production build
@@ -24,6 +25,7 @@ npm run preview      # Preview build
 ```
 
 ### Server
+
 ```bash
 npm run dev          # Dev with hot reload
 npm run build        # Compile TypeScript
@@ -52,6 +54,7 @@ npm install -D jest @types/jest ts-jest supertest
 ```
 
 **Run tests once configured:**
+
 ```bash
 npm run test                      # All tests
 npm run test -- Component.test.tsx   # Single file
@@ -61,11 +64,13 @@ npm run test -- --testNamePattern="test name"  # Single test
 ## Code Style
 
 ### TypeScript
+
 - **Strict mode required** - No `any` types
 - Define interfaces for all data structures
 - Use `type` for unions, `interface` for objects
 
 ### Imports (Ordered)
+
 ```typescript
 // 1. External
 import React from 'react';
@@ -84,6 +89,7 @@ import './styles.css';
 ```
 
 ### Naming
+
 - **Components**: PascalCase (`CurriculumGraph`)
 - **Functions/vars**: camelCase (`handleClick`)
 - **Constants**: UPPER_SNAKE_CASE (`API_URL`)
@@ -91,6 +97,7 @@ import './styles.css';
 - **Files**: PascalCase components, camelCase utils
 
 ### React Components
+
 ```typescript
 interface Props {
   title: string;
@@ -98,16 +105,17 @@ interface Props {
 
 const Component: React.FC<Props> = ({ title }) => {
   const [count, setCount] = useState<number>(0);
-  
+
   const handleClick = useCallback(() => {
     setCount(c => c + 1);
   }, []);
-  
+
   return <div>{title}</div>;
 };
 ```
 
 ### API Routes (Server)
+
 ```typescript
 // Consistent response format
 try {
@@ -115,25 +123,28 @@ try {
   res.json({ success: true, data });
 } catch (error) {
   console.error('Context:', error);
-  res.status(500).json({ 
-    success: false, 
-    error: 'Descriptive message' 
+  res.status(500).json({
+    success: false,
+    error: 'Descriptive message',
   });
 }
 ```
 
 ### Error Handling
+
 - Always use try/catch for async operations
 - Validate with Zod at API boundaries
 - Log errors with context on backend
 - Return structured error responses
 
 ### Comments
+
 - **Minimal** - Only explain complex logic
 - Explain "why" not "what"
 - Use JSDoc for public APIs only
 
 ### Formatting
+
 - 2 spaces indentation
 - Single quotes
 - Semicolons required
@@ -141,6 +152,7 @@ try {
 - Trailing commas in multi-line
 
 ### Git Commits
+
 ```
 feat: add user authentication
 fix: resolve course query bug
@@ -154,11 +166,13 @@ chore: update dependencies
 ## Environment Variables
 
 **Client (.env)**
+
 ```
 VITE_API_URL=http://localhost:3001/api
 ```
 
 **Server (.env)**
+
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/iu_study_planner
 PORT=3001
@@ -182,7 +196,7 @@ server/src/
   config/        # Configuration
   routes/        # API handlers
   services/      # Business logic
-  
+
 prisma/
   schema.prisma  # DB schema
   seed.ts       # Seed data

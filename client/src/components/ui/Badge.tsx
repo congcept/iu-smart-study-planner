@@ -6,11 +6,7 @@ interface BadgeProps {
   className?: string;
 }
 
-export const Badge: React.FC<BadgeProps> = ({
-  children,
-  variant = 'default',
-  className = '',
-}) => {
+export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', className = '' }) => {
   const variantStyles: Record<NonNullable<BadgeProps['variant']>, string> = {
     default: 'bg-gray-100 text-gray-800',
     success: 'bg-green-100 text-green-800',
@@ -27,4 +23,3 @@ export const Badge: React.FC<BadgeProps> = ({
     </span>
   );
 };
-

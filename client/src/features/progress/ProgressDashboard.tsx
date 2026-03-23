@@ -2,13 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { StudentRecord, Course } from '@/types';
 import { Badge, Card, ProgressBar } from '@components/ui';
 import { getUserProgress } from '@/lib/api';
-import {
-  GraduationCap,
-  BookOpen,
-  Target,
-  Award,
-  Clock
-} from 'lucide-react';
+import { GraduationCap, BookOpen, Target, Award, Clock } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 interface ProgressDashboardProps {
@@ -33,6 +27,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
 
   useEffect(() => {
     fetchProgress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchProgress = async () => {
@@ -94,17 +89,13 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
 
           <div className="p-4 bg-amber-50 rounded-lg text-center">
             <Clock size={32} className="mx-auto mb-2 text-amber-600" />
-            <div className="text-2xl font-bold text-gray-900">
-              {inProgress.length}
-            </div>
+            <div className="text-2xl font-bold text-gray-900">{inProgress.length}</div>
             <div className="text-sm text-gray-600">In Progress</div>
           </div>
 
           <div className="p-4 bg-purple-50 rounded-lg text-center">
             <BookOpen size={32} className="mx-auto mb-2 text-purple-600" />
-            <div className="text-2xl font-bold text-gray-900">
-              {available.length}
-            </div>
+            <div className="text-2xl font-bold text-gray-900">{available.length}</div>
             <div className="text-sm text-gray-600">Available</div>
           </div>
         </div>
@@ -142,11 +133,10 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
             <Target size={20} className="text-primary-600" />
             <span className="font-medium text-gray-900">Degree Progress</span>
           </div>
-          <div className="text-3xl font-bold text-primary-600">
-            {progress.progress.percentage}%
-          </div>
+          <div className="text-3xl font-bold text-primary-600">{progress.progress.percentage}%</div>
           <p className="text-sm text-gray-600 mt-1">
-            {progress.progress.totalCourses - progress.progress.completedCourses} more courses to graduate
+            {progress.progress.totalCourses - progress.progress.completedCourses} more courses to
+            graduate
           </p>
         </div>
       </Card>
@@ -155,16 +145,14 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
       {completed.length > 0 && (
         <Card title="Completed Courses" subtitle={`${completed.length} courses finished`}>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {completed.map(record => (
+            {completed.map((record) => (
               <div
                 key={record.id}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">
-                      {record.course.code}
-                    </span>
+                    <span className="font-semibold text-gray-900">{record.course.code}</span>
                     <Badge variant="success">{record.grade || 'Pass'}</Badge>
                   </div>
                   <p className="text-sm text-gray-600">{record.course.name}</p>
@@ -173,9 +161,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
                   <span className="text-sm text-gray-500">
                     {record.semester} {record.year}
                   </span>
-                  <p className="text-xs text-gray-400">
-                    {record.course.credits} credits
-                  </p>
+                  <p className="text-xs text-gray-400">{record.course.credits} credits</p>
                 </div>
               </div>
             ))}
@@ -187,22 +173,18 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
       {inProgress.length > 0 && (
         <Card title="In Progress" subtitle={`${inProgress.length} courses currently enrolled`}>
           <div className="space-y-2">
-            {inProgress.map(record => (
+            {inProgress.map((record) => (
               <div
                 key={record.id}
                 className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
               >
                 <div>
-                  <span className="font-semibold text-gray-900">
-                    {record.course.code}
-                  </span>
+                  <span className="font-semibold text-gray-900">{record.course.code}</span>
                   <p className="text-sm text-gray-600">{record.course.name}</p>
                 </div>
                 <div className="text-right">
                   <Badge variant="info">In Progress</Badge>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {record.course.credits} credits
-                  </p>
+                  <p className="text-xs text-gray-400 mt-1">{record.course.credits} credits</p>
                 </div>
               </div>
             ))}
@@ -214,29 +196,21 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
       {available.length > 0 && (
         <Card title="Available Next" subtitle={`${available.length} courses you can take`}>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {available.slice(0, 10).map(course => (
+            {available.slice(0, 10).map((course) => (
               <div
                 key={course.id}
                 className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">
-                      {course.code}
-                    </span>
-                    <Badge variant="default">
-                      {categoryLabels[course.category]}
-                    </Badge>
+                    <span className="font-semibold text-gray-900">{course.code}</span>
+                    <Badge variant="default">{categoryLabels[course.category]}</Badge>
                   </div>
                   <p className="text-sm text-gray-600">{course.name}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm text-gray-500">
-                    Level {course.difficultyLevel}
-                  </span>
-                  <p className="text-xs text-gray-400">
-                    {course.credits} credits
-                  </p>
+                  <span className="text-sm text-gray-500">Level {course.difficultyLevel}</span>
+                  <p className="text-xs text-gray-400">{course.credits} credits</p>
                 </div>
               </div>
             ))}

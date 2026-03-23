@@ -1,39 +1,21 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { CreateStudyPlanSchema, CreateSemesterSchema } from '@iu-study-planner/shared';
 
 const router = Router();
 const prisma = new PrismaClient();
-
-// Validation schemas
-const createStudyPlanSchema = z.object({
-  userId: z.string().uuid(),
-  name: z.string().min(1),
-  description: z.string().optional(),
-});
-
-const createSemesterSchema = z.object({
-  semester: z.enum(['FALL', 'SPRING', 'SUMMER']),
-  year: z.number().int(),
-  courses: z.array(z.object({
-    courseId: z.string().uuid(),
-    position: z.number().int(),
-  })),
-});
 
 // Get all study plans for a user
 router.get('/user/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    
+
     const plans = await prisma.studyPlan.findMany({
       where: { userId },
       include: {
         semesters: {
-          orderBy: [
-            { year: 'asc' },
-            { semester: 'asc' },
-          ],
+          orderBy: [{ year: 'asc' }, { semester: 'asc' }],
         },
       },
       orderBy: {
@@ -59,7 +41,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     const plan = await prisma.studyPlan.findUnique({
       where: { id },
       include: {
@@ -71,10 +53,7 @@ router.get('/:id', async (req: Request, res: Response) => {
           },
         },
         semesters: {
-          orderBy: [
-            { year: 'asc' },
-            { semester: 'asc' },
-          ],
+          orderBy: [{ year: 'asc' }, { semester: 'asc' }],
         },
       },
     });
@@ -102,8 +81,8 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create new study plan
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const validatedData = createStudyPlanSchema.parse(req.body);
-    
+    const validatedData = CreateStudyPlanSchema.parse(req.body);
+
     // Deactivate any existing active plans before creating a new active one.
     await prisma.studyPlan.updateMany({
       where: { userId: validatedData.userId },
@@ -145,7 +124,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/:id/semesters', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const validatedData = createSemesterSchema.parse(req.body);
+    const validatedData = CreateSemesterSchema.parse(req.body);
 
     // Check if study plan exists
     const plan = await prisma.studyPlan.findUnique({ where: { id } });
@@ -157,13 +136,14 @@ router.post('/:id/semesters', async (req: Request, res: Response) => {
     }
 
     // Calculate total credits and difficulty
-    const courseIds = validatedData.courses.map(c => c.courseId);
+    const courseIds = validatedData.courses.map((c) => c.courseId);
     const courses = await prisma.course.findMany({
       where: { id: { in: courseIds } },
     });
 
-    const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
-    const difficultyScore = courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / (courses.length || 1);
+    const totalCredits = courses.reduce((sum: number, c: { credits: number }) => sum + c.credits, 0);
+    const difficultyScore =
+      courses.reduce((sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel, 0) / (courses.length || 1);
 
     const semester = await prisma.plannedSemester.create({
       data: {
@@ -201,18 +181,21 @@ router.post('/:id/semesters', async (req: Request, res: Response) => {
 router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response) => {
   try {
     const { semesterId } = req.params;
-    const validatedData = createSemesterSchema.partial().parse(req.body);
+    const validatedData = CreateSemesterSchema.partial().parse(req.body);
 
     // Recalculate if courses changed
-    let updateData: any = validatedData;
+    const updateData: typeof validatedData & { totalCredits?: number; difficultyScore?: number } = {
+      ...validatedData,
+    };
     if (validatedData.courses) {
-      const courseIds = validatedData.courses.map(c => c.courseId);
+      const courseIds = validatedData.courses.map((c) => c.courseId);
       const courses = await prisma.course.findMany({
         where: { id: { in: courseIds } },
       });
 
-      updateData.totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
-      updateData.difficultyScore = courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / (courses.length || 1);
+      updateData.totalCredits = courses.reduce((sum: number, c: { credits: number }) => sum + c.credits, 0);
+      updateData.difficultyScore =
+        courses.reduce((sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel, 0) / (courses.length || 1);
     }
 
     const semester = await prisma.plannedSemester.update({

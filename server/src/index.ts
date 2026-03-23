@@ -14,10 +14,12 @@ export const prisma = new PrismaClient();
 const app: Application = express();
 
 // Middleware
-app.use(cors({
-  origin: config.corsOrigin,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: config.corsOrigin,
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -93,6 +95,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 export default app;

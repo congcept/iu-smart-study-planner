@@ -1,28 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, CourseStatus } from '@prisma/client';
 import { z } from 'zod';
+import { CreateUserSchema, UpdateStudentRecordSchema } from '@iu-study-planner/shared';
 
 const router = Router();
 const prisma = new PrismaClient();
-
-// Validation schemas
-const createUserSchema = z.object({
-  studentId: z.string().min(1),
-  name: z.string().min(1),
-  email: z.string().email(),
-  major: z.string().optional(),
-  enrollmentYear: z.number().int().min(2000).max(2100).optional(),
-  targetGraduationYear: z.number().int().min(2000).max(2100).optional(),
-});
-
-const updateStudentRecordSchema = z.object({
-  courseId: z.string().uuid(),
-  grade: z.string().optional(),
-  gradePoints: z.number().min(0).max(4).optional(),
-  semester: z.string().optional(),
-  year: z.number().int().optional(),
-  status: z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'DROPPED']),
-});
 
 // Get all users
 router.get('/', async (_req: Request, res: Response) => {
@@ -95,11 +77,13 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     // Calculate statistics
-    const completedCourses = user.studentRecords.filter(r => r.status === CourseStatus.COMPLETED);
+    const completedCourses = user.studentRecords.filter((r) => r.status === CourseStatus.COMPLETED);
     const totalCredits = completedCourses.reduce((sum, r) => sum + r.course.credits, 0);
-    const gpa = completedCourses.length > 0
-      ? completedCourses.reduce((sum, r) => sum + (r.gradePoints || 0), 0) / completedCourses.length
-      : 0;
+    const gpa =
+      completedCourses.length > 0
+        ? completedCourses.reduce((sum, r) => sum + (r.gradePoints || 0), 0) /
+          completedCourses.length
+        : 0;
 
     return res.json({
       success: true,
@@ -125,7 +109,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create new user
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const validatedData = createUserSchema.parse(req.body);
+    const validatedData = CreateUserSchema.parse(req.body);
 
     const user = await prisma.user.create({
       data: {
@@ -159,7 +143,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/:id/records', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const validatedData = updateStudentRecordSchema.parse(req.body);
+    const validatedData = UpdateStudentRecordSchema.parse(req.body);
 
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { id } });
@@ -245,32 +229,32 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
 
     // Categorize courses
     const completedCourseIds = new Set(
-      records.filter(r => r.status === CourseStatus.COMPLETED).map(r => r.courseId)
+      records.filter((r) => r.status === CourseStatus.COMPLETED).map((r) => r.courseId),
     );
 
     const inProgressCourseIds = new Set(
-      records.filter(r => r.status === CourseStatus.IN_PROGRESS).map(r => r.courseId)
+      records.filter((r) => r.status === CourseStatus.IN_PROGRESS).map((r) => r.courseId),
     );
 
-    const availableCourses = allCourses.filter(course => {
+    const availableCourses = allCourses.filter((course) => {
       if (completedCourseIds.has(course.id) || inProgressCourseIds.has(course.id)) {
         return false;
       }
       // Check if all prerequisites are completed
-      return course.prerequisites.every(prereq => completedCourseIds.has(prereq.prerequisiteId));
+      return course.prerequisites.every((prereq) => completedCourseIds.has(prereq.prerequisiteId));
     });
 
     const totalCredits = allCourses.reduce((sum, c) => sum + c.credits, 0);
     const completedCredits = records
-      .filter(r => r.status === CourseStatus.COMPLETED)
+      .filter((r) => r.status === CourseStatus.COMPLETED)
       .reduce((sum, r) => sum + r.course.credits, 0);
 
     return res.json({
       success: true,
       data: {
-        completed: records.filter(r => r.status === CourseStatus.COMPLETED),
-        inProgress: records.filter(r => r.status === CourseStatus.IN_PROGRESS),
-        planned: records.filter(r => r.status === CourseStatus.PLANNED),
+        completed: records.filter((r) => r.status === CourseStatus.COMPLETED),
+        inProgress: records.filter((r) => r.status === CourseStatus.IN_PROGRESS),
+        planned: records.filter((r) => r.status === CourseStatus.PLANNED),
         available: availableCourses,
         progress: {
           totalCourses: allCourses.length,

@@ -7,10 +7,14 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
+    "lint": "eslint . --ext ts",
+    "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "ts-node prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "keywords": [
     "study-planner",
@@ -20,6 +24,7 @@
   "author": "IU Student",
   "license": "MIT",
   "dependencies": {
+    "@iu-study-planner/shared": "*",
     "@prisma/client": "^5.6.0",
     "@types/cheerio": "^0.22.35",
     "@types/pdf-parse": "^1.1.5",
@@ -34,9 +39,17 @@
   "devDependencies": {
     "@types/cors": "^2.8.16",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.9.0",
+    "@types/supertest": "^7.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "jest": "^30.3.0",
     "nodemon": "^3.0.1",
     "prisma": "^5.6.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
   },

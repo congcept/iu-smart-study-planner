@@ -34,12 +34,7 @@ export type CourseCategory =
 
 export type Semester = 'FALL' | 'SPRING' | 'SUMMER';
 
-export type CourseStatus =
-  | 'PLANNED'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'DROPPED';
+export type CourseStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'DROPPED';
 
 // User Types
 export interface User {
@@ -133,7 +128,7 @@ export interface ApiResponse<T> {
   error?: string;
   message?: string;
   count?: number;
-  details?: any;
+  details?: unknown;
 }
 
 // Store Types

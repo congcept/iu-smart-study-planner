@@ -1,4 +1,9 @@
-import { Course, StudentRecord } from '@prisma/client';
+import { Course, StudentRecord, Prerequisite } from '@prisma/client';
+
+type CourseWithRelations = Course & {
+  prerequisites: (Prerequisite & { prerequisite?: Course })[];
+  isPrerequisiteFor?: (Prerequisite & { course?: Course })[];
+};
 
 interface WorkloadAnalysis {
   totalCredits: number;
@@ -9,7 +14,7 @@ interface WorkloadAnalysis {
 }
 
 interface RecommendationInput {
-  availableCourses: (Course & { prerequisites: any[]; isPrerequisiteFor?: any[] })[];
+  availableCourses: CourseWithRelations[];
   maxCredits: number;
   maxDifficulty: number;
   userHistory: (StudentRecord & { course: Course })[];
@@ -22,11 +27,12 @@ class WorkloadBalancer {
    */
   private calculateWorkloadScore(courses: Course[]): number {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
-    const avgDifficulty = courses.length > 0
-      ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
-      : 0;
-    
-    return (totalCredits * 0.4) + (avgDifficulty * totalCredits * 0.6);
+    const avgDifficulty =
+      courses.length > 0
+        ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
+        : 0;
+
+    return totalCredits * 0.4 + avgDifficulty * totalCredits * 0.6;
   }
 
   /**
@@ -44,10 +50,11 @@ class WorkloadBalancer {
    */
   analyzeSemesterWorkload(courses: Course[]): WorkloadAnalysis {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
-    const averageDifficulty = courses.length > 0
-      ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
-      : 0;
-    
+    const averageDifficulty =
+      courses.length > 0
+        ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
+        : 0;
+
     const workloadScore = this.calculateWorkloadScore(courses);
     const riskLevel = this.determineRiskLevel(workloadScore);
     const recommendations: string[] = [];
@@ -60,22 +67,27 @@ class WorkloadBalancer {
       recommendations.push(`Consider adding more courses to reach at least 12 credits`);
     }
     if (averageDifficulty > 3.5) {
-      recommendations.push('High average difficulty detected. Consider balancing with easier courses');
+      recommendations.push(
+        'High average difficulty detected. Consider balancing with easier courses',
+      );
     }
-    if (courses.filter(c => c.difficultyLevel >= 4).length > 2) {
-      recommendations.push('Multiple high-difficulty courses detected. Spread them across semesters');
+    if (courses.filter((c) => c.difficultyLevel >= 4).length > 2) {
+      recommendations.push(
+        'Multiple high-difficulty courses detected. Spread them across semesters',
+      );
     }
 
     // Add category-specific recommendations
     const categoryCount = new Map<string, number>();
-    courses.forEach(c => {
+    courses.forEach((c) => {
       const count = categoryCount.get(c.category) || 0;
       categoryCount.set(c.category, count + 1);
     });
 
-    const highConcentrationCategories = Array.from(categoryCount.entries())
-      .filter(([_, count]) => count > 3);
-    
+    const highConcentrationCategories = Array.from(categoryCount.entries()).filter(
+      ([_, count]) => count > 3,
+    );
+
     if (highConcentrationCategories.length > 0) {
       recommendations.push('Consider diversifying course categories for better balance');
     }
@@ -94,28 +106,28 @@ class WorkloadBalancer {
    */
   calculateRecommendations(input: RecommendationInput): Course[] {
     const { availableCourses, maxCredits, maxDifficulty, userHistory } = input;
-    
+
     // Sort by priority factors
-    const scoredCourses = availableCourses.map(course => {
+    const scoredCourses = availableCourses.map((course) => {
       let priorityScore = 0;
 
       // Higher priority for required courses
       if (course.category === 'REQUIRED') priorityScore += 10;
       if (course.category === 'CORE') priorityScore += 8;
-      
+
       // Higher priority for courses that unlock many other courses
       const unlocksCount = course.isPrerequisiteFor?.length || 0;
       priorityScore += unlocksCount * 2;
 
       // Consider user's past performance on similar difficulty levels
       const similarDifficultyCourses = userHistory.filter(
-        r => r.course.difficultyLevel === course.difficultyLevel
+        (r) => r.course.difficultyLevel === course.difficultyLevel,
       );
       if (similarDifficultyCourses.length > 0) {
-        const avgPerformance = similarDifficultyCourses.reduce(
-          (sum, r) => sum + (r.gradePoints || 0), 0
-        ) / similarDifficultyCourses.length;
-        
+        const avgPerformance =
+          similarDifficultyCourses.reduce((sum, r) => sum + (r.gradePoints || 0), 0) /
+          similarDifficultyCourses.length;
+
         // If user struggles with this difficulty, lower priority slightly
         if (avgPerformance < 2.5) {
           priorityScore -= 2;
@@ -142,7 +154,8 @@ class WorkloadBalancer {
 
     for (const { course } of scoredCourses) {
       const projectedCredits = currentCredits + course.credits;
-      const projectedDifficulty = (currentDifficultySum + course.difficultyLevel) / (selected.length + 1);
+      const projectedDifficulty =
+        (currentDifficultySum + course.difficultyLevel) / (selected.length + 1);
 
       // Check constraints
       if (projectedCredits > maxCredits) continue;
@@ -163,7 +176,10 @@ class WorkloadBalancer {
   /**
    * Validate if a semester plan is feasible
    */
-  validateSemesterPlan(courses: (Course & { prerequisites?: any[] })[], userCompletedCourseIds: Set<string>): {
+  validateSemesterPlan(
+    courses: CourseWithRelations[],
+    userCompletedCourseIds: Set<string>,
+  ): {
     isValid: boolean;
     errors: string[];
     warnings: string[];
@@ -172,11 +188,13 @@ class WorkloadBalancer {
     const warnings: string[] = [];
 
     // Check prerequisites
-    courses.forEach(course => {
+    courses.forEach((course) => {
       if (course.prerequisites) {
-        course.prerequisites.forEach((prereq: any) => {
+        course.prerequisites.forEach((prereq) => {
           if (!userCompletedCourseIds.has(prereq.prerequisiteId)) {
-            errors.push(`Missing prerequisite: ${prereq.prerequisite?.code || 'Unknown'} for ${course.code}`);
+            errors.push(
+              `Missing prerequisite: ${prereq.prerequisite?.code || 'Unknown'} for ${course.code}`,
+            );
           }
         });
       }
@@ -184,9 +202,10 @@ class WorkloadBalancer {
 
     // Check workload constraints
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
-    const avgDifficulty = courses.length > 0
-      ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
-      : 0;
+    const avgDifficulty =
+      courses.length > 0
+        ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
+        : 0;
 
     if (totalCredits > 21) {
       errors.push(`Total credits (${totalCredits}) exceeds maximum allowed (21)`);
@@ -200,7 +219,7 @@ class WorkloadBalancer {
 
     // Check for schedule conflicts (would need actual schedule data)
     // This is a placeholder for future implementation
-    
+
     return {
       isValid: errors.length === 0,
       errors,

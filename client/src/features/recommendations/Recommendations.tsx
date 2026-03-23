@@ -2,14 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Course, Recommendation } from '../../types';
 import { Badge, Button, Card } from '@components/ui';
 import { getRecommendations } from '../../lib/api';
-import { 
-  Sparkles, 
-  BookOpen, 
-  Target, 
-  TrendingUp,
-  Plus,
-  Check
-} from 'lucide-react';
+import { Sparkles, BookOpen, Target, TrendingUp, Plus, Check } from 'lucide-react';
 import { difficultyColors, categoryLabels, formatCredits } from '../../lib/utils';
 
 interface RecommendationsProps {
@@ -29,6 +22,7 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
 
   useEffect(() => {
     fetchRecommendations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchRecommendations = async () => {
@@ -38,7 +32,7 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
         maxCredits: 18,
         maxDifficulty: 3.5,
       });
-      
+
       if (response.success) {
         setRecommendations(response.data);
       } else {
@@ -66,11 +60,7 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
       <Card title="Smart Recommendations" subtitle="AI-powered course suggestions">
         <div className="text-center py-8 text-red-500">
           <p>{error}</p>
-          <Button 
-            variant="secondary" 
-            className="mt-4"
-            onClick={fetchRecommendations}
-          >
+          <Button variant="secondary" className="mt-4" onClick={fetchRecommendations}>
             Retry
           </Button>
         </div>
@@ -91,8 +81,8 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
   }
 
   return (
-    <Card 
-      title="Smart Recommendations" 
+    <Card
+      title="Smart Recommendations"
       subtitle={`${recommendations.stats.recommendedCount} courses recommended`}
     >
       {/* Stats Summary */}
@@ -129,12 +119,12 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
           <Sparkles size={16} className="text-yellow-500" />
           Recommended Courses
         </h4>
-        
+
         {recommendations.courses.map((course, index) => {
           const isAdded = addedCourseIds.includes(course.id);
-          
+
           return (
-            <div 
+            <div
               key={course.id}
               className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
             >
@@ -152,23 +142,23 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
                   </div>
                   <h5 className="font-medium text-gray-800">{course.name}</h5>
                   <p className="text-sm text-gray-500 mt-1">
-                    {formatCredits(course.credits)} • 
+                    {formatCredits(course.credits)} •
                     <span className={`ml-1 ${difficultyColors[course.difficultyLevel]}`}>
                       Difficulty Level {course.difficultyLevel}
                     </span>
                   </p>
-                  
+
                   {course.prerequisites.length > 0 && (
                     <div className="mt-2 text-xs text-gray-500">
                       Prerequisites: {course.prerequisites.length} course(s) required
                     </div>
                   )}
                 </div>
-                
+
                 {onAddToPlan && (
                   <Button
                     size="sm"
-                    variant={isAdded ? "secondary" : "primary"}
+                    variant={isAdded ? 'secondary' : 'primary'}
                     leftIcon={isAdded ? <Check size={16} /> : <Plus size={16} />}
                     onClick={() => !isAdded && onAddToPlan(course)}
                     disabled={isAdded}

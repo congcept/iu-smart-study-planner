@@ -24,11 +24,13 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 ## 🎯 Overview
 
 **Problem:** Students currently rely on static, confusing PDF flowcharts to plan their degree, leading to:
+
 - Missing prerequisites
 - Unbalanced semesters (too many heavy courses at once)
 - Delayed graduation
 
 **Solution:** IU Smart Study Planner provides:
+
 - Interactive curriculum dependency graph visualization
 - Adaptive course recommendations based on workload balancing
 - Smart prerequisite logic validation
@@ -39,6 +41,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 ### Core Features
 
 #### 1. Interactive Curriculum Graph
+
 - Visual representation of courses as nodes
 - Prerequisite relationships as edges
 - Color-coded by course category (Required, Core, Elective, etc.)
@@ -46,6 +49,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - Drag-and-drop canvas powered by React Flow
 
 #### 2. Smart Course Recommendations
+
 - AI-powered workload balancing algorithm
 - Considers past performance and course difficulty
 - Prioritizes required and core courses
@@ -53,12 +57,14 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - Analyzes risk levels (Low, Medium, High, Critical)
 
 #### 3. Workload Analyzer
+
 - Calculates total credits and average difficulty
 - Provides workload score and risk assessment
 - Offers actionable recommendations
 - Validates semester plan feasibility
 
 #### 4. Progress Dashboard
+
 - Visual progress indicators
 - Completed courses history
 - GPA calculation
@@ -66,6 +72,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - Available courses listing
 
 #### 5. Study Plan Management
+
 - Create multiple study plans
 - Semester-by-semester planning
 - Course scheduling with validation
@@ -74,6 +81,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 ## 🛠 Tech Stack
 
 ### Frontend
+
 - **Framework:** React 18.2 with TypeScript (Strict Mode)
 - **Build Tool:** Vite 5.0
 - **Styling:** Tailwind CSS 3.3
@@ -83,6 +91,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - **HTTP Client:** Axios
 
 ### Backend
+
 - **Runtime:** Node.js 20
 - **Framework:** Express.js 4.18
 - **Language:** TypeScript 5.2 (Strict Mode)
@@ -91,6 +100,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - **Database:** PostgreSQL 15
 
 ### DevOps
+
 - **Containerization:** Docker & Docker Compose
 - **Development:** Nodemon, ts-node
 
@@ -180,6 +190,7 @@ docker-compose down -v
 ```
 
 **Services will be available at:**
+
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3001
 - API Health Check: http://localhost:3001/api/health
@@ -240,6 +251,7 @@ npm run dev
 Create `.env` files in both client and server directories:
 
 **Server (.env):**
+
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/iu_study_planner
 PORT=3001
@@ -250,6 +262,7 @@ JWT_EXPIRES_IN=7d
 ```
 
 **Client (.env):**
+
 ```env
 VITE_API_URL=http://localhost:3001/api
 ```
@@ -277,7 +290,17 @@ npx prisma generate
 
 ### Available Scripts
 
+**Root (Monorepo):**
+
+```bash
+npm run format      # Format all files with Prettier
+npm run format:check # Check if files are formatted
+npm run lint        # Run ESLint across all workspaces
+npm run test        # Run Vitest (client) and Jest (server) tests
+```
+
 **Backend:**
+
 ```bash
 npm run dev       # Start with hot-reload
 npm run build     # Build for production
@@ -289,16 +312,32 @@ npm run db:studio     # Open Prisma Studio
 ```
 
 **Frontend:**
+
 ```bash
 npm run dev       # Start development server
 npm run build     # Build for production
 npm run preview   # Preview production build
 npm run lint      # Run ESLint
+npm run test      # Run Vitest tests
 ```
+
+### Shared Schemas & Validation
+
+The project uses `zod` for payload validation. All validation schemas and Data Transfer Objects (DTOs) are located in the `shared/` workspace to ensure type safety across the monorepo boundary.
+
+**To create a new shared schema:**
+1. Export the Zod schema in `shared/src/schemas/index.ts`
+2. Infer the TypeScript type and export the DTO interface in `shared/src/dto/index.ts`
+3. If the server or client is running, you may need to restart, or run `npm run build` within `shared` directory to compile changes.
+4. Import and use the schema/DTO in client and server:
+   ```ts
+   import { MyNewSchema, MyNewDTO } from '@iu-study-planner/shared';
+   ```
 
 ## 📚 API Documentation
 
 ### Base URL
+
 ```
 http://localhost:3001/api
 ```
@@ -306,11 +345,13 @@ http://localhost:3001/api
 ### Endpoints
 
 #### Health Check
+
 ```
 GET /health
 ```
 
 #### Courses
+
 ```
 GET    /courses                    # List all courses
 GET    /courses/:id                # Get course details
@@ -322,6 +363,7 @@ DELETE /courses/prerequisites/:id  # Remove prerequisite
 ```
 
 #### Users
+
 ```
 GET    /users                      # List users
 GET    /users/:id                  # Get user details
@@ -331,6 +373,7 @@ GET    /users/:id/progress        # Get user progress
 ```
 
 #### Study Plans
+
 ```
 GET    /study-plans/user/:userId   # Get user's study plans
 GET    /study-plans/:id            # Get plan details
@@ -342,6 +385,7 @@ DELETE /study-plans/:id
 ```
 
 #### Recommendations
+
 ```
 GET    /recommendations/user/:userId  # Get recommendations
 POST   /recommendations/analyze-workload
@@ -353,6 +397,7 @@ GET    /recommendations/prerequisite-chain/:courseId
 ### Models
 
 #### Course
+
 - `id`: UUID (Primary Key)
 - `code`: String (Unique) - e.g., "IT101"
 - `name`: String - Course name
@@ -365,6 +410,7 @@ GET    /recommendations/prerequisite-chain/:courseId
 - `createdAt`, `updatedAt`: Timestamps
 
 #### Prerequisite
+
 - Self-relation on Course
 - `courseId`: UUID
 - `prerequisiteId`: UUID
@@ -372,6 +418,7 @@ GET    /recommendations/prerequisite-chain/:courseId
 - `isStrict`: Boolean
 
 #### User
+
 - `id`: UUID (Primary Key)
 - `studentId`: String (Unique)
 - `name`: String
@@ -381,6 +428,7 @@ GET    /recommendations/prerequisite-chain/:courseId
 - `targetGraduationYear`: Integer (Optional)
 
 #### StudentRecord
+
 - Tracks user progress on courses
 - `userId`, `courseId`: Foreign Keys
 - `grade`: String (e.g., "A", "B+")
@@ -389,6 +437,7 @@ GET    /recommendations/prerequisite-chain/:courseId
 - `semester`, `year`: When taken
 
 #### StudyPlan
+
 - `userId`: Foreign Key
 - `name`: String
 - `description`: String (Optional)
@@ -429,4 +478,4 @@ For support, email [your-email] or create an issue in the repository.
 
 **Built with ❤️ for IU Students**
 
-*This is a pre-thesis project for the Computer Science program at International University, VNU-HCM.*
+_This is a pre-thesis project for the Computer Science program at International University, VNU-HCM._

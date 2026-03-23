@@ -22,7 +22,7 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor
@@ -51,7 +51,7 @@ apiClient.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;
@@ -72,12 +72,12 @@ export const getCourseById = async (id: string) => {
   return response.data;
 };
 
-export const createCourse = async (courseData: any) => {
+export const createCourse = async (courseData: Record<string, unknown>) => {
   const response = await apiClient.post('/courses', courseData);
   return response.data;
 };
 
-export const updateCourse = async (id: string, courseData: any) => {
+export const updateCourse = async (id: string, courseData: Record<string, unknown>) => {
   const response = await apiClient.put(`/courses/${id}`, courseData);
   return response.data;
 };
@@ -87,7 +87,7 @@ export const deleteCourse = async (id: string) => {
   return response.data;
 };
 
-export const addPrerequisite = async (prereqData: any) => {
+export const addPrerequisite = async (prereqData: Record<string, unknown>) => {
   const response = await apiClient.post('/courses/prerequisites', prereqData);
   return response.data;
 };
@@ -107,12 +107,12 @@ export const getUserById = async (id: string) => {
   return response.data;
 };
 
-export const createUser = async (userData: any) => {
+export const createUser = async (userData: Record<string, unknown>) => {
   const response = await apiClient.post('/users', userData);
   return response.data;
 };
 
-export const addStudentRecord = async (userId: string, recordData: any) => {
+export const addStudentRecord = async (userId: string, recordData: Record<string, unknown>) => {
   const response = await apiClient.post(`/users/${userId}/records`, recordData);
   return response.data;
 };
@@ -132,18 +132,21 @@ export const getStudyPlanById = async (id: string) => {
   return response.data;
 };
 
-export const createStudyPlan = async (planData: any) => {
+export const createStudyPlan = async (planData: Record<string, unknown>) => {
   const response = await apiClient.post('/study-plans', planData);
   return response.data;
 };
 
-export const addSemesterToPlan = async (planId: string, semesterData: any) => {
+export const addSemesterToPlan = async (planId: string, semesterData: Record<string, unknown>) => {
   const response = await apiClient.post(`/study-plans/${planId}/semesters`, semesterData);
   return response.data;
 };
 
-export const updateSemester = async (planId: string, semesterId: string, semesterData: any) => {
-  const response = await apiClient.put(`/study-plans/${planId}/semesters/${semesterId}`, semesterData);
+export const updateSemester = async (planId: string, semesterId: string, semesterData: Record<string, unknown>) => {
+  const response = await apiClient.put(
+    `/study-plans/${planId}/semesters/${semesterId}`,
+    semesterData,
+  );
   return response.data;
 };
 
@@ -157,7 +160,7 @@ export const deleteStudyPlan = async (id: string) => {
   return response.data;
 };
 
-export const getRecommendations = async (userId: string, params?: any) => {
+export const getRecommendations = async (userId: string, params?: Record<string, unknown>) => {
   const response = await apiClient.get(`/recommendations/user/${userId}`, { params });
   return response.data;
 };

@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient, CourseStatus } from '@prisma/client';
+import { z } from 'zod';
+import { PrismaClient, CourseStatus, Semester, StudentRecord, Course, Prerequisite } from '@prisma/client';
 import WorkloadBalancer from '../services/workloadBalancer';
+import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -18,16 +20,14 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
       include: { course: true },
     });
 
+    const userRecordsTyped = userRecords as (StudentRecord & { course: Course })[];
+
     const completedCourseIds = new Set(
-      userRecords
-        .filter(r => r.status === CourseStatus.COMPLETED)
-        .map(r => r.courseId)
+      userRecordsTyped.filter((r) => r.status === CourseStatus.COMPLETED).map((r) => r.courseId),
     );
 
     const inProgressCourseIds = new Set(
-      userRecords
-        .filter(r => r.status === CourseStatus.IN_PROGRESS)
-        .map(r => r.courseId)
+      userRecordsTyped.filter((r) => r.status === CourseStatus.IN_PROGRESS).map((r) => r.courseId),
     );
 
     // Get all courses with prerequisites
@@ -41,24 +41,24 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
       },
     });
 
+    const allCoursesTyped = allCourses as (Course & { prerequisites: (Prerequisite & { prerequisite: Course })[] })[];
+
     // Filter available courses (prerequisites met and not already taken)
-    const availableCourses = allCourses.filter(course => {
+    const availableCourses = allCoursesTyped.filter((course) => {
       // Skip if already completed or in progress
       if (completedCourseIds.has(course.id) || inProgressCourseIds.has(course.id)) {
         return false;
       }
 
       // Check if all prerequisites are completed
-      return course.prerequisites.every(prereq => 
-        completedCourseIds.has(prereq.prerequisiteId)
-      );
+      return course.prerequisites.every((prereq) => completedCourseIds.has(prereq.prerequisiteId));
     });
 
     // Apply semester filter if provided
     let filteredCourses = availableCourses;
     if (semester) {
-      filteredCourses = availableCourses.filter(c => 
-        c.semesterOffered.includes(semester as any)
+      filteredCourses = availableCourses.filter((c) =>
+        c.semesterOffered.includes(semester as Semester),
       );
     }
 
@@ -67,7 +67,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
       availableCourses: filteredCourses,
       maxCredits: parseInt(maxCredits as string),
       maxDifficulty: parseFloat(maxDifficulty as string),
-      userHistory: userRecords,
+      userHistory: userRecordsTyped,
     });
 
     return res.json({
@@ -79,9 +79,11 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
           filteredCount: filteredCourses.length,
           recommendedCount: recommendations.length,
           totalRecommendedCredits: recommendations.reduce((sum, c) => sum + c.credits, 0),
-          averageDifficulty: recommendations.length > 0
-            ? recommendations.reduce((sum, c) => sum + c.difficultyLevel, 0) / recommendations.length
-            : 0,
+          averageDifficulty:
+            recommendations.length > 0
+              ? recommendations.reduce((sum, c) => sum + c.difficultyLevel, 0) /
+                recommendations.length
+              : 0,
         },
       },
     });
@@ -97,14 +99,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
 // Analyze workload balance for a potential semester
 router.post('/analyze-workload', async (req: Request, res: Response) => {
   try {
-    const { courseIds } = req.body;
-
-    if (!Array.isArray(courseIds) || courseIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'courseIds must be a non-empty array',
-      });
-    }
+    const { courseIds } = AnalyzeWorkloadSchema.parse(req.body);
 
     const courses = await prisma.course.findMany({
       where: { id: { in: courseIds } },
@@ -117,6 +112,13 @@ router.post('/analyze-workload', async (req: Request, res: Response) => {
       data: analysis,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: error.errors,
+      });
+    }
     console.error('Error analyzing workload:', error);
     return res.status(500).json({
       success: false,
@@ -169,8 +171,23 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
       });
     }
 
+    type FilteredPrereqNode = {
+      id: string;
+      code: string;
+      name: string;
+      credits: number;
+      difficultyLevel: number;
+      prerequisites?: FilteredPrereqNode[];
+      dependents?: FilteredPrereqNode[];
+    };
+    type RawCourseNode = { id: string, code: string, name: string, credits: number, difficultyLevel: number, prerequisites?: { prerequisite: unknown }[], isPrerequisiteFor?: { course: unknown }[] }; // Fixed any use
+
     // Build prerequisite chain
-    const buildPrereqChain = (c: any, depth = 0, visited = new Set()): any => {
+    const buildPrereqChain = (
+      c: RawCourseNode,
+      depth = 0,
+      visited = new Set<string>(),
+    ): FilteredPrereqNode | null => {
       if (depth > 5 || visited.has(c.id)) return null;
       visited.add(c.id);
 
@@ -180,13 +197,18 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
         name: c.name,
         credits: c.credits,
         difficultyLevel: c.difficultyLevel,
-        prerequisites: c.prerequisites?.map((p: any) => 
-          buildPrereqChain(p.prerequisite, depth + 1, new Set(visited))
-        ).filter(Boolean) || [],
+        prerequisites:
+          c.prerequisites
+            ?.map((p: { prerequisite: unknown }) => buildPrereqChain(p.prerequisite as RawCourseNode, depth + 1, new Set(visited)))
+            .filter((p): p is FilteredPrereqNode => p !== null) || [],
       };
     };
 
-    const buildDependentChain = (c: any, depth = 0, visited = new Set()): any => {
+    const buildDependentChain = (
+      c: RawCourseNode,
+      depth = 0,
+      visited = new Set<string>(),
+    ): FilteredPrereqNode | null => {
       if (depth > 5 || visited.has(c.id)) return null;
       visited.add(c.id);
 
@@ -196,9 +218,10 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
         name: c.name,
         credits: c.credits,
         difficultyLevel: c.difficultyLevel,
-        dependents: c.isPrerequisiteFor?.map((p: any) => 
-          buildDependentChain(p.course, depth + 1, new Set(visited))
-        ).filter(Boolean) || [],
+        dependents:
+          c.isPrerequisiteFor
+            ?.map((p: { course: unknown }) => buildDependentChain(p.course as RawCourseNode, depth + 1, new Set(visited)))
+            .filter((p): p is FilteredPrereqNode => p !== null) || [],
       };
     };
 

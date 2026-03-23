@@ -15,27 +15,25 @@ import {
   GraduationCap,
   Menu,
   X,
-  User
+  User,
 } from 'lucide-react';
 
 const SAMPLE_USER_ID = 'user-id-placeholder'; // Replace with actual user ID
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'curriculum' | 'recommendations' | 'planner'>('dashboard');
+  const [activeTab, setActiveTab] = useState<
+    'dashboard' | 'curriculum' | 'recommendations' | 'planner'
+  >('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
 
-  const {
-    courses,
-    studentRecords,
-    setCourses,
-    completedCourseIds,
-  } = useAppStore();
+  const { courses, studentRecords, setCourses, completedCourseIds } = useAppStore();
 
   useEffect(() => {
     initializeApp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initializeApp = async () => {
@@ -72,18 +70,18 @@ function App() {
 
   const handleCourseClick = (course: Course) => {
     // Toggle course selection for workload analyzer
-    setSelectedCourses(prev => {
-      const exists = prev.find(c => c.id === course.id);
+    setSelectedCourses((prev) => {
+      const exists = prev.find((c) => c.id === course.id);
       if (exists) {
-        return prev.filter(c => c.id !== course.id);
+        return prev.filter((c) => c.id !== course.id);
       }
       return [...prev, course];
     });
   };
 
   const handleAddToPlan = (course: Course) => {
-    setSelectedCourses(prev => {
-      if (!prev.find(c => c.id === course.id)) {
+    setSelectedCourses((prev) => {
+      if (!prev.find((c) => c.id === course.id)) {
         return [...prev, course];
       }
       return prev;
@@ -130,15 +128,16 @@ function App() {
         </div>
 
         <nav className="p-4 space-y-1">
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'dashboard' | 'curriculum' | 'recommendations' | 'planner')}
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors
-                ${activeTab === tab.id
-                  ? 'bg-primary-50 text-primary-700 font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
+                ${
+                  activeTab === tab.id
+                    ? 'bg-primary-50 text-primary-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
                 }
               `}
             >
@@ -179,7 +178,7 @@ function App() {
                 {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
               <h2 className="text-xl font-semibold text-gray-900">
-                {tabs.find(t => t.id === activeTab)?.label}
+                {tabs.find((t) => t.id === activeTab)?.label}
               </h2>
             </div>
 
@@ -238,9 +237,8 @@ function App() {
                   courses={courses}
                   completedCourseIds={completedCourseIds()}
                   inProgressCourseIds={studentRecords
-                    .filter(r => r.status === 'IN_PROGRESS')
-                    .map(r => r.courseId)
-                  }
+                    .filter((r) => r.status === 'IN_PROGRESS')
+                    .map((r) => r.courseId)}
                   onCourseClick={handleCourseClick}
                   height="700px"
                 />
@@ -249,7 +247,7 @@ function App() {
               {selectedCourses.length > 0 && (
                 <Card title="Selected Courses">
                   <div className="flex flex-wrap gap-2">
-                    {selectedCourses.map(course => (
+                    {selectedCourses.map((course) => (
                       <span
                         key={course.id}
                         className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
@@ -271,7 +269,7 @@ function App() {
               <Recommendations
                 userId={SAMPLE_USER_ID}
                 onAddToPlan={handleAddToPlan}
-                addedCourseIds={selectedCourses.map(c => c.id)}
+                addedCourseIds={selectedCourses.map((c) => c.id)}
               />
             </div>
           )}

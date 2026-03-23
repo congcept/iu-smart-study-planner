@@ -20,30 +20,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   completedCourseIds: () => {
     const { studentRecords } = get();
-    return studentRecords
-      .filter(r => r.status === 'COMPLETED')
-      .map(r => r.courseId);
+    return studentRecords.filter((r) => r.status === 'COMPLETED').map((r) => r.courseId);
   },
 
   availableCourses: () => {
     const { courses, studentRecords } = get();
     const completedIds = new Set(
-      studentRecords
-        .filter(r => r.status === 'COMPLETED')
-        .map(r => r.courseId)
+      studentRecords.filter((r) => r.status === 'COMPLETED').map((r) => r.courseId),
     );
 
-    return courses.filter(course => {
+    return courses.filter((course) => {
       if (completedIds.has(course.id)) return false;
-      return course.prerequisites.every(
-        p => completedIds.has(p.prerequisiteId)
-      );
+      return course.prerequisites.every((p) => completedIds.has(p.prerequisiteId));
     });
   },
 
   progress: () => {
     const { studentRecords, courses } = get();
-    const completed = studentRecords.filter(r => r.status === 'COMPLETED').length;
+    const completed = studentRecords.filter((r) => r.status === 'COMPLETED').length;
     const total = courses.length;
     return {
       total,

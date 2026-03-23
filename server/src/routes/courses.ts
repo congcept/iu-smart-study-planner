@@ -1,27 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { CreateCourseSchema, CreatePrerequisiteSchema } from '@iu-study-planner/shared';
 
 const router = Router();
 const prisma = new PrismaClient();
-
-// Validation schemas
-const createCourseSchema = z.object({
-  code: z.string().min(1),
-  name: z.string().min(1),
-  credits: z.number().int().min(0).max(10),
-  difficultyLevel: z.number().int().min(1).max(5),
-  description: z.string().optional(),
-  category: z.enum(['REQUIRED', 'ELECTIVE', 'CORE', 'MAJOR_ELECTIVE', 'GENERAL_EDUCATION', 'FREE_ELECTIVE']).optional(),
-  semesterOffered: z.array(z.enum(['FALL', 'SPRING', 'SUMMER'])).optional(),
-});
-
-const createPrerequisiteSchema = z.object({
-  courseId: z.string().uuid(),
-  prerequisiteId: z.string().uuid(),
-  isCorequisite: z.boolean().optional(),
-  isStrict: z.boolean().optional(),
-});
 
 // Get all courses with their prerequisites
 router.get('/', async (_req: Request, res: Response) => {
@@ -113,7 +96,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create new course
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const validatedData = createCourseSchema.parse(req.body);
+    const validatedData = CreateCourseSchema.parse(req.body);
 
     const course = await prisma.course.create({
       data: validatedData,
@@ -144,7 +127,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const validatedData = createCourseSchema.partial().parse(req.body);
+    const validatedData = CreateCourseSchema.partial().parse(req.body);
 
     const course = await prisma.course.update({
       where: { id },
@@ -197,7 +180,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 // Add prerequisite relationship
 router.post('/prerequisites', async (req: Request, res: Response) => {
   try {
-    const validatedData = createPrerequisiteSchema.parse(req.body);
+    const validatedData = CreatePrerequisiteSchema.parse(req.body);
 
     // Check if both courses exist
     const [course, prerequisite] = await Promise.all([

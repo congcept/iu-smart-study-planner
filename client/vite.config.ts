@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -26,9 +26,14 @@ export default defineConfig({
 
     proxy: {
       '/api': {
-        target: 'http://backend:3001', // Lưu ý: Trong Docker, nên dùng tên service 'backend' thay vì localhost
+        target: 'http://backend:3001',
         changeOrigin: true,
       },
     },
   },
-})
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./vitest.setup.ts'],
+    globals: true,
+  },
+});

@@ -2,13 +2,7 @@ import React, { useState } from 'react';
 import type { Course, WorkloadAnalysis } from '../../types';
 import { Badge, Card, ProgressBar } from '@components/ui';
 import { analyzeWorkload } from '../../lib/api';
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  Lightbulb, 
-  Calculator,
-  BookOpen 
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle, Lightbulb, Calculator, BookOpen } from 'lucide-react';
 import { riskLevelColors, riskLevelLabels, categoryLabels } from '../../lib/utils';
 
 interface WorkloadAnalyzerProps {
@@ -16,19 +10,16 @@ interface WorkloadAnalyzerProps {
   onClear?: () => void;
 }
 
-export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
-  selectedCourses,
-  onClear,
-}) => {
+export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCourses, onClear }) => {
   const [analysis, setAnalysis] = useState<WorkloadAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handleAnalyze = async () => {
     if (selectedCourses.length === 0) return;
-    
+
     setIsAnalyzing(true);
     try {
-      const courseIds = selectedCourses.map(c => c.id);
+      const courseIds = selectedCourses.map((c) => c.id);
       const response = await analyzeWorkload(courseIds);
       if (response.success) {
         setAnalysis(response.data);
@@ -41,9 +32,10 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
   };
 
   const totalCredits = selectedCourses.reduce((sum, c) => sum + c.credits, 0);
-  const avgDifficulty = selectedCourses.length > 0
-    ? selectedCourses.reduce((sum, c) => sum + c.difficultyLevel, 0) / selectedCourses.length
-    : 0;
+  const avgDifficulty =
+    selectedCourses.length > 0
+      ? selectedCourses.reduce((sum, c) => sum + c.difficultyLevel, 0) / selectedCourses.length
+      : 0;
 
   if (selectedCourses.length === 0) {
     return (
@@ -58,16 +50,13 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
   }
 
   return (
-    <Card 
-      title="Workload Analyzer" 
+    <Card
+      title="Workload Analyzer"
       subtitle={`${selectedCourses.length} course(s) selected`}
       headerAction={
         <div className="flex gap-2">
           {onClear && (
-            <button
-              onClick={onClear}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
+            <button onClick={onClear} className="text-sm text-gray-500 hover:text-gray-700">
               Clear
             </button>
           )}
@@ -85,8 +74,8 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
       <div className="mb-6">
         <h4 className="text-sm font-medium text-gray-700 mb-2">Selected Courses</h4>
         <div className="space-y-2 max-h-40 overflow-y-auto">
-          {selectedCourses.map(course => (
-            <div 
+          {selectedCourses.map((course) => (
+            <div
               key={course.id}
               className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
             >
@@ -113,9 +102,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
           <div className="text-sm text-gray-500">Total Credits</div>
         </div>
         <div className="p-4 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-gray-900">
-            {avgDifficulty.toFixed(1)}
-          </div>
+          <div className="text-2xl font-bold text-gray-900">{avgDifficulty.toFixed(1)}</div>
           <div className="text-sm text-gray-500">Avg Difficulty</div>
         </div>
       </div>
@@ -124,7 +111,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
       {analysis && (
         <div className="border-t pt-6">
           <h4 className="text-sm font-medium text-gray-700 mb-4">Analysis Results</h4>
-          
+
           {/* Risk Level */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
@@ -134,12 +121,17 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
               </Badge>
             </div>
             <div className={`h-2 rounded-full ${riskLevelColors[analysis.riskLevel]} opacity-30`}>
-              <div 
+              <div
                 className={`h-full rounded-full ${riskLevelColors[analysis.riskLevel]} transition-all duration-500`}
-                style={{ 
-                  width: analysis.riskLevel === 'LOW' ? '25%' : 
-                         analysis.riskLevel === 'MEDIUM' ? '50%' : 
-                         analysis.riskLevel === 'HIGH' ? '75%' : '100%' 
+                style={{
+                  width:
+                    analysis.riskLevel === 'LOW'
+                      ? '25%'
+                      : analysis.riskLevel === 'MEDIUM'
+                        ? '50%'
+                        : analysis.riskLevel === 'HIGH'
+                          ? '75%'
+                          : '100%',
                 }}
               />
             </div>
@@ -151,12 +143,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
               <span className="text-sm text-gray-600">Workload Score</span>
               <span className="text-lg font-semibold">{analysis.workloadScore.toFixed(1)}</span>
             </div>
-            <ProgressBar 
-              progress={analysis.workloadScore} 
-              max={60} 
-              size="sm"
-              showLabel={false}
-            />
+            <ProgressBar progress={analysis.workloadScore} max={60} size="sm" showLabel={false} />
           </div>
 
           {/* Recommendations */}
@@ -168,10 +155,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
               </h5>
               <ul className="space-y-2">
                 {analysis.recommendations.map((rec, index) => (
-                  <li 
-                    key={index}
-                    className="flex items-start gap-2 text-sm text-gray-600"
-                  >
+                  <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
                     <AlertTriangle size={14} className="mt-0.5 text-amber-500 flex-shrink-0" />
                     {rec}
                   </li>
@@ -184,9 +168,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({
           {analysis.recommendations.length === 0 && (
             <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
               <CheckCircle size={20} className="text-green-500" />
-              <span className="text-sm text-green-700">
-                Your semester plan looks balanced!
-              </span>
+              <span className="text-sm text-green-700">Your semester plan looks balanced!</span>
             </div>
           )}
         </div>

@@ -57,9 +57,7 @@ const CourseNode: React.FC<NodeProps<Node<CourseNodeData>>> = ({ data }) => {
         {getStatusIcon()}
       </div>
 
-      <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2">
-        {course.name}
-      </h4>
+      <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2">{course.name}</h4>
 
       <div className="flex items-center gap-2 text-xs">
         <span className={`w-2 h-2 rounded-full ${categoryColor}`} />
@@ -70,9 +68,7 @@ const CourseNode: React.FC<NodeProps<Node<CourseNodeData>>> = ({ data }) => {
         <span className={`text-xs font-medium ${difficultyColors[course.difficultyLevel]}`}>
           Level {course.difficultyLevel}
         </span>
-        <span className="text-xs text-gray-400">
-          ({difficultyLabels[course.difficultyLevel]})
-        </span>
+        <span className="text-xs text-gray-400">({difficultyLabels[course.difficultyLevel]})</span>
       </div>
 
       {course.prerequisites.length > 0 && (
@@ -104,7 +100,9 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
   const getNodePosition = useCallback((course: Course, index: number) => {
     // Group courses by difficulty level and category
     const level = course.difficultyLevel;
-    const categoryIndex = ['REQUIRED', 'CORE', 'ELECTIVE', 'MAJOR_ELECTIVE'].indexOf(course.category);
+    const categoryIndex = ['REQUIRED', 'CORE', 'ELECTIVE', 'MAJOR_ELECTIVE'].indexOf(
+      course.category,
+    );
 
     const x = categoryIndex >= 0 ? categoryIndex * 300 : 0;
     const y = (level - 1) * 150 + (index % 3) * 20;
@@ -118,9 +116,10 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
       const isInProgress = inProgressIdsSet.has(course.id);
 
       // Check if available (all prerequisites completed)
-      const isAvailable = course.prerequisites.every(
-        p => completedIdsSet.has(p.prerequisiteId)
-      ) && !isCompleted && !isInProgress;
+      const isAvailable =
+        course.prerequisites.every((p) => completedIdsSet.has(p.prerequisiteId)) &&
+        !isCompleted &&
+        !isInProgress;
 
       const position = getNodePosition(course, index);
 
@@ -142,8 +141,8 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
   const initialEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
 
-    courses.forEach(course => {
-      course.prerequisites.forEach(prereq => {
+    courses.forEach((course) => {
+      course.prerequisites.forEach((prereq) => {
         edges.push({
           id: `${prereq.prerequisiteId}-${course.id}`,
           source: prereq.prerequisiteId,
@@ -181,11 +180,7 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
       >
         <Background color="#e2e8f0" gap={16} />
         <Controls />
-        <MiniMap
-          nodeStrokeWidth={3}
-          zoomable
-          pannable
-        />
+        <MiniMap nodeStrokeWidth={3} zoomable pannable />
         <Panel position="top-left" className="bg-white p-4 rounded-lg shadow-md">
           <h3 className="font-semibold text-gray-900 mb-2">Legend</h3>
           <div className="space-y-2 text-sm">
