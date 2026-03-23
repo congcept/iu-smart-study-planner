@@ -12,8 +12,8 @@ import {
   NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { Course, CourseNodeData } from '../../types';
-import { categoryColors, difficultyColors, difficultyLabels } from "../../lib/utils";
+import type { Course, CourseNodeData } from '@/types';
+import { categoryColors, difficultyColors, difficultyLabels } from '@lib/utils';
 import { CheckCircle2, Circle, Lock, BookOpen } from 'lucide-react';
 
 interface CurriculumGraphProps {
@@ -24,7 +24,7 @@ interface CurriculumGraphProps {
   height?: string;
 }
 
-const CourseNode: React.FC<NodeProps<CourseNodeData>> = ({ data }) => {
+const CourseNode: React.FC<NodeProps<Node<CourseNodeData>>> = ({ data }) => {
   const { course, isCompleted, isInProgress, isAvailable, onClick } = data;
 
   const getStatusIcon = () => {

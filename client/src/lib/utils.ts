@@ -1,4 +1,4 @@
-import type { CourseCategory, DifficultyLevel } from '../types';
+import type { CourseCategory } from '../types';
 
 export const categoryColors: Record<CourseCategory, string> = {
   REQUIRED: 'bg-blue-500',

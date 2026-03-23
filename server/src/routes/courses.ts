@@ -56,14 +56,14 @@ router.get('/', async (_req: Request, res: Response) => {
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: courses,
       count: courses.length,
     });
   } catch (error) {
     console.error('Error fetching courses:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch courses',
     });
@@ -97,13 +97,13 @@ router.get('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: course,
     });
   } catch (error) {
     console.error('Error fetching course:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch course',
     });
@@ -119,7 +119,7 @@ router.post('/', async (req: Request, res: Response) => {
       data: validatedData,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: course,
       message: 'Course created successfully',
@@ -133,7 +133,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
     console.error('Error creating course:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create course',
     });
@@ -151,7 +151,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       data: validatedData,
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: course,
       message: 'Course updated successfully',
@@ -165,7 +165,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       });
     }
     console.error('Error updating course:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to update course',
     });
@@ -181,13 +181,13 @@ router.delete('/:id', async (req: Request, res: Response) => {
       where: { id },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Course deleted successfully',
     });
   } catch (error) {
     console.error('Error deleting course:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to delete course',
     });
@@ -232,7 +232,7 @@ router.post('/prerequisites', async (req: Request, res: Response) => {
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: prereq,
       message: 'Prerequisite added successfully',
@@ -246,7 +246,7 @@ router.post('/prerequisites', async (req: Request, res: Response) => {
       });
     }
     console.error('Error adding prerequisite:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to add prerequisite',
     });
@@ -262,13 +262,13 @@ router.delete('/prerequisites/:id', async (req: Request, res: Response) => {
       where: { id },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Prerequisite removed successfully',
     });
   } catch (error) {
     console.error('Error removing prerequisite:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to remove prerequisite',
     });

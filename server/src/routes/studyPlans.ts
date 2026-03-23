@@ -41,14 +41,14 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: plans,
       count: plans.length,
     });
   } catch (error) {
     console.error('Error fetching study plans:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch study plans',
     });
@@ -86,13 +86,13 @@ router.get('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: plan,
     });
   } catch (error) {
     console.error('Error fetching study plan:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch study plan',
     });
@@ -104,13 +104,11 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const validatedData = createStudyPlanSchema.parse(req.body);
     
-    // Deactivate other plans if this one is active
-    if (true) {
-      await prisma.studyPlan.updateMany({
-        where: { userId: validatedData.userId },
-        data: { isActive: false },
-      });
-    }
+    // Deactivate any existing active plans before creating a new active one.
+    await prisma.studyPlan.updateMany({
+      where: { userId: validatedData.userId },
+      data: { isActive: false },
+    });
 
     const plan = await prisma.studyPlan.create({
       data: {
@@ -122,7 +120,7 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: plan,
       message: 'Study plan created successfully',
@@ -136,7 +134,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
     console.error('Error creating study plan:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create study plan',
     });
@@ -178,7 +176,7 @@ router.post('/:id/semesters', async (req: Request, res: Response) => {
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: semester,
       message: 'Semester added to study plan',
@@ -192,7 +190,7 @@ router.post('/:id/semesters', async (req: Request, res: Response) => {
       });
     }
     console.error('Error adding semester:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to add semester',
     });
@@ -222,7 +220,7 @@ router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response)
       data: updateData,
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: semester,
       message: 'Semester updated successfully',
@@ -236,7 +234,7 @@ router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response)
       });
     }
     console.error('Error updating semester:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to update semester',
     });
@@ -252,13 +250,13 @@ router.delete('/:planId/semesters/:semesterId', async (req: Request, res: Respon
       where: { id: semesterId },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Semester removed from study plan',
     });
   } catch (error) {
     console.error('Error deleting semester:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to delete semester',
     });
@@ -274,13 +272,13 @@ router.delete('/:id', async (req: Request, res: Response) => {
       where: { id },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Study plan deleted successfully',
     });
   } catch (error) {
     console.error('Error deleting study plan:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to delete study plan',
     });

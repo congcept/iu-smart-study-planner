@@ -10,7 +10,7 @@ const workloadBalancer = new WorkloadBalancer();
 router.get('/user/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const { semester, year, maxCredits = '18', maxDifficulty = '3.5' } = req.query;
+    const { semester, maxCredits = '18', maxDifficulty = '3.5' } = req.query;
 
     // Get user's completed and in-progress courses
     const userRecords = await prisma.studentRecord.findMany({
@@ -70,10 +70,10 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
       userHistory: userRecords,
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: {
-        recommendations,
+        courses: recommendations,
         stats: {
           totalAvailable: availableCourses.length,
           filteredCount: filteredCourses.length,
@@ -87,7 +87,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error generating recommendations:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to generate recommendations',
     });
@@ -112,13 +112,13 @@ router.post('/analyze-workload', async (req: Request, res: Response) => {
 
     const analysis = workloadBalancer.analyzeSemesterWorkload(courses);
 
-    res.json({
+    return res.json({
       success: true,
       data: analysis,
     });
   } catch (error) {
     console.error('Error analyzing workload:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to analyze workload',
     });
@@ -202,7 +202,7 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
       };
     };
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         course: {
@@ -218,7 +218,7 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
     });
   } catch (error) {
     console.error('Error fetching prerequisite chain:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch prerequisite chain',
     });

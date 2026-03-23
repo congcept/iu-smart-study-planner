@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Course, WorkloadAnalysis } from '../../types';
-import { Card, Badge, ProgressBar } from '../../components/ui';
+import { Badge, Card, ProgressBar } from '@components/ui';
 import { analyzeWorkload } from '../../lib/api';
 import { 
   AlertTriangle, 

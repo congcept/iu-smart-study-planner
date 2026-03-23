@@ -113,7 +113,7 @@ export interface WorkloadAnalysis {
 }
 
 // Graph Types for React Flow
-export interface CourseNodeData {
+export interface CourseNodeData extends Record<string, unknown> {
   course: Course;
   isCompleted: boolean;
   isInProgress: boolean;

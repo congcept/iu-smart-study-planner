@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { Course, Recommendation } from '../../types';
-import { Card, Badge, Button } from '../../components/ui';
+import { Badge, Button, Card } from '@components/ui';
 import { getRecommendations } from '../../lib/api';
 import { 
   Sparkles, 

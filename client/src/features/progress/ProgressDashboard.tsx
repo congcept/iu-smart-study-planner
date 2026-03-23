@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import type { StudentRecord, Course } from '@/types';
-import { Card, ProgressBar, Badge } from '@/components/ui';
+import { Badge, Card, ProgressBar } from '@components/ui';
 import { getUserProgress } from '@/lib/api';
 import {
   GraduationCap,
   BookOpen,
   Target,
-  TrendingUp,
   Award,
   Clock
 } from 'lucide-react';
-import { categoryLabels, statusColors } from '@/lib/utils';
+import { categoryLabels } from '@/lib/utils';
 
 interface ProgressDashboardProps {
   userId: string;

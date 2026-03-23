@@ -49,14 +49,14 @@ router.get('/', async (_req: Request, res: Response) => {
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: users,
       count: users.length,
     });
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch users',
     });
@@ -101,7 +101,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       ? completedCourses.reduce((sum, r) => sum + (r.gradePoints || 0), 0) / completedCourses.length
       : 0;
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         ...user,
@@ -115,7 +115,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching user:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch user',
     });
@@ -134,7 +134,7 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: user,
       message: 'User created successfully',
@@ -148,7 +148,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
     console.error('Error creating user:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to create user',
     });
@@ -196,7 +196,7 @@ router.post('/:id/records', async (req: Request, res: Response) => {
       },
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: record,
       message: 'Student record updated successfully',
@@ -210,7 +210,7 @@ router.post('/:id/records', async (req: Request, res: Response) => {
       });
     }
     console.error('Error updating student record:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to update student record',
     });
@@ -237,7 +237,11 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
       },
     });
 
-    const allCourses = await prisma.course.findMany();
+    const allCourses = await prisma.course.findMany({
+      include: {
+        prerequisites: true,
+      },
+    });
 
     // Categorize courses
     const completedCourseIds = new Set(
@@ -261,7 +265,7 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
       .filter(r => r.status === CourseStatus.COMPLETED)
       .reduce((sum, r) => sum + r.course.credits, 0);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         completed: records.filter(r => r.status === CourseStatus.COMPLETED),
@@ -279,7 +283,7 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching progress:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch progress',
     });

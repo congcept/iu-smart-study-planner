@@ -9,10 +9,10 @@ interface WorkloadAnalysis {
 }
 
 interface RecommendationInput {
-  availableCourses: (Course & { prerequisites: any[] })[];
+  availableCourses: (Course & { prerequisites: any[]; isPrerequisiteFor?: any[] })[];
   maxCredits: number;
   maxDifficulty: number;
-  userHistory: StudentRecord[];
+  userHistory: (StudentRecord & { course: Course })[];
 }
 
 class WorkloadBalancer {
@@ -163,7 +163,7 @@ class WorkloadBalancer {
   /**
    * Validate if a semester plan is feasible
    */
-  validateSemesterPlan(courses: Course[], userCompletedCourseIds: Set<string>): {
+  validateSemesterPlan(courses: (Course & { prerequisites?: any[] })[], userCompletedCourseIds: Set<string>): {
     isValid: boolean;
     errors: string[];
     warnings: string[];

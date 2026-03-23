@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Course } from './types';
 import { useAppStore } from './lib/store';
-import { getCourses, getUserById, healthCheck } from './lib/api';
+import { getCourses, healthCheck } from './lib/api';
 import { CurriculumGraph } from './features/curriculum/CurriculumGraph';
 import { ProgressDashboard } from './features/progress/ProgressDashboard';
 import { Recommendations } from './features/recommendations/Recommendations';
 import { WorkloadAnalyzer } from './features/planner/WorkloadAnalyzer';
-import { Button, Card, LoadingSpinner } from './components/ui';
+import { Button, Card, LoadingSpinner } from '@components/ui';
 import {
   LayoutDashboard,
   GitGraph,
@@ -28,12 +28,9 @@ function App() {
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
 
   const {
-    user,
     courses,
     studentRecords,
-    setUser,
     setCourses,
-    setStudentRecords,
     completedCourseIds,
   } = useAppStore();
 

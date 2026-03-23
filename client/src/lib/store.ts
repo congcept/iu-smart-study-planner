@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AppState, Course, StudentRecord, StudyPlan, User } from '../types';
+import type { AppState } from '../types';
 
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
