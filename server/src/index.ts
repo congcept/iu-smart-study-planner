@@ -1,15 +1,13 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import config from './config';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './db';
 
 // Import routes
 import courseRoutes from './routes/courses';
 import userRoutes from './routes/users';
 import studyPlanRoutes from './routes/studyPlans';
 import recommendationRoutes from './routes/recommendations';
-
-export const prisma = new PrismaClient();
 
 const app: Application = express();
 
@@ -99,4 +97,5 @@ if (process.env.NODE_ENV !== 'test') {
   startServer();
 }
 
+export { prisma };
 export default app;

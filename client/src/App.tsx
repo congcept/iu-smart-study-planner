@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Course } from './types';
 import { useAppStore } from './lib/store';
-import { getCourses, healthCheck } from './lib/api';
+import { getCourses, getUsers, healthCheck } from './lib/api';
 import { CurriculumGraph } from './features/curriculum/CurriculumGraph';
 import { ProgressDashboard } from './features/progress/ProgressDashboard';
 import { Recommendations } from './features/recommendations/Recommendations';
@@ -18,8 +18,6 @@ import {
   User,
 } from 'lucide-react';
 
-const SAMPLE_USER_ID = 'user-id-placeholder'; // Replace with actual user ID
-
 function App() {
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'curriculum' | 'recommendations' | 'planner'
@@ -28,6 +26,7 @@ function App() {
   const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
+  const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
   const { courses, studentRecords, setCourses, completedCourseIds } = useAppStore();
 
@@ -54,13 +53,11 @@ function App() {
         setCourses(coursesResponse.data);
       }
 
-      // Fetch user data (using sample user for now)
-      // In production, this would use authenticated user
-      // const userResponse = await getUserById(SAMPLE_USER_ID);
-      // if (userResponse.success) {
-      //   setUser(userResponse.data);
-      //   setStudentRecords(userResponse.data.studentRecords || []);
-      // }
+      // Resolve a deterministic user from seeded data for dashboard/recommendation calls.
+      const usersResponse = await getUsers();
+      if (usersResponse.success && Array.isArray(usersResponse.data) && usersResponse.data.length > 0) {
+        setActiveUserId(usersResponse.data[0].id);
+      }
     } catch (error) {
       console.error('Failed to initialize app:', error);
     } finally {
@@ -200,7 +197,15 @@ function App() {
           {activeTab === 'dashboard' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <ProgressDashboard userId={SAMPLE_USER_ID} />
+                {activeUserId ? (
+                  <ProgressDashboard userId={activeUserId} />
+                ) : (
+                  <Card title="Progress Dashboard">
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No user found. Seed data or create a user to view progress.</p>
+                    </div>
+                  </Card>
+                )}
               </div>
               <div>
                 <Card title="Quick Stats">
@@ -266,11 +271,19 @@ function App() {
 
           {activeTab === 'recommendations' && (
             <div className="max-w-4xl mx-auto">
-              <Recommendations
-                userId={SAMPLE_USER_ID}
-                onAddToPlan={handleAddToPlan}
-                addedCourseIds={selectedCourses.map((c) => c.id)}
-              />
+              {activeUserId ? (
+                <Recommendations
+                  userId={activeUserId}
+                  onAddToPlan={handleAddToPlan}
+                  addedCourseIds={selectedCourses.map((c) => c.id)}
+                />
+              ) : (
+                <Card title="Smart Recommendations">
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No user found. Seed data or create a user to get recommendations.</p>
+                  </div>
+                </Card>
+              )}
             </div>
           )}
 

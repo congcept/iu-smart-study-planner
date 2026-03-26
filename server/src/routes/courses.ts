@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { CreateCourseSchema, CreatePrerequisiteSchema } from '@iu-study-planner/shared';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Get all courses with their prerequisites
 router.get('/', async (_req: Request, res: Response) => {
@@ -147,6 +147,12 @@ router.put('/:id', async (req: Request, res: Response) => {
         details: error.errors,
       });
     }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found',
+      });
+    }
     console.error('Error updating course:', error);
     return res.status(500).json({
       success: false,
@@ -169,6 +175,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
       message: 'Course deleted successfully',
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found',
+      });
+    }
     console.error('Error deleting course:', error);
     return res.status(500).json({
       success: false,
@@ -250,6 +262,12 @@ router.delete('/prerequisites/:id', async (req: Request, res: Response) => {
       message: 'Prerequisite removed successfully',
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        error: 'Prerequisite relationship not found',
+      });
+    }
     console.error('Error removing prerequisite:', error);
     return res.status(500).json({
       success: false,

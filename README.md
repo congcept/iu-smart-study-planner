@@ -15,6 +15,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Quick Start](#quick-start)
+- [Stability & Run Guide](#stability--run-guide)
 - [Development Setup](#development-setup)
 - [API Documentation](#api-documentation)
 - [Database Schema](#database-schema)
@@ -111,7 +112,14 @@ iu-smart-study-planner/
 ├── client/                      # Frontend Application
 │   ├── src/
 │   │   ├── components/         # UI Components
-│   │   │   └── ui.tsx          # Reusable UI components
+│   │   │   ├── ui/             # Reusable UI primitives
+│   │   │   │   ├── Card.tsx
+│   │   │   │   ├── ProgressBar.tsx
+│   │   │   │   ├── Badge.tsx
+│   │   │   │   ├── Button.tsx
+│   │   │   │   ├── LoadingSpinner.tsx
+│   │   │   │   └── index.ts
+│   │   │   └── ui.tsx          # Backward-compatible re-export
 │   │   ├── features/           # Feature-based modules
 │   │   │   ├── curriculum/     # Curriculum graph
 │   │   │   │   └── CurriculumGraph.tsx
@@ -243,6 +251,114 @@ npm install
 # Start development server
 npm run dev
 ```
+
+## Stability & Run Guide
+
+This section is the deterministic checklist to verify that the app is healthy after setup.
+
+### 1) Pre-flight checks
+
+- Node.js: `node -v` (recommended `>=20`)
+- npm: `npm -v`
+- Docker daemon (for compose flow): `docker info`
+- Environment files:
+  - `server/.env` with `DATABASE_URL`, `PORT`, `CORS_ORIGIN`, `JWT_SECRET`
+  - `client/.env` with `VITE_API_URL=http://localhost:3001/api`
+
+### 2) Local quality gates
+
+Run these before starting services:
+
+```bash
+# server
+cd server
+npx tsc --noEmit
+npm test -- --runInBand
+
+# client
+cd ../client
+npx tsc --noEmit
+npm run test:run
+```
+
+Expected result: all commands exit with code `0`.
+
+### 3) Start with Docker (preferred)
+
+```bash
+cd ..
+docker-compose up -d
+docker-compose logs -f
+```
+
+Verify:
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend health: [http://localhost:3001/api/health](http://localhost:3001/api/health)
+
+Stop:
+
+```bash
+docker-compose down
+```
+
+Reset database volume:
+
+```bash
+docker-compose down -v
+```
+
+### 4) Start locally (without compose app services)
+
+1. Start PostgreSQL (Docker or local service).
+2. Start backend:
+
+```bash
+cd server
+npx prisma generate
+npx prisma migrate dev
+npx prisma db seed
+npm run dev
+```
+
+3. Start frontend:
+
+```bash
+cd client
+npm run dev
+```
+
+### 5) Functional smoke checklist
+
+- `GET /api/health` returns `200` and `{ status: "ok" }`
+- Dashboard renders without crash
+- Curriculum graph renders course nodes/edges
+- Recommendations tab loads course list
+- Workload analyzer returns risk + recommendations
+
+### 6) Common issues and fixes
+
+- **Docker daemon unavailable**
+  - Symptom: `Cannot connect to the Docker daemon ...`
+  - Fix: open Docker Desktop and wait until engine is running, then retry `docker-compose up -d`.
+
+- **CORS errors in browser**
+  - Ensure `server/.env` has `CORS_ORIGIN=http://localhost:5173`.
+  - Ensure client calls backend at `http://localhost:3001/api` (or `/api` with proxy setup).
+
+- **Database relation or migration errors**
+  - Re-run:
+    - `npx prisma generate`
+    - `npx prisma migrate dev`
+    - `npx prisma db seed`
+  - If schema is inconsistent in development, use `npx prisma migrate reset`.
+
+- **Empty dashboard/recommendations**
+  - Ensure seed data exists (`npx prisma db seed`).
+  - The client uses the first available user from API for these views.
+
+- **Client tests fail with testing-library module errors**
+  - Install missing test dependency:
+    - `cd client && npm install -D @testing-library/dom`
 
 ## 🧪 Development Setup
 

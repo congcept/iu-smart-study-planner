@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { CreateStudyPlanSchema, CreateSemesterSchema } from '@iu-study-planner/shared';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Get all study plans for a user
 router.get('/user/:userId', async (req: Request, res: Response) => {
@@ -83,20 +83,21 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const validatedData = CreateStudyPlanSchema.parse(req.body);
 
-    // Deactivate any existing active plans before creating a new active one.
-    await prisma.studyPlan.updateMany({
-      where: { userId: validatedData.userId },
-      data: { isActive: false },
-    });
+    const plan = await prisma.$transaction(async (tx) => {
+      await tx.studyPlan.updateMany({
+        where: { userId: validatedData.userId },
+        data: { isActive: false },
+      });
 
-    const plan = await prisma.studyPlan.create({
-      data: {
-        ...validatedData,
-        isActive: true,
-      },
-      include: {
-        semesters: true,
-      },
+      return tx.studyPlan.create({
+        data: {
+          ...validatedData,
+          isActive: true,
+        },
+        include: {
+          semesters: true,
+        },
+      });
     });
 
     return res.status(201).json({
@@ -216,6 +217,12 @@ router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response)
         details: error.errors,
       });
     }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        error: 'Semester not found',
+      });
+    }
     console.error('Error updating semester:', error);
     return res.status(500).json({
       success: false,
@@ -238,6 +245,12 @@ router.delete('/:planId/semesters/:semesterId', async (req: Request, res: Respon
       message: 'Semester removed from study plan',
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        error: 'Semester not found',
+      });
+    }
     console.error('Error deleting semester:', error);
     return res.status(500).json({
       success: false,
@@ -260,6 +273,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
       message: 'Study plan deleted successfully',
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        error: 'Study plan not found',
+      });
+    }
     console.error('Error deleting study plan:', error);
     return res.status(500).json({
       success: false,

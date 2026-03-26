@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient, CourseStatus, Semester, StudentRecord, Course, Prerequisite } from '@prisma/client';
+import { CourseStatus, Semester, StudentRecord, Course, Prerequisite } from '@prisma/client';
 import WorkloadBalancer from '../services/workloadBalancer';
 import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
 const workloadBalancer = new WorkloadBalancer();
 
 // Get course recommendations for a user

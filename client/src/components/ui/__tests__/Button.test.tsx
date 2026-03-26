@@ -1,31 +1,30 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Button } from '../Button';
 
 describe('Button', () => {
   it('renders correctly with default props', () => {
-    render(<Button>Click me</Button>);
-    const button = screen.getByRole('button', { name: /click me/i });
-    expect(button).toBeInTheDocument();
+    const { getByRole } = render(<Button>Click me</Button>);
+    const button = getByRole('button', { name: /click me/i });
+    expect(button).toBeTruthy();
   });
 
   it('calls onClick when clicked', () => {
     const handleClick = vi.fn();
-    render(<Button onClick={handleClick}>Click me</Button>);
-    const button = screen.getByRole('button', { name: /click me/i });
-    fireEvent.click(button);
+    const { getByRole } = render(<Button onClick={handleClick}>Click me</Button>);
+    const button = getByRole('button', { name: /click me/i });
+    button.click();
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
   it('is disabled when isLoading is true', () => {
-    render(<Button isLoading>Loading</Button>);
-    const button = screen.getByRole('button');
-    expect(button).toBeDisabled();
+    const { getByRole } = render(<Button isLoading>Loading</Button>);
+    const button = getByRole('button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
   });
 
   it('shows left and right icons', () => {
-    render(
+    const { getByTestId } = render(
       <Button
         leftIcon={<span data-testid="left-icon">L</span>}
         rightIcon={<span data-testid="right-icon">R</span>}
@@ -33,7 +32,7 @@ describe('Button', () => {
         Click me
       </Button>,
     );
-    expect(screen.getByTestId('left-icon')).toBeInTheDocument();
-    expect(screen.getByTestId('right-icon')).toBeInTheDocument();
+    expect(getByTestId('left-icon')).toBeTruthy();
+    expect(getByTestId('right-icon')).toBeTruthy();
   });
 });

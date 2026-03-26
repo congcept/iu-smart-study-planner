@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient, CourseStatus } from '@prisma/client';
+import { CourseStatus } from '@prisma/client';
 import { z } from 'zod';
 import { CreateUserSchema, UpdateStudentRecordSchema } from '@iu-study-planner/shared';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Get all users
 router.get('/', async (_req: Request, res: Response) => {
@@ -248,6 +248,7 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
     const completedCredits = records
       .filter((r) => r.status === CourseStatus.COMPLETED)
       .reduce((sum, r) => sum + r.course.credits, 0);
+    const percentage = totalCredits > 0 ? Math.round((completedCredits / totalCredits) * 100) : 0;
 
     return res.json({
       success: true,
@@ -261,7 +262,7 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
           completedCourses: completedCourseIds.size,
           totalCredits,
           completedCredits,
-          percentage: Math.round((completedCredits / totalCredits) * 100),
+          percentage,
         },
       },
     });

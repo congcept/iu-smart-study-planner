@@ -33,9 +33,9 @@ apiClient.interceptors.response.use(
       // Handle specific error codes
       switch (error.response.status) {
         case 401:
-          // Unauthorized - redirect to login
+          // Auth UI/routes are not wired yet, so avoid redirecting to a dead route.
           localStorage.removeItem('auth_token');
-          window.location.href = '/login';
+          console.warn('Unauthorized request. Please authenticate once login flow is available.');
           break;
         case 403:
           console.error('Access forbidden');
