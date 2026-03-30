@@ -24,8 +24,8 @@ services:
   # Backend API
   backend:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     container_name: isp-backend
     environment:
       NODE_ENV: development
@@ -36,8 +36,9 @@ services:
       JWT_EXPIRES_IN: 7d
     ports:
       - "3001:3001"
+    working_dir: /app/server
     volumes:
-      - ./server:/app
+      - ./:/app
       - /app/node_modules
     depends_on:
       postgres:
@@ -49,15 +50,16 @@ services:
   # Frontend Client
   frontend:
     build:
-      context: ./client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: client/Dockerfile
     container_name: isp-frontend
     environment:
       VITE_API_URL: http://localhost:3001/api
     ports:
       - "5173:5173"
+    working_dir: /app/client
     volumes:
-      - ./client:/app
+      - ./:/app
       - /app/node_modules
     depends_on:
       - backend

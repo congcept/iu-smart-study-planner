@@ -1,27 +1,33 @@
-# Multi-stage build for production optimization
+# Base node image
 FROM node:20-alpine
 
-# Set working directory
+# Set root working directory
 WORKDIR /app
 
 # Install dependencies for Prisma
 RUN apk add --no-cache openssl
 
-# Copy package files
+# Copy root and workspace package files
 COPY package*.json ./
-COPY prisma ./prisma/
+COPY client/package.json ./client/
+COPY server/package.json ./server/
+COPY shared/package.json ./shared/
 
-# Install dependencies
-RUN npm ci
+# Install all workspace dependencies
+RUN npm install
 
-# Generate Prisma client
-RUN npx prisma generate
+# Copy Prisma schema and run generate
+COPY server/prisma ./server/prisma/
+RUN cd server && npx prisma generate
 
-# Copy source code
+# Copy the rest of the monorepo source
 COPY . .
+
+# Set working dir to target application
+WORKDIR /app/server
 
 # Expose port
 EXPOSE 3001
 
-# Start the application
+# Start the development server
 CMD ["npm", "run", "dev"]

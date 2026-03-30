@@ -5,6 +5,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  // Check if database is already seeded
+  const existingUser = await prisma.user.findFirst();
+  if (existingUser) {
+    console.log('✅ Database is already seeded. Skipping seed process.');
+    return;
+  }
+
   // Sample Computer Science courses (IU curriculum inspired)
   const courses = [
     // Year 1 - Semester 1
