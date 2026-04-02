@@ -32,7 +32,6 @@
     "paths": {
       "@/*": ["src/*"],
       "@config/*": ["src/config/*"],
-      "@controllers/*": ["src/controllers/*"],
       "@routes/*": ["src/routes/*"],
       "@services/*": ["src/services/*"]
     }

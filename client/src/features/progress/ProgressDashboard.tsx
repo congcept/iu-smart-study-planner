@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { StudentRecord, Course } from '@/types';
 import { Badge, Card, ProgressBar } from '@components/ui';
 import { getUserProgress } from '@/lib/api';
@@ -25,16 +25,11 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchProgress();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
-  const fetchProgress = async () => {
+  const fetchProgress = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await getUserProgress(userId);
-      if (response.success) {
+      if (response.success && response.data) {
         setProgress(response.data);
       }
     } catch (error) {
@@ -42,7 +37,11 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    fetchProgress();
+  }, [fetchProgress]);
 
   if (isLoading) {
     return (

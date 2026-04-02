@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { Course, Recommendation } from '../../types';
 import { Badge, Button, Card } from '@components/ui';
 import { getRecommendations } from '../../lib/api';
@@ -20,12 +20,7 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRecommendations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await getRecommendations(userId, {
@@ -33,7 +28,7 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
         maxDifficulty: 3.5,
       });
 
-      if (response.success) {
+      if (response.success && response.data) {
         setRecommendations(response.data);
       } else {
         setError('Failed to load recommendations');
@@ -43,7 +38,11 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    fetchRecommendations();
+  }, [fetchRecommendations]);
 
   if (isLoading) {
     return (

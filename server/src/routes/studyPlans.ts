@@ -1,8 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { CreateStudyPlanSchema, CreateSemesterSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof PrismaClientKnownRequestError && error.code === 'P2025';
+}
 
 const router = Router();
 
@@ -83,22 +88,29 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const validatedData = CreateStudyPlanSchema.parse(req.body);
 
-    const plan = await prisma.$transaction(async (tx) => {
-      await tx.studyPlan.updateMany({
-        where: { userId: validatedData.userId },
-        data: { isActive: false },
-      });
+    const plan = await prisma.$transaction(
+      async (
+        tx: Omit<
+          PrismaClient,
+          '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+        >,
+      ) => {
+        await tx.studyPlan.updateMany({
+          where: { userId: validatedData.userId },
+          data: { isActive: false },
+        });
 
-      return tx.studyPlan.create({
-        data: {
-          ...validatedData,
-          isActive: true,
-        },
-        include: {
-          semesters: true,
-        },
-      });
-    });
+        return tx.studyPlan.create({
+          data: {
+            ...validatedData,
+            isActive: true,
+          },
+          include: {
+            semesters: true,
+          },
+        });
+      },
+    );
 
     return res.status(201).json({
       success: true,
@@ -142,9 +154,13 @@ router.post('/:id/semesters', async (req: Request, res: Response) => {
       where: { id: { in: courseIds } },
     });
 
-    const totalCredits = courses.reduce((sum: number, c: { credits: number }) => sum + c.credits, 0);
+    const totalCredits = courses.reduce(
+      (sum: number, c: { credits: number }) => sum + c.credits,
+      0,
+    );
     const difficultyScore =
-      courses.reduce((sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel, 0) / (courses.length || 1);
+      courses.reduce((sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel, 0) /
+      (courses.length || 1);
 
     const semester = await prisma.plannedSemester.create({
       data: {
@@ -194,9 +210,15 @@ router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response)
         where: { id: { in: courseIds } },
       });
 
-      updateData.totalCredits = courses.reduce((sum: number, c: { credits: number }) => sum + c.credits, 0);
+      updateData.totalCredits = courses.reduce(
+        (sum: number, c: { credits: number }) => sum + c.credits,
+        0,
+      );
       updateData.difficultyScore =
-        courses.reduce((sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel, 0) / (courses.length || 1);
+        courses.reduce(
+          (sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel,
+          0,
+        ) / (courses.length || 1);
     }
 
     const semester = await prisma.plannedSemester.update({
@@ -217,7 +239,7 @@ router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response)
         details: error.errors,
       });
     }
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    if (isNotFoundError(error)) {
       return res.status(404).json({
         success: false,
         error: 'Semester not found',
@@ -245,7 +267,7 @@ router.delete('/:planId/semesters/:semesterId', async (req: Request, res: Respon
       message: 'Semester removed from study plan',
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    if (isNotFoundError(error)) {
       return res.status(404).json({
         success: false,
         error: 'Semester not found',
@@ -273,7 +295,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       message: 'Study plan deleted successfully',
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    if (isNotFoundError(error)) {
       return res.status(404).json({
         success: false,
         error: 'Study plan not found',

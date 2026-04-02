@@ -12,10 +12,13 @@ export interface ApiResponse<T = unknown> {
 
 // Infer DTOs from schemas
 export type CreateUserDTO = z.infer<typeof schemas.CreateUserSchema>;
+export type UpdateUserDTO = z.infer<typeof schemas.UpdateUserSchema>;
 export type UpdateStudentRecordDTO = z.infer<typeof schemas.UpdateStudentRecordSchema>;
 export type CreateCourseDTO = z.infer<typeof schemas.CreateCourseSchema>;
+export type UpdateCourseDTO = z.infer<typeof schemas.UpdateCourseSchema>;
 export type CreatePrerequisiteDTO = z.infer<typeof schemas.CreatePrerequisiteSchema>;
 export type CreateStudyPlanDTO = z.infer<typeof schemas.CreateStudyPlanSchema>;
+export type UpdateStudyPlanDTO = z.infer<typeof schemas.UpdateStudyPlanSchema>;
 export type CreateSemesterDTO = z.infer<typeof schemas.CreateSemesterSchema>;
 export type AnalyzeWorkloadDTO = z.infer<typeof schemas.AnalyzeWorkloadSchema>;
 

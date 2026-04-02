@@ -81,7 +81,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     const totalCredits = completedCourses.reduce((sum, r) => sum + r.course.credits, 0);
     const gpa =
       completedCourses.length > 0
-        ? completedCourses.reduce((sum, r) => sum + (r.gradePoints || 0), 0) /
+        ? completedCourses.reduce((sum, r) => sum + (r.gradePoints ?? 0), 0) /
           completedCourses.length
         : 0;
 
@@ -112,10 +112,7 @@ router.post('/', async (req: Request, res: Response) => {
     const validatedData = CreateUserSchema.parse(req.body);
 
     const user = await prisma.user.create({
-      data: {
-        ...validatedData,
-        password: null,
-      },
+      data: validatedData,
     });
 
     return res.status(201).json({

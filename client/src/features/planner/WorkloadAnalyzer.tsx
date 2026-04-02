@@ -21,7 +21,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
     try {
       const courseIds = selectedCourses.map((c) => c.id);
       const response = await analyzeWorkload(courseIds);
-      if (response.success) {
+      if (response.success && response.data) {
         setAnalysis(response.data);
       }
     } catch (error) {

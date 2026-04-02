@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { CreateCourseSchema, CreatePrerequisiteSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof PrismaClientKnownRequestError && error.code === 'P2025';
+}
 
 const router = Router();
 
@@ -147,7 +151,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         details: error.errors,
       });
     }
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    if (isNotFoundError(error)) {
       return res.status(404).json({
         success: false,
         error: 'Course not found',
@@ -175,7 +179,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       message: 'Course deleted successfully',
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    if (isNotFoundError(error)) {
       return res.status(404).json({
         success: false,
         error: 'Course not found',
@@ -262,7 +266,7 @@ router.delete('/prerequisites/:id', async (req: Request, res: Response) => {
       message: 'Prerequisite removed successfully',
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    if (isNotFoundError(error)) {
       return res.status(404).json({
         success: false,
         error: 'Prerequisite relationship not found',

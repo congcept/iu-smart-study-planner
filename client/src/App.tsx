@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Course } from './types';
 import { useAppStore } from './lib/store';
 import { getCourses, getUsers, healthCheck } from './lib/api';
@@ -30,16 +30,10 @@ function App() {
 
   const { courses, studentRecords, setCourses, completedCourseIds } = useAppStore();
 
-  useEffect(() => {
-    initializeApp();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const initializeApp = async () => {
+  const initializeApp = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      // Check API health
       try {
         await healthCheck();
         setApiStatus('connected');
@@ -47,15 +41,17 @@ function App() {
         setApiStatus('error');
       }
 
-      // Fetch courses
       const coursesResponse = await getCourses();
-      if (coursesResponse.success) {
+      if (coursesResponse.success && coursesResponse.data) {
         setCourses(coursesResponse.data);
       }
 
-      // Resolve a deterministic user from seeded data for dashboard/recommendation calls.
       const usersResponse = await getUsers();
-      if (usersResponse.success && Array.isArray(usersResponse.data) && usersResponse.data.length > 0) {
+      if (
+        usersResponse.success &&
+        Array.isArray(usersResponse.data) &&
+        usersResponse.data.length > 0
+      ) {
         setActiveUserId(usersResponse.data[0].id);
       }
     } catch (error) {
@@ -63,7 +59,11 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setCourses, setApiStatus, setActiveUserId]);
+
+  useEffect(() => {
+    initializeApp();
+  }, [initializeApp]);
 
   const handleCourseClick = (course: Course) => {
     // Toggle course selection for workload analyzer
@@ -128,7 +128,9 @@ function App() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'dashboard' | 'curriculum' | 'recommendations' | 'planner')}
+              onClick={() =>
+                setActiveTab(tab.id as 'dashboard' | 'curriculum' | 'recommendations' | 'planner')
+              }
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors
                 ${

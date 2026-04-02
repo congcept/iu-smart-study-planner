@@ -83,8 +83,6 @@ coverage/
 # Prisma
 *.db
 *.db-journal
-prisma/migrations/*
-!prisma/migrations/migration_lock.toml
 
 # PostgreSQL data volumes
 postgres_data/
