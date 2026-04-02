@@ -3,153 +3,189 @@
 ## Quick Start
 
 ```bash
-# Start all services
-docker-compose up -d
+npm run install:all          # Install all workspace deps
+npx prisma generate          # From server/ — must run after schema changes
+docker-compose up -d         # Start Postgres
 
-# Frontend only
-cd client && npm run dev        # Port 5173
-
-# Backend only
-cd server && npm run dev        # Port 3001
+cd client && npm run dev     # Frontend on port 5173
+cd server && npm run dev     # Backend on port 3001
 ```
 
-## Build Commands
+## Commands
 
-### Client
+### Root (workspace)
 
 ```bash
-npm run dev          # Dev server
-npm run build        # Production build
-npm run lint         # ESLint check
-npm run preview      # Preview build
+npm run dev              # Start all workspaces
+npm run build            # Build client + server
+npm run lint             # Lint all packages
+npm run typecheck        # tsc --noEmit on all packages
+npm run test             # Run all tests (server + client)
+npm run format           # Prettier write
+npm run format:check     # Prettier check
 ```
 
-### Server
+### Client (`client/`)
 
 ```bash
-npm run dev          # Dev with hot reload
-npm run build        # Compile TypeScript
-npm run start        # Run compiled
-npm run db:migrate   # Prisma migrate
-npm run db:seed      # Seed data
-npm run db:studio    # Prisma Studio
+npm run dev              # Vite dev server
+npm run build            # Production build
+npm run lint             # ESLint (zero warnings allowed)
+npm run typecheck        # tsc --noEmit
+npm run test             # Vitest watch mode
+npm run test:run         # Vitest single run
+npm run preview          # Preview production build
 ```
 
-## Testing
-
-**Test framework not configured yet. Recommended setup:**
+### Server (`server/`)
 
 ```bash
-# Client - Vitest
-npm install -D vitest @testing-library/react @testing-library/jest-dom
-# Add to package.json scripts:
-"test": "vitest"
-"test:run": "vitest run"
-
-# Server - Jest
-npm install -D jest @types/jest ts-jest supertest
-# Add to package.json scripts:
-"test": "jest"
-"test:watch": "jest --watch"
+npm run dev              # Nodemon hot reload
+npm run build            # tsc compile
+npm run start            # Run dist/index.js
+npm run lint             # ESLint
+npm run typecheck        # tsc --noEmit
+npm run test             # Jest run
+npm run test:watch       # Jest watch mode
+npm run db:migrate       # Prisma migrate dev
+npm run db:generate      # Prisma generate
+npm run db:seed          # Run seed script
+npm run db:studio        # Prisma Studio UI
 ```
 
-**Run tests once configured:**
+## Running a Single Test
 
 ```bash
-npm run test                      # All tests
-npm run test -- Component.test.tsx   # Single file
-npm run test -- --testNamePattern="test name"  # Single test
+# Client — single file
+cd client && npm run test -- Button.test.tsx
+
+# Client — single test by name
+cd client && npm run test -- --testNamePattern="renders with icon"
+
+# Client — run once (no watch)
+cd client && npx vitest run Button.test.tsx
+
+# Server — single file
+cd server && npx jest health.test.ts
+
+# Server — single test by name
+cd server && npx jest -t "returns 200"
+
+# Server — watch a single file
+cd server && npx jest --watch health.test.ts
 ```
 
 ## Code Style
 
 ### TypeScript
 
-- **Strict mode required** - No `any` types
-- Define interfaces for all data structures
-- Use `type` for unions, `interface` for objects
+- **Strict mode required** — no `any` types, ever
+- Use `interface` for objects, `type` for unions/intersections
+- All API function parameters and return values must be explicitly typed
+- Prefer Prisma-generated types over manual type annotations in callbacks
+- Use `unknown` for untyped input, narrow with type guards before access
 
-### Imports (Ordered)
+### Imports (ordered, grouped with blank lines)
 
 ```typescript
-// 1. External
-import React from 'react';
-import express from 'express';
+// 1. External packages
+import axios from 'axios';
+import { z } from 'zod';
 
-// 2. Internal absolute
-import { useStore } from '@/lib/store';
-import { config } from '@config/index';
+// 2. Shared workspace
+import { CreateCourseSchema } from '@iu-study-planner/shared';
 
-// 3. Relative
+// 3. Absolute internal (client: @/, server: @routes, @services, @config)
+import { useAppStore } from '@/lib/store';
+
+// 4. Relative imports
 import { Button } from './ui';
-import { helper } from '../utils';
 
-// 4. Styles last
+// 5. Styles last (client only)
 import './styles.css';
 ```
 
 ### Naming
 
-- **Components**: PascalCase (`CurriculumGraph`)
-- **Functions/vars**: camelCase (`handleClick`)
-- **Constants**: UPPER_SNAKE_CASE (`API_URL`)
-- **Interfaces**: PascalCase (`UserData`)
-- **Files**: PascalCase components, camelCase utils
+- **Components**: PascalCase (`CurriculumGraph`, `ErrorBoundary`)
+- **Functions/variables**: camelCase (`handleClick`, `fetchProgress`)
+- **Constants**: UPPER_SNAKE_CASE (`API_BASE_URL`)
+- **Interfaces/types**: PascalCase (`ApiResponse`, `CourseNodeData`)
+- **Files**: PascalCase for React components, camelCase for everything else
+- **Prisma error helper**: `isNotFoundError(error: unknown): boolean`
 
 ### React Components
 
 ```typescript
 interface Props {
-  title: string;
+  userId: string;
+  onAddToPlan?: (course: Course) => void;
 }
 
-const Component: React.FC<Props> = ({ title }) => {
-  const [count, setCount] = useState<number>(0);
+export const Recommendations: React.FC<Props> = ({ userId, onAddToPlan }) => {
+  const [data, setData] = useState<Recommendation | null>(null);
 
-  const handleClick = useCallback(() => {
-    setCount(c => c + 1);
-  }, []);
+  const fetchData = useCallback(async () => {
+    const response = await getRecommendations(userId);
+    if (response.success && response.data) {
+      setData(response.data);
+    }
+  }, [userId]);
 
-  return <div>{title}</div>;
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // ...
 };
 ```
+
+- Use `useCallback` for functions referenced in `useEffect` deps — never use `eslint-disable-next-line react-hooks/exhaustive-deps`
+- Always check `response.success && response.data` before using API responses
 
 ### API Routes (Server)
 
 ```typescript
-// Consistent response format
-try {
-  const data = await service.getData();
-  res.json({ success: true, data });
-} catch (error) {
-  console.error('Context:', error);
-  res.status(500).json({
-    success: false,
-    error: 'Descriptive message',
-  });
-}
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const validatedData = CreateCourseSchema.parse(req.body);
+    const course = await prisma.course.create({ data: validatedData });
+    return res.status(201).json({ success: true, data: course });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'Validation error', details: error.errors });
+    }
+    if (isNotFoundError(error)) {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+    console.error('Context:', error);
+    return res.status(500).json({ success: false, error: 'Descriptive message' });
+  }
+});
 ```
+
+- Always `return res.json(...)` — don't rely on fallthrough
+- Validate all input with Zod schemas from `@iu-study-planner/shared`
+- Use `isNotFoundError()` helper (import from `@prisma/client/runtime/library`) for Prisma P2025 errors
+- Consistent response: `{ success: boolean, data?, error?, message?, details? }`
 
 ### Error Handling
 
-- Always use try/catch for async operations
-- Validate with Zod at API boundaries
-- Log errors with context on backend
-- Return structured error responses
-
-### Comments
-
-- **Minimal** - Only explain complex logic
-- Explain "why" not "what"
-- Use JSDoc for public APIs only
+- try/catch on all async operations
+- Zod validation at every API boundary
+- Prisma errors: use `PrismaClientKnownRequestError` from `@prisma/client/runtime/library`
+- Client: check `response.success && response.data` before consuming
+- Wrap top-level app in `<ErrorBoundary>` (client)
 
 ### Formatting
 
-- 2 spaces indentation
-- Single quotes
-- Semicolons required
+- 2-space indentation
+- Single quotes, semicolons required
 - 100 char line limit
 - Trailing commas in multi-line
+- Run `npm run format` before committing
 
 ### Git Commits
 
@@ -165,39 +201,41 @@ chore: update dependencies
 
 ## Environment Variables
 
-**Client (.env)**
+**Client (`.env`)**: `VITE_API_URL=http://localhost:3001/api`
+**Server (`.env`)**: `DATABASE_URL`, `PORT=3001`, `NODE_ENV`, `CORS_ORIGIN`, `JWT_SECRET`, `JWT_EXPIRES_IN`
 
-```
-VITE_API_URL=http://localhost:3001/api
-```
-
-**Server (.env)**
-
-```
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/iu_study_planner
-PORT=3001
-NODE_ENV=development
-CORS_ORIGIN=http://localhost:5173
-JWT_SECRET=your-secret-key
-```
-
-**Security**: Never commit .env files!
+Never commit `.env` files.
 
 ## Project Structure
 
 ```
 client/src/
-  components/     # Reusable UI
-  features/       # Feature modules
-  lib/           # Utils, API, store
-  types/         # TypeScript defs
+  components/       # Reusable UI (ErrorBoundary, ui/*)
+  features/         # Feature modules (curriculum, planner, progress, recommendations)
+  lib/              # api.ts, store.ts, utils.ts
+  types/            # TypeScript definitions
 
 server/src/
-  config/        # Configuration
-  routes/        # API handlers
-  services/      # Business logic
+  config/           # Environment config
+  routes/           # Express route handlers
+  services/         # Business logic (workloadBalancer)
+  db.ts             # Prisma singleton
+  index.ts          # App entry
+
+shared/src/
+  schemas/          # Zod validation schemas
+  dto/              # Inferred TypeScript types + ApiResponse
 
 prisma/
-  schema.prisma  # DB schema
-  seed.ts       # Seed data
+  schema.prisma     # Database schema
+  seed.ts           # Seed data
+  migrations/       # Committed migration SQL
 ```
+
+## Key Conventions
+
+- **Shared types first** — define Zod schemas in `shared/`, infer DTOs, consume in client + server
+- **No `Record<string, unknown>`** — use typed DTOs from shared for all API mutations
+- **ApiResponse<T>** — all API functions return this; `data` is optional, always check before use
+- **Prisma singleton** — `server/src/db.ts` uses global to prevent multiple instances during hot reload
+- **Graceful shutdown** — server handles SIGTERM/SIGINT, disconnects Prisma
