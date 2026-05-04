@@ -1,14 +1,8 @@
-# 🎓 IU Smart Study Planner (ISP)
+# IU Smart Study Planner (ISP)
 
-A comprehensive web application for visualizing curriculum as an interactive dependency graph and providing adaptive course recommendations for International University (IU) - VNU students.
+A web application that visualizes the curriculum as an interactive dependency graph and provides course recommendations for students at the International University (IU), VNU.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue)
-![React](https://img.shields.io/badge/React-18.2-61DAFB)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
-
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
@@ -22,64 +16,35 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - [Contributing](#contributing)
 - [License](#license)
 
-## 🎯 Overview
+## Overview
 
-**Problem:** Students currently rely on static, confusing PDF flowcharts to plan their degree, leading to:
+Students planning their degrees usually rely on static PDF flowcharts to figure out course prerequisites and semester loads. This often leads to missed prerequisites, unbalanced semesters, and delayed graduation.
 
-- Missing prerequisites
-- Unbalanced semesters (too many heavy courses at once)
-- Delayed graduation
+The IU Smart Study Planner addresses this by providing an interactive curriculum graph, workload analysis, and smart course recommendations based on your progress and course difficulty.
 
-**Solution:** IU Smart Study Planner provides:
+## Features
 
-- Interactive curriculum dependency graph visualization
-- Adaptive course recommendations based on workload balancing
-- Smart prerequisite logic validation
-- Progress tracking and planning tools
+### Interactive Curriculum Graph
 
-## ✨ Features
+Courses are displayed as nodes with prerequisite relationships shown as connecting edges. Each course is color-coded by category and status (Completed, In Progress, Available, or Locked). The graph canvas is powered by React Flow and supports dragging and zooming.
 
-### Core Features
+### Smart Course Recommendations
 
-#### 1. Interactive Curriculum Graph
+The recommendation engine uses a workload balancing algorithm that considers your past performance, course difficulty levels, and credit limits. It prioritizes required and core courses while keeping semester loads balanced, and assigns risk levels (Low, Medium, High, Critical) to course selections.
 
-- Visual representation of courses as nodes
-- Prerequisite relationships as edges
-- Color-coded by course category (Required, Core, Elective, etc.)
-- Real-time status updates (Completed, In Progress, Available, Locked)
-- Drag-and-drop canvas powered by React Flow
+### Workload Analyzer
 
-#### 2. Smart Course Recommendations
+When you select courses for a semester, the analyzer calculates total credits, average difficulty, and a workload score. It then provides recommendations on whether your selection is manageable or needs adjustment.
 
-- AI-powered workload balancing algorithm
-- Considers past performance and course difficulty
-- Prioritizes required and core courses
-- Respects maximum credit limits per semester
-- Analyzes risk levels (Low, Medium, High, Critical)
+### Progress Dashboard
 
-#### 3. Workload Analyzer
+Track completed courses, view your GPA, and see how many credits you have earned. The dashboard also shows which courses are available for you to take next based on your completed prerequisites.
 
-- Calculates total credits and average difficulty
-- Provides workload score and risk assessment
-- Offers actionable recommendations
-- Validates semester plan feasibility
+### Study Plan Management
 
-#### 4. Progress Dashboard
+Create multiple study plans and organize courses semester by semester. The system validates your plans against prerequisite requirements to catch scheduling issues early.
 
-- Visual progress indicators
-- Completed courses history
-- GPA calculation
-- Credits earned tracking
-- Available courses listing
-
-#### 5. Study Plan Management
-
-- Create multiple study plans
-- Semester-by-semester planning
-- Course scheduling with validation
-- Export and share plans
-
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 
@@ -105,7 +70,7 @@ A comprehensive web application for visualizing curriculum as an interactive dep
 - **Containerization:** Docker & Docker Compose
 - **Development:** Nodemon, ts-node
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 iu-smart-study-planner/
@@ -113,75 +78,45 @@ iu-smart-study-planner/
 │   ├── src/
 │   │   ├── components/         # UI Components
 │   │   │   ├── ui/             # Reusable UI primitives
-│   │   │   │   ├── Card.tsx
-│   │   │   │   ├── ProgressBar.tsx
-│   │   │   │   ├── Badge.tsx
-│   │   │   │   ├── Button.tsx
-│   │   │   │   ├── LoadingSpinner.tsx
-│   │   │   │   └── index.ts
 │   │   │   └── ui.tsx          # Backward-compatible re-export
 │   │   ├── features/           # Feature-based modules
 │   │   │   ├── curriculum/     # Curriculum graph
-│   │   │   │   └── CurriculumGraph.tsx
 │   │   │   ├── planner/        # Study planner
-│   │   │   │   └── WorkloadAnalyzer.tsx
 │   │   │   ├── progress/       # Progress tracking
-│   │   │   │   └── ProgressDashboard.tsx
 │   │   │   └── recommendations/# Smart recommendations
-│   │   │       └── Recommendations.tsx
 │   │   ├── lib/                # Utilities and API
-│   │   │   ├── api.ts          # API client
-│   │   │   ├── store.ts        # Zustand store
-│   │   │   └── utils.ts        # Helper functions
-│   │   ├── types/              # TypeScript definitions
-│   │   │   └── index.ts
-│   │   ├── App.tsx             # Main application
-│   │   ├── main.tsx            # Entry point
-│   │   └── index.css           # Global styles
+│   │   └── types/              # TypeScript definitions
 │   ├── package.json
-│   ├── tsconfig.json
-│   ├── tailwind.config.js
 │   ├── vite.config.ts
 │   └── Dockerfile
 │
 ├── server/                      # Backend Application
 │   ├── src/
 │   │   ├── config/             # Configuration
-│   │   │   └── index.ts
-│   │   ├── controllers/        # Route controllers
 │   │   ├── routes/             # API routes
-│   │   │   ├── courses.ts      # Course CRUD
-│   │   │   ├── users.ts        # User management
-│   │   │   ├── studyPlans.ts   # Study plans
-│   │   │   └── recommendations.ts # Smart logic
 │   │   ├── services/           # Business logic
-│   │   │   └── workloadBalancer.ts
 │   │   └── index.ts            # Server entry
 │   ├── prisma/
 │   │   ├── schema.prisma       # Database schema
-│   │   └── seed.ts             # Sample data
+│   │   └── seed.ts             # Seed data
 │   ├── package.json
-│   ├── tsconfig.json
 │   └── Dockerfile
 │
+├── shared/                      # Shared schemas and DTOs
 ├── docker-compose.yml          # Docker orchestration
 └── README.md                   # This file
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- Docker Desktop (recommended) or Docker Engine + Docker Compose
-- Node.js 20+ (for local development without Docker)
-- npm or yarn
+- Docker Desktop (recommended) or Docker Engine with Docker Compose
+- Node.js 20 or later (for local development without Docker)
 
 ### Option 1: Docker Compose (Recommended)
 
-The fastest way to get started with all services:
-
 ```bash
-# Navigate to project directory
 cd iu-smart-study-planner
 
 # Start all services
@@ -192,12 +127,9 @@ docker-compose logs -f
 
 # Stop all services
 docker-compose down
-
-# Stop and remove volumes (clears database)
-docker-compose down -v
 ```
 
-**Services will be available at:**
+Services will be available at:
 
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3001
@@ -206,10 +138,9 @@ docker-compose down -v
 
 ### Option 2: Manual Setup
 
-#### Step 1: Start PostgreSQL
+Start PostgreSQL:
 
 ```bash
-# Using Docker
 docker run -d \
   --name isp-postgres \
   -e POSTGRES_USER=postgres \
@@ -219,71 +150,57 @@ docker run -d \
   postgres:15-alpine
 ```
 
-#### Step 2: Setup Backend
+Set up the backend:
 
 ```bash
 cd server
-
-# Install dependencies
 npm install
-
-# Generate Prisma client
 npx prisma generate
-
-# Run database migrations
 npx prisma migrate dev --name init
-
-# Seed database with sample data
 npx prisma db seed
-
-# Start development server
 npm run dev
 ```
 
-#### Step 3: Setup Frontend
+Set up the frontend:
 
 ```bash
 cd client
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
 ## Stability & Run Guide
 
-This section is the deterministic checklist to verify that the app is healthy after setup.
+Use this checklist to verify the application is running correctly after setup.
 
-### 1) Pre-flight checks
+### Pre-flight checks
 
-- Node.js: `node -v` (recommended `>=20`)
-- npm: `npm -v`
-- Docker daemon (for compose flow): `docker info`
-- Environment files:
+- Node.js version: `node -v` (recommended 20 or later)
+- npm version: `npm -v`
+- Docker daemon running (for compose): `docker info`
+- Environment files exist:
   - `server/.env` with `DATABASE_URL`, `PORT`, `CORS_ORIGIN`, `JWT_SECRET`
   - `client/.env` with `VITE_API_URL=http://localhost:3001/api`
 
-### 2) Local quality gates
+### Local quality gates
 
 Run these before starting services:
 
 ```bash
-# server
+# Server type check and tests
 cd server
 npx tsc --noEmit
 npm test -- --runInBand
 
-# client
+# Client type check and tests
 cd ../client
 npx tsc --noEmit
 npm run test:run
 ```
 
-Expected result: all commands exit with code `0`.
+All commands should exit with code 0.
 
-### 3) Start with Docker (preferred)
+### Start with Docker (preferred)
 
 ```bash
 cd ..
@@ -291,23 +208,11 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-Verify:
-- Frontend: [http://localhost:5173](http://localhost:5173)
-- Backend health: [http://localhost:3001/api/health](http://localhost:3001/api/health)
+Verify the frontend at http://localhost:5173 and backend health at http://localhost:3001/api/health.
 
-Stop:
+Stop with `docker-compose down`. Reset the database with `docker-compose down -v`.
 
-```bash
-docker-compose down
-```
-
-Reset database volume:
-
-```bash
-docker-compose down -v
-```
-
-### 4) Start locally (without compose app services)
+### Start locally (without compose)
 
 1. Start PostgreSQL (Docker or local service).
 2. Start backend:
@@ -327,46 +232,39 @@ cd client
 npm run dev
 ```
 
-### 5) Functional smoke checklist
+### Functional smoke checklist
 
-- `GET /api/health` returns `200` and `{ status: "ok" }`
-- Dashboard renders without crash
-- Curriculum graph renders course nodes/edges
-- Recommendations tab loads course list
-- Workload analyzer returns risk + recommendations
+- `GET /api/health` returns 200 with `{ status: "ok" }`
+- Dashboard renders without errors
+- Curriculum graph displays course nodes and edges
+- Recommendations tab loads the course list
+- Workload analyzer returns risk level and recommendations
 
-### 6) Common issues and fixes
+### Common issues and fixes
 
 - **Docker daemon unavailable**
   - Symptom: `Cannot connect to the Docker daemon ...`
-  - Fix: open Docker Desktop and wait until engine is running, then retry `docker-compose up -d`.
+  - Fix: Open Docker Desktop and wait for the engine to start, then retry `docker-compose up -d`.
 
 - **CORS errors in browser**
-  - Ensure `server/.env` has `CORS_ORIGIN=http://localhost:5173`.
-  - Ensure client calls backend at `http://localhost:3001/api` (or `/api` with proxy setup).
+  - Make sure `server/.env` has `CORS_ORIGIN=http://localhost:5173`.
+  - Make sure the client calls the backend at `http://localhost:3001/api` (or `/api` with proxy).
 
 - **Database relation or migration errors**
-  - Re-run:
-    - `npx prisma generate`
-    - `npx prisma migrate dev`
-    - `npx prisma db seed`
-  - If schema is inconsistent in development, use `npx prisma migrate reset`.
+  - Re-run `npx prisma generate`, then `npx prisma migrate dev`, then `npx prisma db seed`.
+  - If the schema is inconsistent in development, use `npx prisma migrate reset` (this clears all data).
 
-- **Empty dashboard/recommendations**
-  - Ensure seed data exists (`npx prisma db seed`).
-  - The client uses the first available user from API for these views.
+- **Empty dashboard or recommendations**
+  - Make sure seed data exists by running `npx prisma db seed`.
+  - The client uses the first available user from the API for these views.
 
-- **Client tests fail with testing-library module errors**
-  - Install missing test dependency:
-    - `cd client && npm install -D @testing-library/dom`
-
-## 🧪 Development Setup
+## Development Setup
 
 ### Environment Variables
 
-Create `.env` files in both client and server directories:
+Create `.env` files in both the client and server directories.
 
-**Server (.env):**
+Server `.env`:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/iu_study_planner
@@ -377,7 +275,7 @@ JWT_SECRET=your-secret-key
 JWT_EXPIRES_IN=7d
 ```
 
-**Client (.env):**
+Client `.env`:
 
 ```env
 VITE_API_URL=http://localhost:3001/api
@@ -388,13 +286,13 @@ VITE_API_URL=http://localhost:3001/api
 ```bash
 cd server
 
-# Open Prisma Studio (visual database management)
+# Open Prisma Studio (visual database browser)
 npx prisma studio
 
-# Create new migration
+# Create a new migration
 npx prisma migrate dev --name <migration-name>
 
-# Reset database
+# Reset database (deletes all data)
 npx prisma migrate reset
 
 # Seed database
@@ -406,16 +304,16 @@ npx prisma generate
 
 ### Available Scripts
 
-**Root (Monorepo):**
+Root workspace:
 
 ```bash
-npm run format      # Format all files with Prettier
-npm run format:check # Check if files are formatted
-npm run lint        # Run ESLint across all workspaces
-npm run test        # Run Vitest (client) and Jest (server) tests
+npm run format       # Format all files with Prettier
+npm run format:check # Check if files are formatted correctly
+npm run lint         # Run ESLint across all workspaces
+npm run test         # Run Vitest (client) and Jest (server) tests
 ```
 
-**Backend:**
+Backend:
 
 ```bash
 npm run dev       # Start with hot-reload
@@ -427,30 +325,30 @@ npm run db:seed       # Seed database
 npm run db:studio     # Open Prisma Studio
 ```
 
-**Frontend:**
+Frontend:
 
 ```bash
 npm run dev       # Start development server
 npm run build     # Build for production
-npm run preview   # Preview production build
+npm run preview   # Preview production build locally
 npm run lint      # Run ESLint
 npm run test      # Run Vitest tests
 ```
 
 ### Shared Schemas & Validation
 
-The project uses `zod` for payload validation. All validation schemas and Data Transfer Objects (DTOs) are located in the `shared/` workspace to ensure type safety across the monorepo boundary.
+All Zod validation schemas and TypeScript DTOs live in the `shared/` workspace to keep types consistent across the client and server.
 
-**To create a new shared schema:**
+To create a new shared schema:
 1. Export the Zod schema in `shared/src/schemas/index.ts`
-2. Infer the TypeScript type and export the DTO interface in `shared/src/dto/index.ts`
-3. If the server or client is running, you may need to restart, or run `npm run build` within `shared` directory to compile changes.
-4. Import and use the schema/DTO in client and server:
+2. Infer the TypeScript type and export the DTO in `shared/src/dto/index.ts`
+3. Run `npm run build` in the `shared/` directory to compile changes
+4. Import from `@iu-study-planner/shared` in client or server:
    ```ts
    import { MyNewSchema, MyNewDTO } from '@iu-study-planner/shared';
    ```
 
-## 📚 API Documentation
+## API Documentation
 
 ### Base URL
 
@@ -460,13 +358,13 @@ http://localhost:3001/api
 
 ### Endpoints
 
-#### Health Check
+Health Check:
 
 ```
 GET /health
 ```
 
-#### Courses
+Courses:
 
 ```
 GET    /courses                    # List all courses
@@ -478,7 +376,7 @@ POST   /courses/prerequisites     # Add prerequisite
 DELETE /courses/prerequisites/:id  # Remove prerequisite
 ```
 
-#### Users
+Users:
 
 ```
 GET    /users                      # List users
@@ -488,7 +386,7 @@ POST   /users/:id/records         # Add student record
 GET    /users/:id/progress        # Get user progress
 ```
 
-#### Study Plans
+Study Plans:
 
 ```
 GET    /study-plans/user/:userId   # Get user's study plans
@@ -500,7 +398,7 @@ DELETE /study-plans/:planId/semesters/:semesterId
 DELETE /study-plans/:id
 ```
 
-#### Recommendations
+Recommendations:
 
 ```
 GET    /recommendations/user/:userId  # Get recommendations
@@ -508,90 +406,83 @@ POST   /recommendations/analyze-workload
 GET    /recommendations/prerequisite-chain/:courseId
 ```
 
-## 🗄 Database Schema
+## Database Schema
 
-### Models
+### Course
 
-#### Course
+- `id` - UUID, primary key
+- `code` - String, unique (e.g., "IT064IU")
+- `name` - String, course name
+- `credits` - Integer, credit hours
+- `difficultyLevel` - Integer 1-5, difficulty rating
+- `description` - String, optional
+- `category` - Enum: REQUIRED, CORE, ELECTIVE, MAJOR_ELECTIVE, GENERAL_EDUCATION, FREE_ELECTIVE
+- `semesterOffered` - Array: FALL, SPRING, SUMMER
+- Relations to Prerequisite model
 
-- `id`: UUID (Primary Key)
-- `code`: String (Unique) - e.g., "IT101"
-- `name`: String - Course name
-- `credits`: Integer - Credit hours
-- `difficultyLevel`: Integer (1-5) - Difficulty rating
-- `description`: String (Optional)
-- `category`: Enum - REQUIRED, CORE, ELECTIVE, MAJOR_ELECTIVE, GENERAL_EDUCATION, FREE_ELECTIVE
-- `semesterOffered`: Array - FALL, SPRING, SUMMER
-- `prerequisites`: Relation to Prerequisite
-- `createdAt`, `updatedAt`: Timestamps
-
-#### Prerequisite
+### Prerequisite
 
 - Self-relation on Course
-- `courseId`: UUID
-- `prerequisiteId`: UUID
-- `isCorequisite`: Boolean
-- `isStrict`: Boolean
+- `courseId` and `prerequisiteId` - UUID foreign keys
+- `isCorequisite` - Boolean
+- `isStrict` - Boolean
 
-#### User
+### User
 
-- `id`: UUID (Primary Key)
-- `studentId`: String (Unique)
-- `name`: String
-- `email`: String (Unique)
-- `major`: String (Optional)
-- `enrollmentYear`: Integer (Optional)
-- `targetGraduationYear`: Integer (Optional)
+- `id` - UUID, primary key
+- `studentId` - String, unique
+- `name` - String
+- `email` - String, unique
+- `major` - String, optional
+- `enrollmentYear` - Integer, optional
+- `targetGraduationYear` - Integer, optional
 
-#### StudentRecord
+### StudentRecord
 
-- Tracks user progress on courses
-- `userId`, `courseId`: Foreign Keys
-- `grade`: String (e.g., "A", "B+")
-- `gradePoints`: Float
-- `status`: Enum - PLANNED, IN_PROGRESS, COMPLETED, FAILED, DROPPED
-- `semester`, `year`: When taken
+- Tracks user progress per course
+- `userId` and `courseId` - Foreign keys
+- `grade` - String (e.g., "A", "B+")
+- `gradePoints` - Float
+- `status` - Enum: PLANNED, IN_PROGRESS, COMPLETED, FAILED, DROPPED
+- `semester` and `year` - When the course was taken
 
-#### StudyPlan
+### StudyPlan
 
-- `userId`: Foreign Key
-- `name`: String
-- `description`: String (Optional)
-- `isActive`: Boolean
-- `semesters`: PlannedSemester[]
+- `userId` - Foreign key
+- `name` - String
+- `description` - String, optional
+- `isActive` - Boolean
+- Has multiple PlannedSemester records
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a pull request
 
 ### Code Style
 
-- TypeScript strict mode enabled
-- ESLint for code quality
-- Follow existing component patterns
+- TypeScript strict mode is enabled (no `any` types)
+- ESLint enforces code quality
+- Follow existing component and import patterns
 - Use TypeScript interfaces for all data structures
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License. See the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-- International University (IU) - VNU for the curriculum inspiration
+- International University (IU), VNU for the curriculum data
 - React Flow for the graph visualization library
-- Prisma for the excellent ORM
-- All contributors and testers
+- Prisma for the ORM
 
-## 📞 Support
+## Support
 
-For support, email [your-email] or create an issue in the repository.
+For support, create an issue in the repository.
 
 ---
 
-**Built with ❤️ for IU Students**
-
-_This is a pre-thesis project for the Computer Science program at International University, VNU-HCM._
+This is a pre-thesis project for the Computer Science program at International University, VNU-HCM.

@@ -1,346 +1,201 @@
 import { PrismaClient, CourseCategory, Semester, CourseStatus } from '@prisma/client';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('🌱 Starting database seed...');
+interface ScrapedCourse {
+  id: string;
+  name: string;
+  credits: number;
+  lectureHours: number;
+  labHours: number;
+  year: number;
+  semester: number;
+  isElective: boolean;
+  electiveGroup?: string;
+  selectCount?: number;
+}
 
-  // Check if database is already seeded
-  const existingUser = await prisma.user.findFirst();
-  if (existingUser) {
-    console.log('✅ Database is already seeded. Skipping seed process.');
-    return;
+interface ScrapedSemester {
+  year: number;
+  semester: number;
+  courses: ScrapedCourse[];
+}
+
+function determineCategory(course: ScrapedCourse): CourseCategory {
+  if (course.isElective) {
+    return CourseCategory.MAJOR_ELECTIVE;
   }
+  return CourseCategory.REQUIRED;
+}
 
-  // Sample Computer Science courses (IU curriculum inspired)
-  const courses = [
-    // Year 1 - Semester 1
-    {
-      code: 'IT100',
-      name: 'Introduction to Computing',
-      credits: 3,
-      difficultyLevel: 1,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'MA101',
-      name: 'Calculus I',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'PH101',
-      name: 'Physics I',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
+function determineSemesterOffered(scrapedSem: number): Semester[] {
+  if (scrapedSem === 1) return [Semester.FALL];
+  if (scrapedSem === 2) return [Semester.SPRING];
+  if (scrapedSem === 3) return [Semester.SUMMER];
+  return [Semester.FALL, Semester.SPRING];
+}
 
-    // Year 1 - Semester 2
-    {
-      code: 'IT101',
-      name: 'Programming Fundamentals',
-      credits: 3,
-      difficultyLevel: 2,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'MA102',
-      name: 'Calculus II',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'PH102',
-      name: 'Physics II',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
+function calculateDifficulty(course: ScrapedCourse): number {
+  const difficulty = course.year + (course.credits >= 4 ? 1 : 0);
+  return Math.max(1, Math.min(5, difficulty));
+}
 
-    // Year 2 - Semester 1
-    {
-      code: 'IT102',
-      name: 'Object-Oriented Programming',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'MA203',
-      name: 'Discrete Mathematics',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT200',
-      name: 'Data Structures',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT201',
-      name: 'Computer Architecture',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-
-    // Year 2 - Semester 2
-    {
-      code: 'IT202',
-      name: 'Algorithms',
-      credits: 3,
-      difficultyLevel: 5,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT203',
-      name: 'Database Systems',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT204',
-      name: 'Operating Systems',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'MA205',
-      name: 'Probability & Statistics',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-
-    // Year 3 - Semester 1
-    {
-      code: 'IT300',
-      name: 'Software Engineering',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT301',
-      name: 'Computer Networks',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT302',
-      name: 'Web Development',
-      credits: 3,
-      difficultyLevel: 2,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT303',
-      name: 'Artificial Intelligence',
-      credits: 3,
-      difficultyLevel: 5,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.FALL],
-    },
-
-    // Year 3 - Semester 2
-    {
-      code: 'IT304',
-      name: 'Machine Learning',
-      credits: 3,
-      difficultyLevel: 5,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.SPRING],
-    },
-    {
-      code: 'IT305',
-      name: 'Mobile Development',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.SPRING],
-    },
-    {
-      code: 'IT306',
-      name: 'Information Security',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.CORE,
-      semesterOffered: [Semester.FALL, Semester.SPRING],
-    },
-    {
-      code: 'IT307',
-      name: 'Cloud Computing',
-      credits: 3,
-      difficultyLevel: 3,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.SPRING],
-    },
-
-    // Year 4 - Semester 1
-    {
-      code: 'IT400',
-      name: 'Capstone Project I',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.FALL],
-    },
-    {
-      code: 'IT401',
-      name: 'Distributed Systems',
-      credits: 3,
-      difficultyLevel: 5,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.FALL],
-    },
-    {
-      code: 'IT402',
-      name: 'Data Mining',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.FALL],
-    },
-
-    // Year 4 - Semester 2
-    {
-      code: 'IT403',
-      name: 'Capstone Project II',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.SPRING],
-    },
-    {
-      code: 'IT404',
-      name: 'Blockchain Technology',
-      credits: 3,
-      difficultyLevel: 4,
-      category: CourseCategory.ELECTIVE,
-      semesterOffered: [Semester.SPRING],
-    },
-    {
-      code: 'IT405',
-      name: 'Internship',
-      credits: 6,
-      difficultyLevel: 2,
-      category: CourseCategory.REQUIRED,
-      semesterOffered: [Semester.SPRING, Semester.SUMMER],
-    },
-  ];
-
-  // Create courses
-  console.log('Creating courses...');
-  const createdCourses: Record<string, { id: string, name: string, code: string, credits: number, difficultyLevel: number }> = {};
-
-  for (const courseData of courses) {
-    const course = await prisma.course.create({
-      data: courseData,
-    });
-    createdCourses[course.code] = course;
-    console.log(`  ✅ Created: ${course.code} - ${course.name}`);
+function generateDescription(course: ScrapedCourse): string | undefined {
+  const parts: string[] = [];
+  if (course.lectureHours > 0) {
+    parts.push(`${course.lectureHours}h lecture`);
   }
+  if (course.labHours > 0) {
+    parts.push(`${course.labHours}h lab`);
+  }
+  return parts.length > 0 ? parts.join(', ') : undefined;
+}
 
-  // Define prerequisites
-  const prerequisites = [
-    // IT101 requires IT100
-    { course: 'IT101', prerequisite: 'IT100' },
-    // MA102 requires MA101
-    { course: 'MA102', prerequisite: 'MA101' },
-    // PH102 requires PH101
-    { course: 'PH102', prerequisite: 'PH101' },
-    // IT102 requires IT101
-    { course: 'IT102', prerequisite: 'IT101' },
-    // IT200 requires IT101 and MA101
-    { course: 'IT200', prerequisite: 'IT101' },
-    { course: 'IT200', prerequisite: 'MA101' },
-    // IT201 requires IT100
-    { course: 'IT201', prerequisite: 'IT100' },
-    // IT202 requires IT200 and MA203
-    { course: 'IT202', prerequisite: 'IT200' },
-    { course: 'IT202', prerequisite: 'MA203' },
-    // IT203 requires IT200
-    { course: 'IT203', prerequisite: 'IT200' },
-    // IT204 requires IT201 and IT200
-    { course: 'IT204', prerequisite: 'IT201' },
-    { course: 'IT204', prerequisite: 'IT200' },
-    // MA203 requires MA102
-    { course: 'MA203', prerequisite: 'MA102' },
-    // IT300 requires IT102
-    { course: 'IT300', prerequisite: 'IT102' },
-    // IT301 requires IT204
-    { course: 'IT301', prerequisite: 'IT204' },
-    // IT302 requires IT102
-    { course: 'IT302', prerequisite: 'IT102' },
-    // IT303 requires IT202 and MA205
-    { course: 'IT303', prerequisite: 'IT202' },
-    { course: 'IT303', prerequisite: 'MA205' },
-    // IT304 requires IT303
-    { course: 'IT304', prerequisite: 'IT303' },
-    // IT305 requires IT102
-    { course: 'IT305', prerequisite: 'IT102' },
-    // IT306 requires IT301
-    { course: 'IT306', prerequisite: 'IT301' },
-    // IT307 requires IT301
-    { course: 'IT307', prerequisite: 'IT301' },
-    // IT400 requires IT300
-    { course: 'IT400', prerequisite: 'IT300' },
-    // IT401 requires IT301 and IT204
-    { course: 'IT401', prerequisite: 'IT301' },
-    { course: 'IT401', prerequisite: 'IT204' },
-    // IT402 requires IT203 and MA205
-    { course: 'IT402', prerequisite: 'IT203' },
-    { course: 'IT402', prerequisite: 'MA205' },
-    // IT403 requires IT400
-    { course: 'IT403', prerequisite: 'IT400' },
-    // IT404 requires IT306
-    { course: 'IT404', prerequisite: 'IT306' },
-  ];
+function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: string; prerequisite: string }[] {
+  const prerequisites: { course: string; prerequisite: string }[] = [];
 
-  // Create prerequisites
-  console.log('\nCreating prerequisite relationships...');
-  for (const prereq of prerequisites) {
-    const course = createdCourses[prereq.course];
-    const prerequisite = createdCourses[prereq.prerequisite];
+  const labToLecture: Record<string, string> = {
+    'IT099IU': 'IT067IU',
+    'IT101IU': 'IT074IU',
+    'IT098IU': 'IT068IU',
+    'IT106IU': 'IT105IU',
+    'IT129IU': 'IT128IU',
+    'IT126IU': 'IT110IU',
+    'PH016IU': 'PH015IU',
+  };
 
-    if (course && prerequisite) {
-      await prisma.prerequisite.create({
-        data: {
-          courseId: course.id,
-          prerequisiteId: prerequisite.id,
-        },
-      });
-      console.log(`  🔗 ${prereq.prerequisite} → ${prereq.course}`);
+  for (const [labCode, lectureCode] of Object.entries(labToLecture)) {
+    if (allCourses.has(labCode) && allCourses.has(lectureCode)) {
+      prerequisites.push({ course: labCode, prerequisite: lectureCode });
     }
   }
 
-  // Create a sample user
+  const yearProgression: Record<string, string[]> = {
+    'IT069IU': ['IT116IU', 'IT149IU'],
+    'IT013IU': ['IT069IU', 'IT153IU'],
+    'IT079IU': ['IT069IU'],
+    'MA003IU': ['MA001IU'],
+    'IT089IU': ['IT067IU', 'IT099IU'],
+    'IT090IU': ['IT069IU'],
+    'IT096IU': ['IT091IU'],
+    'IT125IU': ['IT091IU'],
+    'IT017IU': ['IT089IU', 'IT013IU'],
+    'IT139IU': ['IT091IU'],
+    'IT114IU': ['IT090IU'],
+    'IT160IU': ['IT079IU', 'MA026IU'],
+    'IT130IU': ['MA001IU', 'IT154IU'],
+    'IT117IU': ['IT091IU'],
+    'IT076IU': ['IT090IU'],
+    'IT172IU': ['IT013IU', 'MA001IU'],
+    'IT170IU': ['IT159IU'],
+    'IT082IU': ['IT013IU'],
+    'IT083IU': ['IT076IU'],
+    'IT103IU': ['MA001IU', 'MA003IU'],
+    'IT173IU': ['IT079IU', 'MA026IU'],
+    'IT168IU': ['IT083IU'],
+    'IT169IU': ['MA026IU'],
+    'IT157IU': ['IT159IU'],
+    'IT133IU': ['IT093IU'],
+    'IT164IU': ['IT091IU'],
+    'IT165IU': ['IT091IU'],
+    'IT166IU': ['IT076IU'],
+    'IT167IU': ['IT093IU'],
+    'IT150IU': ['IT079IU'],
+    'IT156IU': ['IT091IU'],
+    'IT138IU': ['MA026IU'],
+    'IT171IU': ['MA026IU'],
+    'IT136IU': ['MA026IU'],
+    'IT137IU': ['IT079IU', 'MA026IU'],
+    'IT144IU': ['IT094IU'],
+    'IT145IU': ['IT094IU'],
+    'IT146IU': ['IT091IU'],
+    'IT163IU': ['MA003IU', 'IT153IU'],
+  };
+
+  for (const [courseCode, prereqCodes] of Object.entries(yearProgression)) {
+    if (allCourses.has(courseCode)) {
+      for (const prereqCode of prereqCodes) {
+        if (allCourses.has(prereqCode)) {
+          prerequisites.push({ course: courseCode, prerequisite: prereqCode });
+        }
+      }
+    }
+  }
+
+  return prerequisites;
+}
+
+async function main() {
+  console.log('Starting database seed with real HCMIU CS course data...');
+
+  const existingUser = await prisma.user.findFirst();
+  if (existingUser) {
+    console.log('Database is already seeded. Skipping seed process.');
+    return;
+  }
+
+  const scrapedDataPath = join(__dirname, '../../scraped-courses.json');
+  const scrapedData: ScrapedSemester[] = JSON.parse(readFileSync(scrapedDataPath, 'utf8'));
+
+  const allCoursesFlat: ScrapedCourse[] = [];
+  for (const sem of scrapedData) {
+    for (const course of sem.courses) {
+      allCoursesFlat.push(course);
+    }
+  }
+
+  console.log(`Loaded ${allCoursesFlat.length} courses from scraped-courses.json`);
+
+  const courseCodeToId: Map<string, string> = new Map();
+  const allCoursesMap: Map<string, ScrapedCourse> = new Map();
+
+  for (const course of allCoursesFlat) {
+    allCoursesMap.set(course.id, course);
+  }
+
+  console.log('Creating courses...');
+  for (const course of allCoursesFlat) {
+    const category = determineCategory(course);
+    const difficultyLevel = calculateDifficulty(course);
+    const semesterOffered = determineSemesterOffered(course.semester);
+    const description = generateDescription(course);
+
+    const created = await prisma.course.create({
+      data: {
+        code: course.id,
+        name: course.name,
+        credits: course.credits,
+        difficultyLevel,
+        category,
+        semesterOffered,
+        description,
+      },
+    });
+
+    courseCodeToId.set(course.id, created.id);
+    console.log(`  Created: ${course.id} - ${course.name} [${category}, difficulty:${difficultyLevel}]`);
+  }
+
+  const prerequisitePairs = inferPrerequisites(allCoursesMap);
+
+  console.log(`\nCreating ${prerequisitePairs.length} prerequisite relationships...`);
+  for (const pair of prerequisitePairs) {
+    const courseId = courseCodeToId.get(pair.course);
+    const prerequisiteId = courseCodeToId.get(pair.prerequisite);
+
+    if (courseId && prerequisiteId) {
+      await prisma.prerequisite.create({
+        data: {
+          courseId,
+          prerequisiteId,
+        },
+      });
+      console.log(`  ${pair.prerequisite} -> ${pair.course}`);
+    }
+  }
+
   console.log('\nCreating sample user...');
   const sampleUser = await prisma.user.create({
     data: {
@@ -352,74 +207,97 @@ async function main() {
       targetGraduationYear: 2026,
     },
   });
-  console.log(`  👤 Created user: ${sampleUser.name} (${sampleUser.studentId})`);
+  console.log(`  Created user: ${sampleUser.name} (${sampleUser.studentId})`);
 
-  // Create sample student records (completed courses)
   console.log('\nCreating sample student records...');
-  const completedCourses = [
-    'IT100',
-    'MA101',
-    'PH101',
-    'IT101',
-    'MA102',
-    'PH102',
-    'IT102',
-    'MA203',
-    'IT200',
-  ];
+  const completedCourses = ['MA001IU', 'EN008IU', 'EN007IU', 'IT064IU', 'IT116IU', 'PT001IU', 'PH013IU', 'IT135IU', 'IT149IU'];
 
   for (let i = 0; i < completedCourses.length; i++) {
-    const course = createdCourses[completedCourses[i]];
-    if (course) {
+    const courseCode = completedCourses[i];
+    const courseId = courseCodeToId.get(courseCode);
+    if (courseId) {
       await prisma.studentRecord.create({
         data: {
           userId: sampleUser.id,
-          courseId: course.id,
-          grade: ['A', 'B+', 'B', 'A-', 'B+'][Math.floor(Math.random() * 5)],
-          gradePoints: [4.0, 3.5, 3.0, 3.7, 3.5][Math.floor(Math.random() * 5)],
-          semester: i < 3 ? 'Fall' : i < 6 ? 'Spring' : 'Fall',
-          year: i < 3 ? 2022 : i < 6 ? 2023 : 2023,
+          courseId,
+          grade: ['A', 'B+', 'B', 'A-', 'B+'][i % 5],
+          gradePoints: [4.0, 3.5, 3.0, 3.7, 3.5][i % 5],
+          semester: 'Fall',
+          year: 2022,
           status: CourseStatus.COMPLETED,
         },
       });
-      console.log(`  ✅ Completed: ${course.code}`);
+      console.log(`  Completed: ${courseCode}`);
     }
   }
 
-  // Create a sample study plan
   console.log('\nCreating sample study plan...');
   const studyPlan = await prisma.studyPlan.create({
     data: {
       userId: sampleUser.id,
       name: 'My 4-Year Study Plan',
-      description: 'Balanced course load with focus on core CS courses',
+      description: 'Balanced course load following HCMIU CS curriculum',
       isActive: true,
     },
   });
 
-  // Add planned semesters
   const plannedSemesters = [
     {
       semester: Semester.SPRING,
-      year: 2024,
-      courses: ['IT201', 'IT202', 'IT203', 'IT204', 'MA205'],
+      year: 2023,
+      courses: ['IT153IU', 'EN012IU', 'EN011IU', 'IT067IU', 'IT099IU', 'IT069IU', 'IT154IU'],
     },
-    { semester: Semester.FALL, year: 2024, courses: ['IT300', 'IT301', 'IT302', 'IT303'] },
-    { semester: Semester.SPRING, year: 2025, courses: ['IT304', 'IT305', 'IT306', 'IT307'] },
-    { semester: Semester.FALL, year: 2025, courses: ['IT400', 'IT401', 'IT402'] },
-    { semester: Semester.SPRING, year: 2026, courses: ['IT403', 'IT404', 'IT405'] },
+    {
+      semester: Semester.FALL,
+      year: 2023,
+      courses: ['IT013IU', 'IT079IU', 'MA003IU', 'IT068IU', 'IT098IU'],
+    },
+    {
+      semester: Semester.SPRING,
+      year: 2024,
+      courses: ['IT089IU', 'IT093IU', 'IT090IU', 'IT024IU', 'IT159IU'],
+    },
+    {
+      semester: Semester.FALL,
+      year: 2024,
+      courses: ['IT017IU', 'IT096IU', 'IT125IU', 'IT139IU'],
+    },
+    {
+      semester: Semester.SPRING,
+      year: 2025,
+      courses: ['IT117IU', 'IT076IU', 'IT172IU', 'IT170IU'],
+    },
+    {
+      semester: Semester.FALL,
+      year: 2025,
+      courses: ['IT083IU', 'IT110IU', 'IT126IU', 'IT103IU'],
+    },
+    {
+      semester: Semester.SPRING,
+      year: 2026,
+      courses: ['IT058IU', 'IT168IU'],
+    },
   ];
 
   for (const plan of plannedSemesters) {
-    const courseData = plan.courses.map((code, index) => ({
-      courseId: createdCourses[code].id,
-      position: index,
-    }));
+    const courseData = plan.courses
+      .filter((code) => courseCodeToId.has(code))
+      .map((code, index) => ({
+        courseId: courseCodeToId.get(code)!,
+        position: index,
+      }));
 
-    const totalCredits = plan.courses.reduce((sum, code) => sum + createdCourses[code].credits, 0);
+    const validCodes = plan.courses.filter((code) => courseCodeToId.has(code));
+    const totalCredits = validCodes.reduce((sum, code) => {
+      const course = allCoursesMap.get(code);
+      return sum + (course?.credits ?? 0);
+    }, 0);
+
     const difficultyScore =
-      plan.courses.reduce((sum, code) => sum + createdCourses[code].difficultyLevel, 0) /
-      plan.courses.length;
+      validCodes.reduce((sum, code) => {
+        const course = allCoursesMap.get(code);
+        return sum + calculateDifficulty(course!);
+      }, 0) / validCodes.length;
 
     await prisma.plannedSemester.create({
       data: {
@@ -431,21 +309,27 @@ async function main() {
         difficultyScore,
       },
     });
-    console.log(`  📅 ${plan.semester} ${plan.year}: ${plan.courses.join(', ')}`);
+    console.log(`  Planned: ${plan.semester} ${plan.year}: ${validCodes.join(', ')} (${totalCredits} credits)`);
   }
 
-  console.log('\n✨ Database seeded successfully!');
-  console.log('\n📊 Summary:');
-  console.log(`   - Courses created: ${courses.length}`);
-  console.log(`   - Prerequisites created: ${prerequisites.length}`);
-  console.log(`   - Users created: 1`);
-  console.log(`   - Student records created: ${completedCourses.length}`);
-  console.log(`   - Study plans created: 1 with ${plannedSemesters.length} semesters`);
+  const totalCredits = allCoursesFlat.reduce((sum, c) => sum + c.credits, 0);
+  const electiveCount = allCoursesFlat.filter((c) => c.isElective).length;
+  const requiredCount = allCoursesFlat.length - electiveCount;
+
+  console.log('\nDatabase seeded successfully!');
+  console.log('\nSummary:');
+  console.log(`  Courses created: ${allCoursesFlat.length}`);
+  console.log(`  Prerequisites created: ${prerequisitePairs.length}`);
+  console.log(`  Required courses: ${requiredCount}`);
+  console.log(`  Elective courses: ${electiveCount}`);
+  console.log(`  Total credits: ${totalCredits}`);
+  console.log(`  Users created: 1`);
+  console.log(`  Study plans created: 1 with ${plannedSemesters.length} semesters`);
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding database:', e);
+    console.error('Error seeding database:', e);
     process.exit(1);
   })
   .finally(async () => {

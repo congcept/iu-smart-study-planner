@@ -1,0 +1,1080 @@
+[
+  {
+    "year": 1,
+    "semester": 1,
+    "courses": [
+      {
+        "id": "MA001IU",
+        "name": "Calculus 1",
+        "credits": 4,
+        "lectureHours": 4,
+        "labHours": 0,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "EN008IU",
+        "name": "Academic English 1 (Listening skills)",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "EN007IU",
+        "name": "Academic English 1 (Writing skills)",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT064IU",
+        "name": "Introduction to Computing",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT116IU",
+        "name": "C/C++ Programming",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PT001IU",
+        "name": "Physical Training 1",
+        "credits": 3,
+        "lectureHours": 0,
+        "labHours": 3,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PH013IU",
+        "name": "Physics 1",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT135IU",
+        "name": "Introduction to Data Science",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT149IU",
+        "name": "Fundamentals of Programming",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 1,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 1,
+    "semester": 2,
+    "courses": [
+      {
+        "id": "IT153IU",
+        "name": "Discrete Mathematics",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "EN012IU",
+        "name": "Academic English 2 (Speaking skills)",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "EN011IU",
+        "name": "Academic English 2 (Writing skills)",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT067IU",
+        "name": "Digital Logic Design",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT099IU",
+        "name": "Digital Logic Design Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT069IU",
+        "name": "Object-Oriented Programming",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT154IU",
+        "name": "Linear Algebra",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PE015IU",
+        "name": "Philosophy Marx – Lenin",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT091IU",
+        "name": "Computer Networks",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "MA026IU",
+        "name": "Probability, Statistic & Random Process",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PH015IU",
+        "name": "Physics 3",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PH016IU",
+        "name": "Physics 3 Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 1,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 2,
+    "semester": 1,
+    "courses": [
+      {
+        "id": "IT013IU",
+        "name": "Algorithms and Data Structures",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT079IU",
+        "name": "Principles of Database Management",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "MA003IU",
+        "name": "Calculus 2",
+        "credits": 4,
+        "lectureHours": 4,
+        "labHours": 0,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PE016IU",
+        "name": "Marxist – Leninist Political Economy",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT068IU",
+        "name": "Principle of Electrical Engineering I",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT098IU",
+        "name": "Principle of Electrical Engineering I Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT151IU",
+        "name": "Statistical Method",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT097IU",
+        "name": "Principles of Database Management",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT140IU",
+        "name": "Fundamental Concepts of Data Security",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 2,
+    "semester": 2,
+    "courses": [
+      {
+        "id": "IT089IU",
+        "name": "Computer Architecture",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT093IU",
+        "name": "Web Application Development",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PE017IU",
+        "name": "Scientific Socialism",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT094IU",
+        "name": "Information System Management",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT159IU",
+        "name": "Artificial Intelligence",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT134IU",
+        "name": "Internet of Things",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PE021IU",
+        "name": "General law",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT074IU",
+        "name": "Electronic Devices",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT101IU",
+        "name": "Electronic Devices Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT090IU",
+        "name": "Object-OrientedAnalysis and Design",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT056IU",
+        "name": "IT Project Management",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT024IU",
+        "name": "Computer Graphics",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT157IU",
+        "name": "Deep Learning",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT133IU",
+        "name": "Mobile Application Development",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT044IU",
+        "name": "Human Computer Interaction",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT164IU",
+        "name": "Cloud computing",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT165IU",
+        "name": "Security Technology and Implementation",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT166IU",
+        "name": "Software Quality Verification and Validation",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT167IU",
+        "name": "Game Application Development",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT150IU",
+        "name": "Blockchain",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT156IU",
+        "name": "Development & Operation (DevOps)",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT138IU",
+        "name": "Data Science and Visualization",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT171IU",
+        "name": "Statistical Learning",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT136IU",
+        "name": "Regression Analysis",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 2,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 3,
+    "semester": 1,
+    "courses": [
+      {
+        "id": "IT017IU",
+        "name": "Operating System",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT096IU",
+        "name": "Net-Centric Programming",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT125IU",
+        "name": "System & Network Administration",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PH014IU",
+        "name": "Physics 2",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PT002IU",
+        "name": "Physical Training 2",
+        "credits": 3,
+        "lectureHours": 0,
+        "labHours": 3,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PE018IU",
+        "name": "History of Vietnamese Communist Party",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT139IU",
+        "name": "Scalable and Distributed Computing",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT128IU",
+        "name": "Micro-processing Systems",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT129IU",
+        "name": "Micro-processing Systems Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT092IU",
+        "name": "Principles of Programming Languages",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT160IU",
+        "name": "Data Mining",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT130IU",
+        "name": "Digital Image Processing",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT114IU",
+        "name": "Software Architecture",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT137IU",
+        "name": "Data Analysis",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 3,
+    "semester": 2,
+    "courses": [
+      {
+        "id": "IT117IU",
+        "name": "System and Network Security",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "PE019IU",
+        "name": "Ho Chi Minh’s Thoughts",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT120IU",
+        "name": "Entrepreneurship",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 3,
+        "semester": 2,
+        "isElective": true,
+        "electiveGroup": "Elective 3",
+        "selectCount": 1
+      },
+      {
+        "id": "IT105IU",
+        "name": "Digital System Design",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT106IU",
+        "name": "Digital System Design Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT115IU",
+        "name": "Embedded Systems",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT127IU",
+        "name": "Embedded Systems Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT076IU",
+        "name": "Software Engineering",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT172IU",
+        "name": "Machine Learning",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT170IU",
+        "name": "Natural Language Processing",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT144IU",
+        "name": "Business Process Analysis",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT145IU",
+        "name": "Decision Support Systems",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT146IU",
+        "name": "Theory of Networks",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT163IU",
+        "name": "Optimization and Applications",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 3,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 3,
+    "semester": 3,
+    "courses": [
+      {
+        "id": "IT082IU",
+        "name": "Internship",
+        "credits": 3,
+        "lectureHours": 0,
+        "labHours": 3,
+        "year": 3,
+        "semester": 3,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 4,
+    "semester": 1,
+    "courses": [
+      {
+        "id": "PH012IU",
+        "name": "Physics 4",
+        "credits": 2,
+        "lectureHours": 2,
+        "labHours": 0,
+        "year": 4,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT083IU",
+        "name": "Special Study of the Field",
+        "credits": 3,
+        "lectureHours": 0,
+        "labHours": 3,
+        "year": 4,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT110IU",
+        "name": "Concepts in VLSI Design",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 4,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT126IU",
+        "name": "Concepts in VLSI Design Laboratory",
+        "credits": 1,
+        "lectureHours": 0,
+        "labHours": 1,
+        "year": 4,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT103IU",
+        "name": "Digital Signal Processing",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 4,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT173IU",
+        "name": "Big Data Analytics",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 4,
+        "semester": 1,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  },
+  {
+    "year": 4,
+    "semester": 2,
+    "courses": [
+      {
+        "id": "PE020IU",
+        "name": "Engineering Ethics and Professional Skills",
+        "credits": 3,
+        "lectureHours": 3,
+        "labHours": 0,
+        "year": 4,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT058IU",
+        "name": "Thesis",
+        "credits": 10,
+        "lectureHours": 0,
+        "labHours": 10,
+        "year": 4,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT168IU",
+        "name": "Special Study of the Field 2",
+        "credits": 3,
+        "lectureHours": 0,
+        "labHours": 3,
+        "year": 4,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      },
+      {
+        "id": "IT169IU",
+        "name": "Time Series Analysis",
+        "credits": 4,
+        "lectureHours": 3,
+        "labHours": 1,
+        "year": 4,
+        "semester": 2,
+        "isElective": false,
+        "selectCount": 0
+      }
+    ]
+  }
+]
