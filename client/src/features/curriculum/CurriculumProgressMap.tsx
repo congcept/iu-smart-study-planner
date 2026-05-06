@@ -25,6 +25,7 @@ export const CurriculumProgressMap = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
+  const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
 
   const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned } = useAppStore();
   const completedIds = useAppStore((state) => state.completedIds);
@@ -33,6 +34,7 @@ export const CurriculumProgressMap = () => {
   const plannedIdsSet = useMemo(() => new Set(plannedIds), [plannedIds]);
 
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
+  const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [planningStats, setPlanningStats] = useState<{
     remaining: number;
     semestersLeft: number;
@@ -41,6 +43,11 @@ export const CurriculumProgressMap = () => {
 
   useEffect(() => {
     const fetchPlan = async () => {
+      if (!recommendationsEnabled) {
+        setRecommendedIds(new Set());
+        setPlanningStats(null);
+        return;
+      }
       try {
         const response = await planSemester(intensityMode, completedIds);
         if (response.success && response.data) {
@@ -57,7 +64,7 @@ export const CurriculumProgressMap = () => {
     };
 
     fetchPlan();
-  }, [intensityMode, completedIds]);
+  }, [intensityMode, completedIds, recommendationsEnabled]);
 
   useEffect(() => {
     const fetchCurriculum = async () => {
@@ -107,6 +114,14 @@ export const CurriculumProgressMap = () => {
     },
     [completeToPlanned],
   );
+
+  const handlePrereqsHover = useCallback((prereqIds: string[]) => {
+    setHighlightedPrereqIds(new Set(prereqIds));
+  }, []);
+
+  const handlePrereqsLeave = useCallback(() => {
+    setHighlightedPrereqIds(new Set());
+  }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
     return groups.map((group) => {
@@ -190,7 +205,19 @@ export const CurriculumProgressMap = () => {
   return (
     <div className="space-y-4 overflow-hidden w-full max-w-full">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white rounded-lg p-4 border border-gray-200 overflow-hidden">
-        <IntensitySlider mode={intensityMode} onChange={setIntensityMode} />
+        <button
+          onClick={() => setRecommendationsEnabled(!recommendationsEnabled)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            recommendationsEnabled
+              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          }`}
+        >
+          <span className={`w-3 h-3 rounded-full ${recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-400'}`} />
+          {recommendationsEnabled ? 'AI On' : 'AI Off'}
+        </button>
+
+        <IntensitySlider mode={intensityMode} onChange={setIntensityMode} disabled={!recommendationsEnabled} />
 
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 min-w-0">
           <span>
@@ -253,9 +280,12 @@ export const CurriculumProgressMap = () => {
                         isPlanned={isPlanned}
                         isLocked={isLocked}
                         isRecommended={isRecommended}
+                        isHighlighted={highlightedPrereqIds.has(course.id)}
                         onToggleComplete={handleToggleComplete}
                         onTogglePlanned={handleTogglePlanned}
                         onCompleteToPlanned={handleCompleteToPlanned}
+                        onPrereqsHover={handlePrereqsHover}
+                        onPrereqsLeave={handlePrereqsLeave}
                       />
                     );
                   })}
@@ -278,9 +308,12 @@ export const CurriculumProgressMap = () => {
                               isPlanned={false}
                               isLocked={false}
                               isRecommended={false}
+                              isHighlighted={highlightedPrereqIds.has(course.id)}
                               onToggleComplete={handleToggleComplete}
                               onTogglePlanned={handleTogglePlanned}
                               onCompleteToPlanned={handleCompleteToPlanned}
+                              onPrereqsHover={handlePrereqsHover}
+                              onPrereqsLeave={handlePrereqsLeave}
                             />
                           ))}
                         </div>
@@ -312,9 +345,12 @@ export const CurriculumProgressMap = () => {
                                 isPlanned={isPlanned}
                                 isLocked={isLocked}
                                 isRecommended={isRecommended}
+                                isHighlighted={highlightedPrereqIds.has(course.id)}
                                 onToggleComplete={handleToggleComplete}
                                 onTogglePlanned={handleTogglePlanned}
                                 onCompleteToPlanned={handleCompleteToPlanned}
+                                onPrereqsHover={handlePrereqsHover}
+                                onPrereqsLeave={handlePrereqsLeave}
                               />
                             );
                           })}
