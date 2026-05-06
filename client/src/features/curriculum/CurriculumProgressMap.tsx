@@ -225,18 +225,18 @@ export const CurriculumProgressMap = () => {
             return (
               <div
                 key={`${group.year}-${group.semester}`}
-                className="w-44 shrink-0"
+                className="w-48 shrink-0"
               >
-                <div className="bg-gray-100 rounded-t-lg px-2 py-1.5 border-b-2 border-blue-500">
-                  <h3 className="font-bold text-xs text-gray-800">
+                <div className="bg-gray-100 rounded-t-lg px-2.5 py-1.5 border-b-2 border-blue-500">
+                  <h3 className="font-bold text-[11px] text-gray-800">
                     Year {group.year} - {semesterLabel}
                   </h3>
-                  <p className="text-[10px] text-gray-500">
+                  <p className="text-[11px] text-gray-500">
                     {requiredCredits} cr{electiveCredits > 0 ? ` + ${electiveCredits} cr` : ''}
                   </p>
                 </div>
 
-                <div className="bg-gray-50 rounded-b-lg p-1 space-y-1 border border-gray-200 border-t-0">
+                <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0">
                   {requiredCourses.map((course) => {
                     const isCompleted = completedIdsSet.has(course.id);
                     const isLocked = !isCompleted && !isCourseAvailable(course);
@@ -259,16 +259,16 @@ export const CurriculumProgressMap = () => {
                   })}
 
                   {electiveGroups.map((eg) => (
-                    <div key={eg.name} className="mt-1.5 pt-1.5 border-t-2 border-dashed border-amber-300">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className="text-[10px] font-semibold text-amber-700 truncate">
+                    <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-amber-700 truncate">
                           {eg.name.replace(/\s*\(.*?\)\s*/g, '')}
                         </p>
-                        <span className="text-[10px] font-medium bg-amber-100 text-amber-800 px-1 py-0.5 rounded-full shrink-0 ml-1">
+                        <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 ml-1">
                           {eg.selectCount}
                         </span>
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {eg.courses.map((course) => {
                           const isCompleted = completedIdsSet.has(course.id);
                           const isLocked = !isCompleted && !isCourseAvailable(course);
