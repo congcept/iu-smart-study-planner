@@ -35,28 +35,17 @@ export const CurriculumProgressMap = () => {
 
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
-  const [planningStats, setPlanningStats] = useState<{
-    remaining: number;
-    semestersLeft: number;
-    gradDate: string;
-  } | null>(null);
 
   useEffect(() => {
     const fetchPlan = async () => {
       if (!recommendationsEnabled) {
         setRecommendedIds(new Set());
-        setPlanningStats(null);
         return;
       }
       try {
         const response = await planSemester(intensityMode, completedIds);
         if (response.success && response.data) {
           setRecommendedIds(new Set(response.data.nextRecommendedIds));
-          setPlanningStats({
-            remaining: response.data.stats.totalRemainingCredits,
-            semestersLeft: response.data.stats.semestersToCompletion,
-            gradDate: response.data.stats.estimatedGraduationSemester,
-          });
         }
       } catch {
         // Planning failure is non-critical, just don't highlight
@@ -205,17 +194,21 @@ export const CurriculumProgressMap = () => {
   return (
     <div className="space-y-4 overflow-hidden w-full max-w-full">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white rounded-lg p-4 border border-gray-200 overflow-hidden">
-        <button
-          onClick={() => setRecommendationsEnabled(!recommendationsEnabled)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            recommendationsEnabled
-              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-          }`}
-        >
-          <span className={`w-3 h-3 rounded-full ${recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-400'}`} />
-          {recommendationsEnabled ? 'AI On' : 'AI Off'}
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">Recommendations</span>
+          <button
+            onClick={() => setRecommendationsEnabled(!recommendationsEnabled)}
+            className={`relative w-10 h-6 rounded-full transition-colors duration-200 ${
+              recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                recommendationsEnabled ? 'translate-x-4' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
 
         <IntensitySlider mode={intensityMode} onChange={setIntensityMode} disabled={!recommendationsEnabled} />
 
@@ -234,14 +227,6 @@ export const CurriculumProgressMap = () => {
               {plannedCredits} / 24 credits
             </span>
           </span>
-          {planningStats && (
-            <>
-              <span>
-                <span className="font-medium">ETA:</span>{' '}
-                <span className="font-bold text-amber-600">{planningStats.gradDate}</span>
-              </span>
-            </>
-          )}
         </div>
       </div>
 
