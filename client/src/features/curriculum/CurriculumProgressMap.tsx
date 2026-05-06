@@ -657,30 +657,29 @@ export const CurriculumProgressMap = () => {
 
       {progress && (
         <div className="mt-8 space-y-6">
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <h3 className="text-sm font-semibold mb-3">Overall Progress</h3>
+          <div className="bg-white rounded-lg p-5 border border-gray-200">
             <div className="flex items-center gap-4">
-              <div className="p-2 bg-blue-50 rounded-lg text-center shrink-0 w-20">
-                <GraduationCap size={16} className="mx-auto mb-0.5 text-blue-600" />
-                <div className="text-sm font-bold">{completedIdKeys.length}</div>
-                <div className="text-[10px] text-gray-600">Completed</div>
+              <div className="p-3 bg-blue-50 rounded-lg text-center shrink-0 w-24">
+                <GraduationCap size={22} className="mx-auto mb-1 text-blue-600" />
+                <div className="text-lg font-bold">{completedIdKeys.length}</div>
+                <div className="text-xs text-gray-600">Completed</div>
               </div>
-              <div className="p-2 bg-purple-50 rounded-lg text-center shrink-0 w-20">
-                <BookOpen size={16} className="mx-auto mb-0.5 text-purple-600" />
-                <div className="text-sm font-bold">{remainingCourses}</div>
-                <div className="text-[10px] text-gray-600">Remaining</div>
+              <div className="p-3 bg-purple-50 rounded-lg text-center shrink-0 w-24">
+                <BookOpen size={22} className="mx-auto mb-1 text-purple-600" />
+                <div className="text-lg font-bold">{remainingCourses}</div>
+                <div className="text-xs text-gray-600">Remaining</div>
               </div>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Target size={14} className="text-blue-600" />
-                    <span className="text-sm font-medium">Degree Progress</span>
+                  <div className="flex items-center gap-2">
+                    <Target size={18} className="text-blue-600" />
+                    <span className="text-base font-semibold">Degree Progress</span>
                   </div>
-                  <span className="text-sm font-bold text-blue-600">{progress.progress.percentage}%</span>
+                  <span className="text-2xl font-bold text-blue-600">{progress.progress.percentage}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="w-full bg-gray-200 rounded-full h-3.5">
                   <div
-                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+                    className="bg-blue-600 h-3.5 rounded-full transition-all duration-500"
                     style={{ width: `${progress.progress.percentage}%` }}
                   />
                 </div>
