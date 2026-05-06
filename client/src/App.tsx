@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Course } from './types';
 import { useAppStore } from './lib/store';
 import { getCourses, getUsers, healthCheck } from './lib/api';
-import { CurriculumGraph } from './features/curriculum/CurriculumGraph';
+import { CurriculumProgressMap } from './features/curriculum/CurriculumProgressMap';
 import { ProgressDashboard } from './features/progress/ProgressDashboard';
 import { Recommendations } from './features/recommendations/Recommendations';
 import { WorkloadAnalyzer } from './features/planner/WorkloadAnalyzer';
@@ -28,7 +28,7 @@ function App() {
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
-  const { courses, studentRecords, setCourses, completedCourseIds } = useAppStore();
+  const { courses, setCourses, completedCourseIds } = useAppStore();
 
   const initializeApp = useCallback(async () => {
     try {
@@ -64,17 +64,6 @@ function App() {
   useEffect(() => {
     initializeApp();
   }, [initializeApp]);
-
-  const handleCourseClick = (course: Course) => {
-    // Toggle course selection for workload analyzer
-    setSelectedCourses((prev) => {
-      const exists = prev.find((c) => c.id === course.id);
-      if (exists) {
-        return prev.filter((c) => c.id !== course.id);
-      }
-      return [...prev, course];
-    });
-  };
 
   const handleAddToPlan = (course: Course) => {
     setSelectedCourses((prev) => {
@@ -162,7 +151,7 @@ function App() {
       {/* Main Content */}
       <main
         className={`
-          flex-1 transition-all duration-300
+          flex-1 min-w-0 transition-all duration-300 overflow-x-hidden
           ${isSidebarOpen ? 'ml-64' : 'ml-0'}
         `}
       >
@@ -195,7 +184,7 @@ function App() {
         </header>
 
         {/* Content Area */}
-        <div className="p-6">
+        <div className="p-6 overflow-hidden w-full max-w-full">
           {activeTab === 'dashboard' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
@@ -235,21 +224,8 @@ function App() {
           )}
 
           {activeTab === 'curriculum' && (
-            <div className="space-y-6">
-              <Card
-                title="Curriculum Dependency Graph"
-                subtitle="Visualize course prerequisites and dependencies"
-              >
-                <CurriculumGraph
-                  courses={courses}
-                  completedCourseIds={completedCourseIds()}
-                  inProgressCourseIds={studentRecords
-                    .filter((r) => r.status === 'IN_PROGRESS')
-                    .map((r) => r.courseId)}
-                  onCourseClick={handleCourseClick}
-                  height="700px"
-                />
-              </Card>
+            <div className="overflow-hidden w-full max-w-full">
+              <CurriculumProgressMap />
 
               {selectedCourses.length > 0 && (
                 <Card title="Selected Courses">

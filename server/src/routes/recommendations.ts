@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { CourseStatus, Semester, StudentRecord, Course, Prerequisite } from '@prisma/client';
 import WorkloadBalancer from '../services/workloadBalancer';
+import SemesterPlanner from '../services/semesterPlanner';
 import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 
 const router = Router();
 const workloadBalancer = new WorkloadBalancer();
+const semesterPlanner = new SemesterPlanner();
 
 // Get course recommendations for a user
 router.get('/user/:userId', async (req: Request, res: Response) => {
@@ -244,6 +246,69 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch prerequisite chain',
+    });
+  }
+});
+
+// Plan semester based on intensity and completed courses
+router.post('/plan-semester', async (req: Request, res: Response) => {
+  try {
+    const { intensityMode, completedCourseIds } = z.object({
+      intensityMode: z.enum(['low', 'normal', 'high', 'max']),
+      completedCourseIds: z.array(z.string()).optional(),
+    }).parse(req.body);
+
+    const completedSet = new Set(completedCourseIds ?? []);
+
+    const allCourses = await prisma.course.findMany({
+      include: {
+        prerequisites: {
+          include: {
+            prerequisite: true,
+          },
+        },
+        isPrerequisiteFor: {
+          include: {
+            course: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    const coursesWithPrereqs = allCourses as (Course & {
+      prerequisites: (Prerequisite & { prerequisite?: Course })[];
+    })[];
+
+    const plan = semesterPlanner.plan(coursesWithPrereqs, completedSet, intensityMode);
+
+    const courseById = new Map(allCourses.map((c) => [c.id, c]));
+    const nextRecommendedCourses = plan.nextRecommendedIds
+      .map((id) => courseById.get(id))
+      .filter(Boolean) as Course[];
+
+    return res.json({
+      success: true,
+      data: {
+        nextRecommendedIds: plan.nextRecommendedIds,
+        nextRecommendedCourses,
+        semesters: plan.semesters,
+        stats: plan.stats,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: error.errors,
+      });
+    }
+    console.error('Error planning semester:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to plan semester',
     });
   }
 });

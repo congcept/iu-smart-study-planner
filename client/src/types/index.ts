@@ -8,6 +8,10 @@ export interface Course {
   description?: string;
   category: CourseCategory;
   semesterOffered: Semester[];
+  academicYear?: number;
+  academicSemester?: number;
+  electiveGroup?: string;
+  electiveSelectCount?: number;
   prerequisites: Prerequisite[];
   isPrerequisiteFor: Prerequisite[];
   createdAt: string;
@@ -140,8 +144,10 @@ export interface AppState {
   activePlan: StudyPlan | null;
   isLoading: boolean;
   error: string | null;
+  completionVersion: number;
+  completedIds: string[];
+  plannedIds: string[];
 
-  // Actions
   setUser: (user: User | null) => void;
   setCourses: (courses: Course[]) => void;
   setStudentRecords: (records: StudentRecord[]) => void;
@@ -149,9 +155,39 @@ export interface AppState {
   setActivePlan: (plan: StudyPlan | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  toggleCourseComplete: (courseId: string) => void;
+  toggleCoursePlanned: (courseId: string) => void;
+  completeToPlanned: (courseId: string) => void;
 
   // Computed
   completedCourseIds: () => string[];
   availableCourses: () => Course[];
   progress: () => { total: number; completed: number; percentage: number };
+}
+
+// Curriculum Progress Map Types
+export interface YearSemesterGroup {
+  year: number;
+  semester: number;
+  courses: Course[];
+}
+
+export type IntensityMode = 'low' | 'normal' | 'high' | 'max';
+
+export interface SemesterPlan {
+  semester: number;
+  year: number;
+  courses: Course[];
+  totalCredits: number;
+}
+
+export interface PlannedSemestersResponse {
+  nextRecommendedIds: string[];
+  nextRecommendedCourses: Course[];
+  semesters: SemesterPlan[];
+  stats: {
+    totalRemainingCredits: number;
+    semestersToCompletion: number;
+    estimatedGraduationSemester: string;
+  };
 }

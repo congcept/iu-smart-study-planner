@@ -51,6 +51,10 @@ export const CreateCourseSchema = z.object({
   description: z.string().optional(),
   category: CategorySchema.optional(),
   semesterOffered: z.array(SemesterSchema).optional(),
+  academicYear: z.number().int().min(1).max(4).optional(),
+  academicSemester: z.number().int().min(1).max(3).optional(),
+  electiveGroup: z.string().optional(),
+  electiveSelectCount: z.number().int().min(0).max(10).optional(),
 });
 
 export const UpdateCourseSchema = CreateCourseSchema.partial();

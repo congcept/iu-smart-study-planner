@@ -1,20 +1,24 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   Node,
   Edge,
   Panel,
   NodeProps,
+  Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { Course, CourseNodeData } from '@/types';
 import { categoryColors, difficultyColors, difficultyLabels } from '@lib/utils';
-import { CheckCircle2, Circle, Lock, BookOpen } from 'lucide-react';
+import { CheckCircle2, Circle, Lock, BookOpen, LayoutDashboard } from 'lucide-react';
+import * as dagre from 'dagre';
 
 interface CurriculumGraphProps {
   courses: Course[];
@@ -86,7 +90,57 @@ const nodeTypes = {
   course: CourseNode,
 };
 
-export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
+const NODE_WIDTH = 200;
+const NODE_HEIGHT = 160;
+
+const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+  const isHorizontal = direction === 'LR';
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: 80,
+    ranksep: 120,
+    marginx: 40,
+    marginy: 40,
+  });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      targetPosition: isHorizontal ? Position.Left : Position.Top,
+      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
+      position: {
+        x: nodeWithPosition.x - NODE_WIDTH / 2,
+        y: nodeWithPosition.y - NODE_HEIGHT / 2,
+      },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+};
+
+export const CurriculumGraph: React.FC<CurriculumGraphProps> = (props) => {
+  return (
+    <ReactFlowProvider>
+      <CurriculumGraphInner {...props} />
+    </ReactFlowProvider>
+  );
+};
+
+const CurriculumGraphInner: React.FC<CurriculumGraphProps> = ({
   courses,
   completedCourseIds,
   inProgressCourseIds = [],
@@ -96,37 +150,22 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
   const completedIdsSet = useMemo(() => new Set(completedCourseIds), [completedCourseIds]);
   const inProgressIdsSet = useMemo(() => new Set(inProgressCourseIds), [inProgressCourseIds]);
 
-  // Calculate node positions based on course level/semester
-  const getNodePosition = useCallback((course: Course, index: number) => {
-    // Group courses by difficulty level and category
-    const level = course.difficultyLevel;
-    const categoryIndex = ['REQUIRED', 'CORE', 'ELECTIVE', 'MAJOR_ELECTIVE'].indexOf(
-      course.category,
-    );
-
-    const x = categoryIndex >= 0 ? categoryIndex * 300 : 0;
-    const y = (level - 1) * 150 + (index % 3) * 20;
-
-    return { x, y };
-  }, []);
+  const { fitView } = useReactFlow();
 
   const initialNodes: Node<CourseNodeData>[] = useMemo(() => {
-    return courses.map((course, index) => {
+    return courses.map((course) => {
       const isCompleted = completedIdsSet.has(course.id);
       const isInProgress = inProgressIdsSet.has(course.id);
 
-      // Check if available (all prerequisites completed)
       const isAvailable =
         course.prerequisites.every((p) => completedIdsSet.has(p.prerequisiteId)) &&
         !isCompleted &&
         !isInProgress;
 
-      const position = getNodePosition(course, index);
-
       return {
         id: course.id,
         type: 'course',
-        position,
+        position: { x: 0, y: 0 },
         data: {
           course,
           isCompleted,
@@ -136,7 +175,7 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
         },
       };
     });
-  }, [courses, completedIdsSet, inProgressIdsSet, onCourseClick, getNodePosition]);
+  }, [courses, completedIdsSet, inProgressIdsSet, onCourseClick]);
 
   const initialEdges: Edge[] = useMemo(() => {
     const edges: Edge[] = [];
@@ -164,8 +203,24 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
     return edges;
   }, [courses, completedIdsSet]);
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(
+    () => getLayoutedElements(initialNodes, initialEdges, 'TB'),
+    [initialNodes, initialEdges],
+  );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
+
+  useEffect(() => {
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+    setTimeout(() => fitView({ padding: 0.2 }), 100);
+  }, [layoutedNodes, layoutedEdges, setNodes, setEdges, fitView]);
+
+  const handleResetLayout = useCallback(() => {
+    setNodes(layoutedNodes);
+    setTimeout(() => fitView({ padding: 0.2 }), 100);
+  }, [layoutedNodes, setNodes, fitView]);
 
   return (
     <div style={{ height }} className="border rounded-lg overflow-hidden">
@@ -200,6 +255,15 @@ export const CurriculumGraph: React.FC<CurriculumGraphProps> = ({
               <Lock size={16} className="text-gray-400" />
               <span>Locked</span>
             </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <button
+              onClick={handleResetLayout}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <LayoutDashboard size={16} />
+              Reset Layout
+            </button>
           </div>
         </Panel>
       </ReactFlow>

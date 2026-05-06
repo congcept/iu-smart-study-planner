@@ -16,6 +16,8 @@ import type {
   StudyPlan,
   Recommendation,
   WorkloadAnalysis,
+  YearSemesterGroup,
+  PlannedSemestersResponse,
 } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -238,5 +240,21 @@ export const analyzeWorkload = async (
 
 export const getPrerequisiteChain = async (courseId: string): Promise<ApiResponse<unknown>> => {
   const response = await apiClient.get(`/recommendations/prerequisite-chain/${courseId}`);
+  return response.data;
+};
+
+export const getCurriculum = async (): Promise<ApiResponse<YearSemesterGroup[]>> => {
+  const response = await apiClient.get('/courses/curriculum');
+  return response.data;
+};
+
+export const planSemester = async (
+  intensityMode: 'low' | 'normal' | 'high' | 'max',
+  completedCourseIds?: string[],
+): Promise<ApiResponse<PlannedSemestersResponse>> => {
+  const response = await apiClient.post('/recommendations/plan-semester', {
+    intensityMode,
+    completedCourseIds,
+  });
   return response.data;
 };

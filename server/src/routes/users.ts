@@ -1,8 +1,16 @@
 import { Router, Request, Response } from 'express';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { CourseStatus } from '@prisma/client';
 import { z } from 'zod';
 import { CreateUserSchema, UpdateStudentRecordSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+
+async function findUserByIdentifier(identifier: string) {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
+    return prisma.user.findUnique({ where: { id: identifier } });
+  }
+  return prisma.user.findUnique({ where: { studentId: identifier } });
+}
 
 const router = Router();
 
@@ -49,8 +57,16 @@ router.get('/', async (_req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await findUserByIdentifier(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         studentRecords: {
           include: {
@@ -69,7 +85,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       },
     });
 
-    if (!user) {
+    if (!fullUser) {
       return res.status(404).json({
         success: false,
         error: 'User not found',
@@ -77,7 +93,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     // Calculate statistics
-    const completedCourses = user.studentRecords.filter((r) => r.status === CourseStatus.COMPLETED);
+    const completedCourses = fullUser.studentRecords.filter((r) => r.status === CourseStatus.COMPLETED);
     const totalCredits = completedCourses.reduce((sum, r) => sum + r.course.credits, 0);
     const gpa =
       completedCourses.length > 0
@@ -88,9 +104,9 @@ router.get('/:id', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       data: {
-        ...user,
+        ...fullUser,
         stats: {
-          totalCourses: user.studentRecords.length,
+          totalCourses: fullUser.studentRecords.length,
           completedCourses: completedCourses.length,
           totalCredits,
           gpa: Math.round(gpa * 100) / 100,
@@ -136,6 +152,60 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// Get user's student records
+router.get('/:id/records', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await findUserByIdentifier(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    const records = await prisma.studentRecord.findMany({
+      where: { userId: user.id },
+      include: {
+        course: {
+          include: {
+            prerequisites: {
+              include: {
+                prerequisite: {
+                  select: { id: true, code: true, name: true },
+                },
+              },
+            },
+            isPrerequisiteFor: {
+              include: {
+                course: {
+                  select: { id: true, code: true, name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return res.json({
+      success: true,
+      data: records,
+      count: records.length,
+    });
+  } catch (error) {
+    console.error('Error fetching student records:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch student records',
+    });
+  }
+});
+
 // Add or update student record
 router.post('/:id/records', async (req: Request, res: Response) => {
   try {
@@ -143,7 +213,7 @@ router.post('/:id/records', async (req: Request, res: Response) => {
     const validatedData = UpdateStudentRecordSchema.parse(req.body);
 
     // Check if user exists
-    const user = await prisma.user.findUnique({ where: { id } });
+    const user = await findUserByIdentifier(id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -163,13 +233,13 @@ router.post('/:id/records', async (req: Request, res: Response) => {
     const record = await prisma.studentRecord.upsert({
       where: {
         userId_courseId: {
-          userId: id,
+          userId: user.id,
           courseId: validatedData.courseId,
         },
       },
       update: validatedData,
       create: {
-        userId: id,
+        userId: user.id,
         ...validatedData,
       },
       include: {
@@ -198,13 +268,136 @@ router.post('/:id/records', async (req: Request, res: Response) => {
   }
 });
 
+// Toggle course completion status
+router.post('/:id/records/toggle', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const { courseId, status } = z.object({
+      courseId: z.string().uuid(),
+      status: z.enum(['COMPLETED', 'PLANNED', 'IN_PROGRESS', 'FAILED', 'DROPPED']),
+    }).parse(req.body);
+
+    const user = await findUserByIdentifier(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found',
+      });
+    }
+
+    if (status === 'PLANNED') {
+      await prisma.studentRecord.delete({
+        where: {
+          userId_courseId: {
+            userId: user.id,
+            courseId,
+          },
+        },
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          id: '',
+          userId: user.id,
+          courseId,
+          grade: null,
+          gradePoints: null,
+          semester: null,
+          year: null,
+          status: 'PLANNED' as const,
+          course,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        message: 'Course marked as not completed',
+      });
+    }
+
+    const record = await prisma.studentRecord.upsert({
+      where: {
+        userId_courseId: {
+          userId: user.id,
+          courseId,
+        },
+      },
+      update: { status },
+      create: {
+        userId: user.id,
+        courseId,
+        status,
+      },
+      include: {
+        course: true,
+      },
+    });
+
+    return res.json({
+      success: true,
+      data: record,
+      message: `Course marked as ${status.toLowerCase()}`,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: error.errors,
+      });
+    }
+    if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
+      const course = await prisma.course.findUnique({ where: { id: req.body.courseId } });
+      const user = await findUserByIdentifier(id);
+      return res.json({
+        success: true,
+        data: {
+          id: '',
+          userId: user?.id ?? id,
+          courseId: req.body.courseId,
+          grade: null,
+          gradePoints: null,
+          semester: null,
+          year: null,
+          status: 'PLANNED' as const,
+          course: course ?? { id: req.body.courseId, code: '', name: '', credits: 0, difficultyLevel: 1, category: 'REQUIRED', semesterOffered: ['FALL', 'SPRING'], prerequisites: [], isPrerequisiteFor: [], createdAt: new Date(), updatedAt: new Date() },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        message: 'Course was already not completed',
+      });
+    }
+    console.error('Error toggling course completion:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to toggle course completion',
+    });
+  }
+});
+
 // Get user's progress summary
 router.get('/:id/progress', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    const user = await findUserByIdentifier(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
     const records = await prisma.studentRecord.findMany({
-      where: { userId: id },
+      where: { userId: user.id },
       include: {
         course: {
           include: {

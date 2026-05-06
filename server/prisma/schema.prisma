@@ -16,6 +16,10 @@ model Course {
   description       String?
   category          CourseCategory @default(REQUIRED)
   semesterOffered   Semester[]    @default([FALL, SPRING])
+  academicYear      Int?          @map("academic_year")
+  academicSemester  Int?          @map("academic_semester")
+  electiveGroup     String?       @map("elective_group")
+  electiveSelectCount Int?        @map("elective_select_count")
   
   // Self-relation for prerequisites
   prerequisites     Prerequisite[] @relation("CoursePrerequisites")
@@ -29,6 +33,8 @@ model Course {
 
   @@index([code])
   @@index([category])
+  @@index([academicYear, academicSemester])
+  @@index([electiveGroup])
   @@map("courses")
 }
 

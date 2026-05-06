@@ -3,6 +3,8 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { CreateCourseSchema, CreatePrerequisiteSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 function isNotFoundError(error: unknown): boolean {
   return error instanceof PrismaClientKnownRequestError && error.code === 'P2025';
@@ -53,6 +55,73 @@ router.get('/', async (_req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch courses',
+    });
+  }
+});
+
+// Get courses grouped by academic year and semester (uses scraped data for grouping)
+router.get('/curriculum', async (_req: Request, res: Response) => {
+  try {
+    const scrapedPath = join(__dirname, '../../../scraped-courses.json');
+    const scrapedData: { year: number; semester: number; courses: { id: string; name: string; credits: number; lectureHours: number; labHours: number; year: number; semester: number; isElective: boolean; electiveGroup?: string; selectCount?: number }[] }[] = JSON.parse(readFileSync(scrapedPath, 'utf8'));
+
+    const dbCourses = await prisma.course.findMany({
+      include: {
+        prerequisites: {
+          include: {
+            prerequisite: {
+              select: { id: true, code: true, name: true },
+            },
+          },
+        },
+        isPrerequisiteFor: {
+          include: {
+            course: {
+              select: { id: true, code: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    const dbCourseMap = new Map(dbCourses.map((c) => [c.code, c]));
+
+    const result = scrapedData.map((sem) => ({
+      year: sem.year,
+      semester: sem.semester,
+      courses: sem.courses.map((sc) => {
+        const dbCourse = dbCourseMap.get(sc.id);
+        return {
+          id: dbCourse?.id || sc.id,
+          code: sc.id,
+          name: sc.name,
+          credits: sc.credits,
+          difficultyLevel: dbCourse?.difficultyLevel ?? 1,
+          description: dbCourse?.description || undefined,
+          category: dbCourse?.category ?? 'REQUIRED',
+          semesterOffered: dbCourse?.semesterOffered ?? [],
+          academicYear: sc.year,
+          academicSemester: sc.semester,
+          electiveGroup: sc.electiveGroup || undefined,
+          electiveSelectCount: sc.selectCount || undefined,
+          prerequisites: dbCourse?.prerequisites ?? [],
+          isPrerequisiteFor: dbCourse?.isPrerequisiteFor ?? [],
+          createdAt: dbCourse?.createdAt.toISOString() || '',
+          updatedAt: dbCourse?.updatedAt.toISOString() || '',
+        };
+      }),
+    }));
+
+    return res.json({
+      success: true,
+      data: result,
+      count: dbCourses.length,
+    });
+  } catch (error) {
+    console.error('Error fetching curriculum:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch curriculum',
     });
   }
 });

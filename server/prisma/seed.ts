@@ -57,13 +57,6 @@ function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: s
   const prerequisites: { course: string; prerequisite: string }[] = [];
 
   const labToLecture: Record<string, string> = {
-    'IT099IU': 'IT067IU',
-    'IT101IU': 'IT074IU',
-    'IT098IU': 'IT068IU',
-    'IT106IU': 'IT105IU',
-    'IT129IU': 'IT128IU',
-    'IT126IU': 'IT110IU',
-    'PH016IU': 'PH015IU',
   };
 
   for (const [labCode, lectureCode] of Object.entries(labToLecture)) {
@@ -73,29 +66,20 @@ function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: s
   }
 
   const yearProgression: Record<string, string[]> = {
-    'IT069IU': ['IT116IU', 'IT149IU'],
+    'IT069IU': ['IT116IU'],
     'IT013IU': ['IT069IU', 'IT153IU'],
     'IT079IU': ['IT069IU'],
     'MA003IU': ['MA001IU'],
-    'IT089IU': ['IT067IU', 'IT099IU'],
+    'IT089IU': ['IT069IU'],
     'IT090IU': ['IT069IU'],
-    'IT096IU': ['IT091IU'],
-    'IT125IU': ['IT091IU'],
     'IT017IU': ['IT089IU', 'IT013IU'],
-    'IT139IU': ['IT091IU'],
     'IT114IU': ['IT090IU'],
     'IT160IU': ['IT079IU', 'MA026IU'],
     'IT130IU': ['MA001IU', 'IT154IU'],
-    'IT117IU': ['IT091IU'],
     'IT076IU': ['IT090IU'],
-    'IT172IU': ['IT013IU', 'MA001IU'],
-    'IT170IU': ['IT159IU'],
     'IT082IU': ['IT013IU'],
     'IT083IU': ['IT076IU'],
-    'IT103IU': ['MA001IU', 'MA003IU'],
-    'IT173IU': ['IT079IU', 'MA026IU'],
     'IT168IU': ['IT083IU'],
-    'IT169IU': ['MA026IU'],
     'IT157IU': ['IT159IU'],
     'IT133IU': ['IT093IU'],
     'IT164IU': ['IT091IU'],
@@ -105,13 +89,6 @@ function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: s
     'IT150IU': ['IT079IU'],
     'IT156IU': ['IT091IU'],
     'IT138IU': ['MA026IU'],
-    'IT171IU': ['MA026IU'],
-    'IT136IU': ['MA026IU'],
-    'IT137IU': ['IT079IU', 'MA026IU'],
-    'IT144IU': ['IT094IU'],
-    'IT145IU': ['IT094IU'],
-    'IT146IU': ['IT091IU'],
-    'IT163IU': ['MA003IU', 'IT153IU'],
   };
 
   for (const [courseCode, prereqCodes] of Object.entries(yearProgression)) {
@@ -157,10 +134,31 @@ async function main() {
 
   console.log('Creating courses...');
   for (const course of allCoursesFlat) {
+    if (!course.id || course.id.trim() === '') {
+      console.log(`  Skipped (empty id): ${course.name}`);
+      continue;
+    }
+
     const category = determineCategory(course);
     const difficultyLevel = calculateDifficulty(course);
     const semesterOffered = determineSemesterOffered(course.semester);
     const description = generateDescription(course);
+
+    const existing = await prisma.course.findUnique({ where: { code: course.id } });
+
+    if (existing) {
+      await prisma.course.update({
+        where: { code: course.id },
+        data: {
+          semesterOffered,
+          electiveGroup: course.electiveGroup || existing.electiveGroup,
+          electiveSelectCount: course.selectCount || existing.electiveSelectCount,
+        },
+      });
+      courseCodeToId.set(course.id, existing.id);
+      console.log(`  Updated: ${course.id} - ${course.name} [electiveGroup: ${course.electiveGroup || 'N/A'}]`);
+      continue;
+    }
 
     const created = await prisma.course.create({
       data: {
@@ -171,6 +169,10 @@ async function main() {
         category,
         semesterOffered,
         description,
+        academicYear: course.year,
+        academicSemester: course.semester,
+        electiveGroup: course.electiveGroup || null,
+        electiveSelectCount: course.selectCount || null,
       },
     });
 
@@ -210,7 +212,7 @@ async function main() {
   console.log(`  Created user: ${sampleUser.name} (${sampleUser.studentId})`);
 
   console.log('\nCreating sample student records...');
-  const completedCourses = ['MA001IU', 'EN008IU', 'EN007IU', 'IT064IU', 'IT116IU', 'PT001IU', 'PH013IU', 'IT135IU', 'IT149IU'];
+  const completedCourses = ['MA001IU', 'EN008IU', 'EN007IU', 'IT064IU', 'IT116IU', 'PH013IU'];
 
   for (let i = 0; i < completedCourses.length; i++) {
     const courseCode = completedCourses[i];
@@ -245,32 +247,37 @@ async function main() {
     {
       semester: Semester.SPRING,
       year: 2023,
-      courses: ['IT153IU', 'EN012IU', 'EN011IU', 'IT067IU', 'IT099IU', 'IT069IU', 'IT154IU'],
+      courses: ['PH015IU', 'PH016IU', 'EN012IU', 'EN011IU', 'IT069IU', 'IT153IU', 'IT091IU'],
     },
     {
       semester: Semester.FALL,
       year: 2023,
-      courses: ['IT013IU', 'IT079IU', 'MA003IU', 'IT068IU', 'IT098IU'],
+      courses: ['MA003IU', 'IT154IU', 'IT013IU', 'IT079IU', 'PE015IU', 'PE016IU'],
     },
     {
       semester: Semester.SPRING,
       year: 2024,
-      courses: ['IT089IU', 'IT093IU', 'IT090IU', 'IT024IU', 'IT159IU'],
+      courses: ['PT001IU', 'IT089IU', 'IT090IU', 'IT093IU'],
     },
     {
       semester: Semester.FALL,
       year: 2024,
-      courses: ['IT017IU', 'IT096IU', 'IT125IU', 'IT139IU'],
+      courses: ['PT002IU', 'MA026IU', 'PE017IU', 'IT092IU'],
     },
     {
       semester: Semester.SPRING,
       year: 2025,
-      courses: ['IT117IU', 'IT076IU', 'IT172IU', 'IT170IU'],
+      courses: ['IT076IU', 'IT159IU', 'PE021IU', 'PE018IU', 'IT120IU'],
+    },
+    {
+      semester: Semester.SUMMER,
+      year: 2025,
+      courses: ['IT082IU'],
     },
     {
       semester: Semester.FALL,
       year: 2025,
-      courses: ['IT083IU', 'IT110IU', 'IT126IU', 'IT103IU'],
+      courses: ['IT017IU', 'PE019IU', 'IT083IU'],
     },
     {
       semester: Semester.SPRING,
