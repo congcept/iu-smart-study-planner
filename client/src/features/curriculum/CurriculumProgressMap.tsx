@@ -233,6 +233,12 @@ export const CurriculumProgressMap = () => {
     return total;
   }, [allCourses, plannedIdsSet, completedIdsSet]);
 
+  const remainingCourses = useMemo(() => {
+    const hiddenInAbove = allCourses.filter(c => c.academicYear === 4 && c.academicSemester === 2 && c.code !== 'IT058IU').length;
+    const totalForMode = y4s2GpaMode === 'above' ? allCourses.length - hiddenInAbove : allCourses.length;
+    return totalForMode - completedIdKeys.length;
+  }, [allCourses, completedIdKeys, y4s2GpaMode]);
+
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
       case 'low': return 9;
@@ -662,7 +668,7 @@ export const CurriculumProgressMap = () => {
               </div>
               <div className="p-4 bg-purple-50 rounded-lg text-center">
                 <BookOpen size={28} className="mx-auto mb-2 text-purple-600" />
-                <div className="text-xl font-bold">{allCourses.length - completedIdKeys.length}</div>
+                <div className="text-xl font-bold">{remainingCourses}</div>
                 <div className="text-sm text-gray-600">Remaining</div>
               </div>
             </div>
