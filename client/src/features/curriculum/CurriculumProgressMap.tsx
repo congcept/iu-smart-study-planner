@@ -238,6 +238,11 @@ export const CurriculumProgressMap = () => {
     return Math.max(0, target - completedIdKeys.length);
   }, [completedIdKeys, y4s2GpaMode]);
 
+  const degreeProgress = useMemo(() => {
+    const target = y4s2GpaMode === 'above' ? 41 : 43;
+    return Math.min(100, Math.round((completedIdKeys.length / target) * 100));
+  }, [completedIdKeys, y4s2GpaMode]);
+
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
       case 'low': return 9;
@@ -673,13 +678,13 @@ export const CurriculumProgressMap = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-sm font-medium text-gray-900">ETA: <span className="font-bold text-amber-600">{eta}</span></span>
-                    <span className="text-3xl font-bold text-blue-600">{progress.progress.percentage}%</span>
+                    <span className="text-3xl font-bold text-blue-600">{degreeProgress}%</span>
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-4">
                   <div
                     className="bg-blue-600 h-4 rounded-full transition-all duration-500"
-                    style={{ width: `${progress.progress.percentage}%` }}
+                    style={{ width: `${degreeProgress}%` }}
                   />
                 </div>
               </div>
