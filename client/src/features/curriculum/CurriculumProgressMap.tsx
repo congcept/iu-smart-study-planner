@@ -234,10 +234,9 @@ export const CurriculumProgressMap = () => {
   }, [allCourses, plannedIdsSet, completedIdsSet]);
 
   const remainingCourses = useMemo(() => {
-    const hiddenInAbove = allCourses.filter(c => c.academicYear === 4 && c.academicSemester === 2 && c.code !== 'IT058IU').length;
-    const totalForMode = y4s2GpaMode === 'above' ? allCourses.length - hiddenInAbove : allCourses.length;
-    return totalForMode - completedIdKeys.length;
-  }, [allCourses, completedIdKeys, y4s2GpaMode]);
+    const target = y4s2GpaMode === 'above' ? 41 : 43;
+    return Math.max(0, target - completedIdKeys.length);
+  }, [completedIdKeys, y4s2GpaMode]);
 
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
