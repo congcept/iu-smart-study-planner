@@ -74,18 +74,14 @@ function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: s
     'IT090IU': ['IT069IU'],
     'IT017IU': ['IT089IU', 'IT013IU'],
     'IT114IU': ['IT090IU'],
-    'IT160IU': ['IT079IU', 'MA026IU'],
+    'IT160IU': ['IT079IU'],
     'IT130IU': ['MA001IU', 'IT154IU'],
     'IT076IU': ['IT090IU'],
     'IT082IU': ['IT013IU'],
     'IT083IU': ['IT076IU'],
     'IT168IU': ['IT083IU'],
-    'IT157IU': ['IT159IU'],
-    'IT133IU': ['IT093IU'],
     'IT164IU': ['IT091IU'],
     'IT165IU': ['IT091IU'],
-    'IT166IU': ['IT076IU'],
-    'IT167IU': ['IT093IU'],
     'IT150IU': ['IT079IU'],
     'IT156IU': ['IT091IU'],
     'IT138IU': ['MA026IU'],
@@ -95,6 +91,11 @@ function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: s
     if (allCourses.has(courseCode)) {
       for (const prereqCode of prereqCodes) {
         if (allCourses.has(prereqCode)) {
+          const course = allCourses.get(courseCode)!;
+          const prereq = allCourses.get(prereqCode)!;
+          if (course.year === prereq.year && course.semester === prereq.semester) {
+            continue;
+          }
           prerequisites.push({ course: courseCode, prerequisite: prereqCode });
         }
       }
