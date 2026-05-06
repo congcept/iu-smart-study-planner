@@ -54,7 +54,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     statusIcon = <span className="text-blue-600 font-bold text-xs">PLANNED</span>;
   } else if (isRecommended) {
     borderColor = 'border-amber-500 ring-2 ring-amber-200';
-    statusIcon = <span className="text-amber-600 font-bold text-xs">RECOMMENDED</span>;
+    statusIcon = <span className="text-amber-600 font-bold text-xs">NEXT</span>;
   } else if (isLocked) {
     borderColor = 'border-gray-200';
     opacity = 'opacity-50';
@@ -78,16 +78,16 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         ${!isLocked ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-not-allowed'}
       `}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold text-gray-700">{course.code}</span>
-          <span className={`w-1.5 h-1.5 rounded-full ${categoryColor}`} />
-          <span className="text-[10px] text-gray-500">{course.credits} cr</span>
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="text-[10px] font-bold text-gray-700 truncate">{course.code}</span>
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${categoryColor}`} />
+          <span className="text-[10px] text-gray-500 shrink-0">{course.credits} cr</span>
         </div>
         {statusIcon}
       </div>
 
-      <h4 className="font-medium text-[10px] text-gray-900 leading-tight line-clamp-2">
+      <h4 className="font-medium text-[10px] text-gray-900 leading-tight break-words">
         {course.name}
       </h4>
 
