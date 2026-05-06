@@ -672,7 +672,7 @@ export const CurriculumProgressMap = () => {
                     <span className="text-lg font-semibold">Degree Progress</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-amber-600">ETA: <span className="font-bold">{eta}</span></span>
+                    <span className="text-sm font-medium text-gray-900">ETA: <span className="font-bold text-amber-600">{eta}</span></span>
                     <span className="text-3xl font-bold text-blue-600">{progress.progress.percentage}%</span>
                   </div>
                 </div>
