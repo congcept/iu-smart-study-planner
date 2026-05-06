@@ -434,9 +434,10 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
       return course.prerequisites.every((prereq) => completedCourseIds.has(prereq.prerequisiteId));
     });
 
-    const totalCredits = allCourses.reduce((sum, c) => sum + c.credits, 0);
+    const NON_CREDIT_COURSE_CODES = new Set(['PT001IU', 'PT002IU']);
+    const totalCredits = allCourses.reduce((sum, c) => sum + (NON_CREDIT_COURSE_CODES.has(c.code) ? 0 : c.credits), 0);
     const completedCredits = records
-      .filter((r) => r.status === CourseStatus.COMPLETED)
+      .filter((r) => r.status === CourseStatus.COMPLETED && !NON_CREDIT_COURSE_CODES.has(r.course.code))
       .reduce((sum, r) => sum + r.course.credits, 0);
     const percentage = totalCredits > 0 ? Math.round((completedCredits / totalCredits) * 100) : 0;
 

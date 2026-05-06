@@ -200,17 +200,19 @@ export const CurriculumProgressMap = () => {
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
 
+  const NON_CREDIT_COURSE_IDS = useMemo(() => new Set(['PT001IU', 'PT002IU']), []);
+
   const completedCredits = useMemo(() => {
     const seenIds = new Set<string>();
     let total = 0;
     for (const course of allCourses) {
-      if (completedIdsSet.has(course.id) && !seenIds.has(course.id)) {
+      if (completedIdsSet.has(course.id) && !seenIds.has(course.id) && !NON_CREDIT_COURSE_IDS.has(course.code)) {
         seenIds.add(course.id);
         total += course.credits;
       }
     }
     return total;
-  }, [allCourses, completedIdsSet]);
+  }, [allCourses, completedIdsSet, NON_CREDIT_COURSE_IDS]);
 
   const plannedCredits = useMemo(() => {
     const seenIds = new Set<string>();
