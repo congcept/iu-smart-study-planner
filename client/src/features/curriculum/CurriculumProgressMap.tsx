@@ -513,8 +513,8 @@ export const CurriculumProgressMap = () => {
 
                     if (isComplete) {
                       return (
-                        <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300">
-                          <p className="text-xs font-semibold text-green-700 mb-1.5 truncate">
+                        <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300 space-y-1.5">
+                          <p className="text-xs font-semibold text-green-700 truncate">
                             {eg.name.replace(/\s*\(.*?\)\s*/g, '')} ✓
                           </p>
                           {completedCourses.map((course) => (
