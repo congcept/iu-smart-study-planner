@@ -392,19 +392,19 @@ export const CurriculumProgressMap = () => {
   if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
 
   return (
-    <div className="space-y-4 overflow-hidden w-full max-w-full">
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white rounded-lg p-4 border border-gray-200 overflow-hidden">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Recommendations</span>
+    <div className="space-y-5 overflow-hidden w-full max-w-full">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">
+        <div className="flex items-center gap-3">
+          <span className="text-base font-semibold text-gray-700">Recommendations</span>
           <button
             onClick={() => setRecommendationsEnabled(!recommendationsEnabled)}
-            className={`relative w-10 h-6 rounded-full transition-colors duration-200 ${
+            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
               recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
             }`}
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                recommendationsEnabled ? 'translate-x-4' : 'translate-x-0'
+              className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                recommendationsEnabled ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
@@ -412,24 +412,20 @@ export const CurriculumProgressMap = () => {
 
         <IntensitySlider mode={intensityMode} onChange={setIntensityMode} disabled={!recommendationsEnabled} />
 
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 min-w-0">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-base text-gray-600 min-w-0">
           <span>
-            <span className="font-medium">Program:</span>{' '}
+            <span className="font-semibold">Program:</span>{' '}
             <span className="font-bold text-gray-900">{REQUIRED_YEARS} years, {REQUIRED_CREDITS} credits</span>
           </span>
           <span>
-            <span className="font-medium">Completed:</span>{' '}
+            <span className="font-semibold">Completed:</span>{' '}
             <span className="font-bold text-green-600">{completedCredits} / {REQUIRED_CREDITS} credits</span>
           </span>
           <span>
-            <span className="font-medium">Planned:</span>{' '}
+            <span className="font-semibold">Planned:</span>{' '}
             <span className={`font-bold ${plannedCredits > 24 ? 'text-red-600' : 'text-blue-600'}`}>
               {plannedCredits} / 24 credits
             </span>
-          </span>
-          <span>
-            <span className="font-medium">ETA:</span>{' '}
-            <span className="font-bold text-amber-600">{eta}</span>
           </span>
         </div>
       </div>
@@ -656,30 +652,33 @@ export const CurriculumProgressMap = () => {
       </div>
 
       {progress && (
-        <div className="mt-8 space-y-6">
-          <div className="bg-white rounded-lg p-5 border border-gray-200">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-50 rounded-lg text-center shrink-0 w-24">
-                <GraduationCap size={22} className="mx-auto mb-1 text-blue-600" />
-                <div className="text-lg font-bold">{completedIdKeys.length}</div>
-                <div className="text-xs text-gray-600">Completed</div>
+        <div className="mt-10 space-y-6">
+          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+            <div className="flex items-center gap-6">
+              <div className="p-4 bg-blue-50 rounded-xl text-center shrink-0 w-28">
+                <GraduationCap size={26} className="mx-auto mb-1.5 text-blue-600" />
+                <div className="text-xl font-bold">{completedIdKeys.length}</div>
+                <div className="text-sm text-gray-600">Completed</div>
               </div>
-              <div className="p-3 bg-purple-50 rounded-lg text-center shrink-0 w-24">
-                <BookOpen size={22} className="mx-auto mb-1 text-purple-600" />
-                <div className="text-lg font-bold">{remainingCourses}</div>
-                <div className="text-xs text-gray-600">Remaining</div>
+              <div className="p-4 bg-purple-50 rounded-xl text-center shrink-0 w-28">
+                <BookOpen size={26} className="mx-auto mb-1.5 text-purple-600" />
+                <div className="text-xl font-bold">{remainingCourses}</div>
+                <div className="text-sm text-gray-600">Remaining</div>
               </div>
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Target size={18} className="text-blue-600" />
-                    <span className="text-base font-semibold">Degree Progress</span>
+                  <div className="flex items-center gap-2.5">
+                    <Target size={20} className="text-blue-600" />
+                    <span className="text-lg font-semibold">Degree Progress</span>
                   </div>
-                  <span className="text-2xl font-bold text-blue-600">{progress.progress.percentage}%</span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-amber-600">ETA: <span className="font-bold">{eta}</span></span>
+                    <span className="text-3xl font-bold text-blue-600">{progress.progress.percentage}%</span>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3.5">
+                <div className="w-full bg-gray-200 rounded-full h-4">
                   <div
-                    className="bg-blue-600 h-3.5 rounded-full transition-all duration-500"
+                    className="bg-blue-600 h-4 rounded-full transition-all duration-500"
                     style={{ width: `${progress.progress.percentage}%` }}
                   />
                 </div>
