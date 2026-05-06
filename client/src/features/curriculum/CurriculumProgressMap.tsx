@@ -72,6 +72,7 @@ export const CurriculumProgressMap = () => {
 
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
+  const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
 
   useEffect(() => {
     const fetchPlan = async () => {
@@ -474,9 +475,17 @@ export const CurriculumProgressMap = () => {
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
           }}
         >
-          {semesterDisplays.map(({ group, requiredCourses, electiveGroups, requiredCredits, electiveCredits }) => {
+          {semesterDisplays.map(({ group, requiredCourses, electiveGroups }) => {
             const semesterLabel =
               group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
+
+            const isY4S2 = group.year === 4 && group.semester === 2;
+            const visibleRequiredCourses = isY4S2
+              ? y4s2GpaMode === 'above'
+                ? requiredCourses.filter((c) => c.code === 'IT058IU')
+                : requiredCourses.filter((c) => c.code !== 'IT058IU')
+              : requiredCourses;
+            const visibleElectiveGroups = isY4S2 && y4s2GpaMode === 'above' ? [] : electiveGroups;
 
             return (
               <div
@@ -485,8 +494,33 @@ export const CurriculumProgressMap = () => {
               >
                 <div className="bg-gray-100 px-2.5 py-1.5 border-b-2 border-transparent h-[34px]" />
 
+                {group.year === 4 && group.semester === 2 && (
+                  <div className="flex gap-1 mt-1 mb-1 px-1">
+                    <button
+                      onClick={() => setY4s2GpaMode('above')}
+                      className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
+                        y4s2GpaMode === 'above'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      }`}
+                    >
+                      GPA {'>'} 70
+                    </button>
+                    <button
+                      onClick={() => setY4s2GpaMode('below')}
+                      className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
+                        y4s2GpaMode === 'below'
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      }`}
+                    >
+                      GPA {'<='} 70
+                    </button>
+                  </div>
+                )}
+
                 <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0 rounded-t-lg">
-                  {requiredCourses.map((course) => {
+                  {visibleRequiredCourses.map((course) => {
                     const isCompleted = completedIdsSet.has(course.id);
                     const isLocked = !isCompleted && !isCourseAvailable(course);
                     const isRecommended = !isCompleted && recommendedIds.has(course.id);
@@ -510,7 +544,7 @@ export const CurriculumProgressMap = () => {
                     );
                   })}
 
-                  {electiveGroups.map((eg) => {
+                  {visibleElectiveGroups.map((eg) => {
                     const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
                     const isComplete = eg.remaining === 0;
 
@@ -579,9 +613,17 @@ export const CurriculumProgressMap = () => {
                               />
                             );
                           })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200">
+        <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
           <button
             onClick={handleZoomOut}
             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
@@ -602,14 +644,6 @@ export const CurriculumProgressMap = () => {
           >
             Reset
           </button>
-        </div>
-      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
 
