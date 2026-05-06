@@ -657,7 +657,7 @@ export const CurriculumProgressMap = () => {
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="p-4 bg-blue-50 rounded-lg text-center">
                 <GraduationCap size={28} className="mx-auto mb-2 text-blue-600" />
-                <div className="text-xl font-bold">{progress.progress.completedCourses}</div>
+                <div className="text-xl font-bold">{completedIdKeys.length}</div>
                 <div className="text-sm text-gray-600">Courses Completed</div>
               </div>
               <div className="p-4 bg-purple-50 rounded-lg text-center">
