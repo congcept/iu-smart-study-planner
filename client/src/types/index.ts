@@ -145,7 +145,7 @@ export interface AppState {
   isLoading: boolean;
   error: string | null;
   completionVersion: number;
-  completedIds: string[];
+  completedIds: Record<string, string | null>;
   plannedIds: string[];
 
   setUser: (user: User | null) => void;
@@ -155,7 +155,7 @@ export interface AppState {
   setActivePlan: (plan: StudyPlan | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  toggleCourseComplete: (courseId: string) => void;
+  toggleCourseComplete: (courseId: string, electiveGroup?: string | null) => void;
   toggleCoursePlanned: (courseId: string) => void;
   completeToPlanned: (courseId: string) => void;
 

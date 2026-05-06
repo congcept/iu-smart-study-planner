@@ -64,9 +64,10 @@ export const CurriculumProgressMap = () => {
   }, []);
 
   const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned } = useAppStore();
-  const completedIds = useAppStore((state) => state.completedIds);
+  const completedRecord = useAppStore((state) => state.completedIds);
   const plannedIds = useAppStore((state) => state.plannedIds);
-  const completedIdsSet = useMemo(() => new Set(completedIds), [completedIds]);
+  const completedIdKeys = useMemo(() => Object.keys(completedRecord), [completedRecord]);
+  const completedIdsSet = useMemo(() => new Set(completedIdKeys), [completedIdKeys]);
   const plannedIdsSet = useMemo(() => new Set(plannedIds), [plannedIds]);
 
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
@@ -79,7 +80,7 @@ export const CurriculumProgressMap = () => {
         return;
       }
       try {
-        const response = await planSemester(intensityMode, completedIds);
+        const response = await planSemester(intensityMode, completedIdKeys);
         if (response.success && response.data) {
           setRecommendedIds(new Set(response.data.nextRecommendedIds));
         }
@@ -89,7 +90,7 @@ export const CurriculumProgressMap = () => {
     };
 
     fetchPlan();
-  }, [intensityMode, completedIds, recommendationsEnabled]);
+  }, [intensityMode, completedIdKeys, recommendationsEnabled]);
 
   useEffect(() => {
     const fetchCurriculum = async () => {
@@ -120,8 +121,8 @@ export const CurriculumProgressMap = () => {
   );
 
   const handleToggleComplete = useCallback(
-    (courseId: string) => {
-      toggleCourseComplete(courseId);
+    (courseId: string, electiveGroup?: string | null) => {
+      toggleCourseComplete(courseId, electiveGroup);
     },
     [toggleCourseComplete],
   );
@@ -169,7 +170,9 @@ export const CurriculumProgressMap = () => {
 
       const electiveGroups: ElectiveGroup[] = Array.from(electiveByGroup.entries()).map(
         ([name, data]) => {
-          const completedInGroup = data.courses.filter((c) => completedIdsSet.has(c.id)).length;
+          const completedInGroup = data.courses.filter(
+            (c) => completedRecord[c.id] === name,
+          ).length;
           return {
             name,
             selectCount: data.selectCount,
@@ -195,7 +198,7 @@ export const CurriculumProgressMap = () => {
         electiveCredits,
       };
     });
-  }, [groups, completedIdsSet]);
+  }, [groups, completedRecord]);
 
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
@@ -206,13 +209,13 @@ export const CurriculumProgressMap = () => {
     const seenIds = new Set<string>();
     let total = 0;
     for (const course of allCourses) {
-      if (completedIdsSet.has(course.id) && !seenIds.has(course.id) && !NON_CREDIT_COURSE_IDS.has(course.code)) {
+      if (completedRecord[course.id] !== undefined && !seenIds.has(course.id) && !NON_CREDIT_COURSE_IDS.has(course.code)) {
         seenIds.add(course.id);
         total += course.credits;
       }
     }
     return total;
-  }, [allCourses, completedIdsSet, NON_CREDIT_COURSE_IDS]);
+  }, [allCourses, completedRecord, NON_CREDIT_COURSE_IDS]);
 
   const plannedCredits = useMemo(() => {
     const seenIds = new Set<string>();
@@ -508,7 +511,7 @@ export const CurriculumProgressMap = () => {
                   })}
 
                   {electiveGroups.map((eg) => {
-                    const completedCourses = eg.courses.filter((c) => completedIdsSet.has(c.id));
+                    const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
                     const isComplete = eg.remaining === 0;
 
                     if (isComplete) {
@@ -549,7 +552,7 @@ export const CurriculumProgressMap = () => {
                         </div>
                         <div className="space-y-1.5">
                           {eg.courses.map((course) => {
-                            const isCompleted = completedIdsSet.has(course.id);
+                            const isCompleted = completedRecord[course.id] === eg.name;
                             const isLocked = !isCompleted && !isCourseAvailable(course);
                             const isRecommended = !isCompleted && recommendedIds.has(course.id);
                             const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
@@ -563,7 +566,7 @@ export const CurriculumProgressMap = () => {
                                 isLocked={isLocked}
                                 isRecommended={isRecommended}
                                 isHighlighted={highlightedPrereqIds.has(course.id)}
-                                onToggleComplete={handleToggleComplete}
+                                onToggleComplete={() => handleToggleComplete(course.id, eg.name)}
                                 onTogglePlanned={handleTogglePlanned}
                                 onCompleteToPlanned={handleCompleteToPlanned}
                                 onPrereqsHover={handlePrereqsHover}
