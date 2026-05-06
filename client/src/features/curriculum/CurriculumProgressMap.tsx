@@ -123,9 +123,12 @@ export const CurriculumProgressMap = () => {
 
   const handleToggleComplete = useCallback(
     (courseId: string, electiveGroup?: string | null) => {
+      if (plannedIdsSet.has(courseId)) {
+        toggleCoursePlanned(courseId);
+      }
       toggleCourseComplete(courseId, electiveGroup);
     },
-    [toggleCourseComplete],
+    [toggleCourseComplete, toggleCoursePlanned, plannedIdsSet],
   );
 
   const handleTogglePlanned = useCallback(
@@ -222,13 +225,13 @@ export const CurriculumProgressMap = () => {
     const seenIds = new Set<string>();
     let total = 0;
     for (const course of allCourses) {
-      if (plannedIdsSet.has(course.id) && !seenIds.has(course.id)) {
+      if (plannedIdsSet.has(course.id) && !completedIdsSet.has(course.id) && !seenIds.has(course.id)) {
         seenIds.add(course.id);
         total += course.credits;
       }
     }
     return total;
-  }, [allCourses, plannedIdsSet]);
+  }, [allCourses, plannedIdsSet, completedIdsSet]);
 
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
@@ -522,9 +525,9 @@ export const CurriculumProgressMap = () => {
                 <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0 rounded-t-lg">
                   {visibleRequiredCourses.map((course) => {
                     const isCompleted = completedIdsSet.has(course.id);
-                    const isLocked = !isCompleted && !isCourseAvailable(course);
-                    const isRecommended = !isCompleted && recommendedIds.has(course.id);
                     const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+                    const isRecommended = !isCompleted && recommendedIds.has(course.id);
+                    const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
 
                     return (
                       <CourseCard
@@ -592,9 +595,9 @@ export const CurriculumProgressMap = () => {
                         <div className="space-y-1.5">
                           {visibleCourses.map((course) => {
                             const isCompleted = completedRecord[course.id] === eg.name;
-                            const isLocked = !isCompleted && !isCourseAvailable(course);
-                            const isRecommended = !isCompleted && recommendedIds.has(course.id);
                             const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+                            const isRecommended = !isCompleted && recommendedIds.has(course.id);
+                            const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
 
                             return (
                               <CourseCard
