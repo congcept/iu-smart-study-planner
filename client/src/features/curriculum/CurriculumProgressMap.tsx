@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCurriculum, planSemester } from '@/lib/api';
+import { getCurriculum, getUserProgress, planSemester } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
+import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
+import { GraduationCap, BookOpen, Target } from 'lucide-react';
+import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
   name: string;
@@ -26,6 +28,40 @@ export const CurriculumProgressMap = () => {
   const [error, setError] = useState<string | null>(null);
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
   const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
+
+  const [progress, setProgress] = useState<{
+    completed: StudentRecord[];
+    inProgress: StudentRecord[];
+    planned: StudentRecord[];
+    available: Course[];
+    progress: {
+      totalCourses: number;
+      completedCourses: number;
+      totalCredits: number;
+      completedCredits: number;
+      percentage: number;
+    };
+  } | null>(null);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const usersResponse = await fetch('/api/users');
+        const usersJson = await usersResponse.json();
+        if (usersJson.success && usersJson.data && usersJson.data.length > 0) {
+          const userId = usersJson.data[0].id;
+          const progressResponse = await fetch(`/api/users/${userId}/progress`);
+          const progressJson = await progressResponse.json();
+          if (progressJson.success && progressJson.data) {
+            setProgress(progressJson.data);
+          }
+        }
+      } catch {
+        // Progress fetch failure is non-critical
+      }
+    };
+    fetchProgress();
+  }, []);
 
   const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned } = useAppStore();
   const completedIds = useAppStore((state) => state.completedIds);
@@ -224,10 +260,29 @@ export const CurriculumProgressMap = () => {
   const frameRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
+  const [baseScale, setBaseScale] = useState(1);
+  const [zoomMultiplier, setZoomMultiplier] = useState(1);
+  const scale = baseScale * zoomMultiplier;
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const panStart = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const fitToFrame = () => {
+      const raf = requestAnimationFrame(() => {
+        if (!frameRef.current || !contentRef.current) return;
+        const fw = frameRef.current.clientWidth;
+        const cw = contentRef.current.scrollWidth;
+        if (cw === 0) return;
+        setBaseScale((fw - 24) / (cw - 24));
+        setPan({ x: 0, y: 0 });
+      });
+    };
+
+    fitToFrame();
+    window.addEventListener('resize', fitToFrame);
+    return () => window.removeEventListener('resize', fitToFrame);
+  }, [groups.length]);
 
   const clampPan = useCallback((px: number, py: number, s: number) => {
     if (!frameRef.current || !contentRef.current) return { x: px, y: py };
@@ -271,24 +326,24 @@ export const CurriculumProgressMap = () => {
     e.preventDefault();
     e.stopPropagation();
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(2, Math.max(1, scale * zoomFactor));
+    const newZoom = Math.min(2, Math.max(1, zoomMultiplier * zoomFactor));
 
     if (frameRef.current) {
       const rect = frameRef.current.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
 
-      const nx = cx - (cx - pan.x) * (newScale / scale);
-      const ny = cy - (cy - pan.y) * (newScale / scale);
-      setPan(clampPan(nx, ny, newScale));
+      const nx = cx - (cx - pan.x) * (newZoom / zoomMultiplier);
+      const ny = cy - (cy - pan.y) * (newZoom / zoomMultiplier);
+      setPan(clampPan(nx, ny, baseScale * newZoom));
     }
 
-    setScale(newScale);
-  }, [scale, pan, clampPan]);
+    setZoomMultiplier(newZoom);
+  }, [baseScale, zoomMultiplier, pan, clampPan]);
 
   const handleDoubleClick = useCallback(() => {
     setPan({ x: 0, y: 0 });
-    setScale(1);
+    setZoomMultiplier(1);
   }, []);
 
   useEffect(() => {
@@ -296,28 +351,28 @@ export const CurriculumProgressMap = () => {
   }, [scale, clampPan]);
 
   const handleZoomIn = useCallback(() => {
-    setScale((s) => {
-      const ns = Math.min(2, s * 1.25);
+    setZoomMultiplier((z) => {
+      const nz = Math.min(2, z * 1.25);
       if (frameRef.current) {
         const fw = frameRef.current.clientWidth;
         const fh = frameRef.current.clientHeight;
-        setPan((p) => clampPan(fw / 2 - (fw / 2 - p.x) * (ns / s), fh / 2 - (fh / 2 - p.y) * (ns / s), ns));
+        setPan((p) => clampPan(fw / 2 - (fw / 2 - p.x) * (nz / z), fh / 2 - (fh / 2 - p.y) * (nz / z), baseScale * nz));
       }
-      return ns;
+      return nz;
     });
-  }, [clampPan]);
+  }, [baseScale, clampPan]);
 
   const handleZoomOut = useCallback(() => {
-    setScale((s) => {
-      const ns = Math.max(1, s * 0.8);
+    setZoomMultiplier((z) => {
+      const nz = Math.max(1, z * 0.8);
       if (frameRef.current) {
         const fw = frameRef.current.clientWidth;
         const fh = frameRef.current.clientHeight;
-        setPan((p) => clampPan(fw / 2 - (fw / 2 - p.x) * (ns / s), fh / 2 - (fh / 2 - p.y) * (ns / s), ns));
+        setPan((p) => clampPan(fw / 2 - (fw / 2 - p.x) * (nz / z), fh / 2 - (fh / 2 - p.y) * (nz / z), baseScale * nz));
       }
-      return ns;
+      return nz;
     });
-  }, [clampPan]);
+  }, [baseScale, clampPan]);
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
@@ -377,14 +432,15 @@ export const CurriculumProgressMap = () => {
         onDoubleClick={handleDoubleClick}
       >
         <div
-          className="absolute top-0 left-0 right-0 z-10 origin-top-left pointer-events-none"
+          className="absolute top-0 left-0 z-10 origin-top-left pointer-events-none"
           style={{
             transform: `translateX(${pan.x}px) scale(${scale})`,
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+            width: '99999px',
           }}
         >
-          <div className="bg-gray-50/90 backdrop-blur-sm shadow-sm border-b border-gray-200">
-            <div className="inline-flex gap-3 p-3 pt-1.5">
+          <div className="bg-gray-50/90 backdrop-blur-sm shadow-sm border-b border-gray-200 w-full">
+            <div className="inline-flex gap-3 px-3 pt-0 pb-0">
             {semesterDisplays.map(({ group }) => {
               const semesterLabel =
                 group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
@@ -407,7 +463,7 @@ export const CurriculumProgressMap = () => {
 
         <div
           ref={contentRef}
-          className="inline-flex gap-3 p-3 origin-top-left"
+          className="inline-flex gap-3 pt-1 px-3 pb-3 origin-top-left"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
@@ -522,7 +578,7 @@ export const CurriculumProgressMap = () => {
           >
             −
           </button>
-          <span className="text-xs font-medium text-gray-500 w-10 text-center">{Math.round(scale * 100)}%</span>
+          <span className="text-xs font-medium text-gray-500 w-10 text-center">{Math.round(zoomMultiplier * 100)}%</span>
           <button
             onClick={handleZoomIn}
             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
@@ -531,7 +587,7 @@ export const CurriculumProgressMap = () => {
           </button>
           <div className="w-px h-4 bg-gray-300" />
           <button
-            onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
+            onClick={() => { setPan({ x: 0, y: 0 }); setZoomMultiplier(1); }}
             className="text-[10px] font-medium text-gray-500 hover:text-gray-700 px-1"
           >
             Reset
@@ -546,6 +602,33 @@ export const CurriculumProgressMap = () => {
           })}
         </div>
       </div>
+
+      {progress && (
+        <div className="mt-8 space-y-6">
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold mb-4">Overall Progress</h3>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-blue-50 rounded-lg text-center">
+                <GraduationCap size={28} className="mx-auto mb-2 text-blue-600" />
+                <div className="text-xl font-bold">{progress.progress.completedCourses}</div>
+                <div className="text-sm text-gray-600">Courses Completed</div>
+              </div>
+              <div className="p-4 bg-purple-50 rounded-lg text-center">
+                <BookOpen size={28} className="mx-auto mb-2 text-purple-600" />
+                <div className="text-xl font-bold">{progress.available.length}</div>
+                <div className="text-sm text-gray-600">Available</div>
+              </div>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target size={18} className="text-blue-600" />
+                <span className="font-medium">Degree Progress</span>
+              </div>
+              <span className="text-xl font-bold text-blue-600">{progress.progress.percentage}%</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
