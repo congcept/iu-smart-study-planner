@@ -540,6 +540,11 @@ export const CurriculumProgressMap = () => {
                       );
                     }
 
+                    const visibleCourses = eg.courses.filter((c) => {
+                      const claimedGroup = completedRecord[c.id];
+                      return claimedGroup === undefined || claimedGroup === eg.name;
+                    });
+
                     return (
                       <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300">
                         <div className="flex items-center justify-between mb-1">
@@ -551,7 +556,7 @@ export const CurriculumProgressMap = () => {
                           </span>
                         </div>
                         <div className="space-y-1.5">
-                          {eg.courses.map((course) => {
+                          {visibleCourses.map((course) => {
                             const isCompleted = completedRecord[course.id] === eg.name;
                             const isLocked = !isCompleted && !isCourseAvailable(course);
                             const isRecommended = !isCompleted && recommendedIds.has(course.id);
