@@ -164,6 +164,39 @@ export const CurriculumProgressMap = () => {
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
 
+  const creditsPerSemester = useMemo(() => {
+    switch (intensityMode) {
+      case 'low': return 9;
+      case 'normal': return 15;
+      case 'high': return 18;
+      case 'max': return 21;
+    }
+  }, [intensityMode]);
+
+  const eta = useMemo(() => {
+    const remainingCredits = REQUIRED_CREDITS - completedCredits;
+    if (remainingCredits <= 0) return 'Completed';
+    const semestersNeeded = Math.ceil(remainingCredits / creditsPerSemester);
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    let startYear = currentMonth >= 8 ? now.getFullYear() + 1 : now.getFullYear();
+    let startSem = currentMonth >= 8 ? 1 : currentMonth >= 1 ? 2 : 1;
+
+    let sem = startSem;
+    let year = startYear;
+    for (let i = 0; i < semestersNeeded; i++) {
+      if (sem === 3) {
+        sem = 1;
+        year++;
+      } else {
+        sem++;
+      }
+    }
+
+    const semLabels = ['', 'Spring', 'Summer', 'Fall'];
+    return `${semLabels[sem]} ${year}`;
+  }, [completedCredits, creditsPerSemester]);
+
   const completedCredits = useMemo(() => {
     const seenIds = new Set<string>();
     let total = 0;
@@ -226,6 +259,10 @@ export const CurriculumProgressMap = () => {
             <span className={`font-bold ${plannedCredits > 24 ? 'text-red-600' : 'text-blue-600'}`}>
               {plannedCredits} / 24 credits
             </span>
+          </span>
+          <span>
+            <span className="font-medium">ETA:</span>{' '}
+            <span className="font-bold text-amber-600">{eta}</span>
           </span>
         </div>
       </div>
