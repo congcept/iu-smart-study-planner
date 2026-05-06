@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurriculum, planSemester } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
@@ -164,6 +164,30 @@ export const CurriculumProgressMap = () => {
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
 
+  const completedCredits = useMemo(() => {
+    const seenIds = new Set<string>();
+    let total = 0;
+    for (const course of allCourses) {
+      if (completedIdsSet.has(course.id) && !seenIds.has(course.id)) {
+        seenIds.add(course.id);
+        total += course.credits;
+      }
+    }
+    return total;
+  }, [allCourses, completedIdsSet]);
+
+  const plannedCredits = useMemo(() => {
+    const seenIds = new Set<string>();
+    let total = 0;
+    for (const course of allCourses) {
+      if (plannedIdsSet.has(course.id) && !seenIds.has(course.id)) {
+        seenIds.add(course.id);
+        total += course.credits;
+      }
+    }
+    return total;
+  }, [allCourses, plannedIdsSet]);
+
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
       case 'low': return 9;
@@ -197,29 +221,103 @@ export const CurriculumProgressMap = () => {
     return `${semLabels[sem]} ${year}`;
   }, [completedCredits, creditsPerSemester]);
 
-  const completedCredits = useMemo(() => {
-    const seenIds = new Set<string>();
-    let total = 0;
-    for (const course of allCourses) {
-      if (completedIdsSet.has(course.id) && !seenIds.has(course.id)) {
-        seenIds.add(course.id);
-        total += course.credits;
-      }
-    }
-    return total;
-  }, [allCourses, completedIdsSet]);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
 
-  const plannedCredits = useMemo(() => {
-    const seenIds = new Set<string>();
-    let total = 0;
-    for (const course of allCourses) {
-      if (plannedIdsSet.has(course.id) && !seenIds.has(course.id)) {
-        seenIds.add(course.id);
-        total += course.credits;
-      }
+  const clampPan = useCallback((px: number, py: number, s: number) => {
+    if (!frameRef.current || !contentRef.current) return { x: px, y: py };
+    const fw = frameRef.current.clientWidth;
+    const fh = frameRef.current.clientHeight;
+    const cw = contentRef.current.scrollWidth * s;
+    const ch = contentRef.current.scrollHeight * s;
+
+    const maxX = 0;
+    const minX = Math.min(0, fw - cw);
+    const maxY = 0;
+    const minY = Math.min(0, fh - ch);
+
+    return {
+      x: Math.max(minX, Math.min(maxX, px)),
+      y: Math.max(minY, Math.min(maxY, py)),
+    };
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    panStart.current = { ...pan };
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    const nx = panStart.current.x + dx;
+    const ny = panStart.current.y + dy;
+    setPan(clampPan(nx, ny, scale));
+  }, [isDragging, scale, clampPan]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.min(2, Math.max(1, scale * zoomFactor));
+
+    if (frameRef.current) {
+      const rect = frameRef.current.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+
+      const nx = cx - (cx - pan.x) * (newScale / scale);
+      const ny = cy - (cy - pan.y) * (newScale / scale);
+      setPan(clampPan(nx, ny, newScale));
     }
-    return total;
-  }, [allCourses, plannedIdsSet]);
+
+    setScale(newScale);
+  }, [scale, pan, clampPan]);
+
+  const handleDoubleClick = useCallback(() => {
+    setPan({ x: 0, y: 0 });
+    setScale(1);
+  }, []);
+
+  useEffect(() => {
+    setPan((p) => clampPan(p.x, p.y, scale));
+  }, [scale, clampPan]);
+
+  const handleZoomIn = useCallback(() => {
+    setScale((s) => {
+      const ns = Math.min(2, s * 1.25);
+      if (frameRef.current) {
+        const fw = frameRef.current.clientWidth;
+        const fh = frameRef.current.clientHeight;
+        setPan((p) => clampPan(fw / 2 - (fw / 2 - p.x) * (ns / s), fh / 2 - (fh / 2 - p.y) * (ns / s), ns));
+      }
+      return ns;
+    });
+  }, [clampPan]);
+
+  const handleZoomOut = useCallback(() => {
+    setScale((s) => {
+      const ns = Math.max(1, s * 0.8);
+      if (frameRef.current) {
+        const fw = frameRef.current.clientWidth;
+        const fh = frameRef.current.clientHeight;
+        setPan((p) => clampPan(fw / 2 - (fw / 2 - p.x) * (ns / s), fh / 2 - (fh / 2 - p.y) * (ns / s), ns));
+      }
+      return ns;
+    });
+  }, [clampPan]);
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
@@ -268,10 +366,53 @@ export const CurriculumProgressMap = () => {
       </div>
 
       <div
-        className="w-full rounded-lg border border-gray-200 bg-gray-50 overflow-auto"
+        ref={frameRef}
+        className={`relative w-full rounded-lg border border-gray-200 bg-gray-50 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{ height: 'calc(100vh - 500px)' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        onDoubleClick={handleDoubleClick}
       >
-        <div className="inline-flex gap-3 p-3">
+        <div
+          className="absolute top-0 left-0 right-0 z-10 origin-top-left pointer-events-none"
+          style={{
+            transform: `translateX(${pan.x}px) scale(${scale})`,
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+          }}
+        >
+          <div className="bg-gray-50/90 backdrop-blur-sm shadow-sm border-b border-gray-200">
+            <div className="inline-flex gap-3 p-3 pt-1.5">
+            {semesterDisplays.map(({ group }) => {
+              const semesterLabel =
+                group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
+              return (
+                <div
+                  key={`header-${group.year}-${group.semester}`}
+                  className="w-48 shrink-0"
+                >
+                  <div className="bg-gray-100 rounded-t-lg px-2.5 py-1.5 border-b-2 border-blue-500">
+                    <h3 className="font-bold text-sm text-gray-800">
+                      Year {group.year} - {semesterLabel}
+                    </h3>
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={contentRef}
+          className="inline-flex gap-3 p-3 origin-top-left"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+          }}
+        >
           {semesterDisplays.map(({ group, requiredCourses, electiveGroups, requiredCredits, electiveCredits }) => {
             const semesterLabel =
               group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
@@ -281,13 +422,9 @@ export const CurriculumProgressMap = () => {
                 key={`${group.year}-${group.semester}`}
                 className="w-48 shrink-0"
               >
-                <div className="bg-gray-100 rounded-t-lg px-2.5 py-1.5 border-b-2 border-blue-500">
-                  <h3 className="font-bold text-sm text-gray-800">
-                    Year {group.year} - {semesterLabel}
-                  </h3>
-                </div>
+                <div className="bg-gray-100 px-2.5 py-1.5 border-b-2 border-transparent h-[34px]" />
 
-                <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0">
+                <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0 rounded-t-lg">
                   {requiredCourses.map((course) => {
                     const isCompleted = completedIdsSet.has(course.id);
                     const isLocked = !isCompleted && !isCourseAvailable(course);
@@ -376,8 +513,31 @@ export const CurriculumProgressMap = () => {
                               />
                             );
                           })}
-                        </div>
-                      </div>
+        </div>
+
+        <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200">
+          <button
+            onClick={handleZoomOut}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+          >
+            −
+          </button>
+          <span className="text-xs font-medium text-gray-500 w-10 text-center">{Math.round(scale * 100)}%</span>
+          <button
+            onClick={handleZoomIn}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+          >
+            +
+          </button>
+          <div className="w-px h-4 bg-gray-300" />
+          <button
+            onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
+            className="text-[10px] font-medium text-gray-500 hover:text-gray-700 px-1"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
                     );
                   })}
                 </div>
