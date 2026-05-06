@@ -662,8 +662,8 @@ export const CurriculumProgressMap = () => {
               </div>
               <div className="p-4 bg-purple-50 rounded-lg text-center">
                 <BookOpen size={28} className="mx-auto mb-2 text-purple-600" />
-                <div className="text-xl font-bold">{progress.available.length}</div>
-                <div className="text-sm text-gray-600">Available</div>
+                <div className="text-xl font-bold">{allCourses.length - completedIdKeys.length}</div>
+                <div className="text-sm text-gray-600">Remaining</div>
               </div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
