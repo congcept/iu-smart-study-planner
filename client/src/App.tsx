@@ -3,12 +3,10 @@ import type { Course } from './types';
 import { useAppStore } from './lib/store';
 import { getCourses, getUsers, healthCheck } from './lib/api';
 import { CurriculumProgressMap } from './features/curriculum/CurriculumProgressMap';
-import { ProgressDashboard } from './features/progress/ProgressDashboard';
 import { Recommendations } from './features/recommendations/Recommendations';
 import { WorkloadAnalyzer } from './features/planner/WorkloadAnalyzer';
 import { Button, Card, LoadingSpinner } from '@components/ui';
 import {
-  LayoutDashboard,
   GitGraph,
   Lightbulb,
   Calculator,
@@ -20,15 +18,15 @@ import {
 
 function App() {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'curriculum' | 'recommendations' | 'planner'
-  >('dashboard');
+    'curriculum' | 'recommendations' | 'planner'
+  >('curriculum');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
-  const { courses, setCourses, completedCourseIds } = useAppStore();
+  const { courses, setCourses } = useAppStore();
 
   const initializeApp = useCallback(async () => {
     try {
@@ -76,7 +74,6 @@ function App() {
   };
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'curriculum', label: 'Curriculum Graph', icon: GitGraph },
     { id: 'recommendations', label: 'Recommendations', icon: Lightbulb },
     { id: 'planner', label: 'Workload Planner', icon: Calculator },
@@ -118,7 +115,7 @@ function App() {
             <button
               key={tab.id}
               onClick={() =>
-                setActiveTab(tab.id as 'dashboard' | 'curriculum' | 'recommendations' | 'planner')
+                setActiveTab(tab.id as 'curriculum' | 'recommendations' | 'planner')
               }
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors
@@ -185,44 +182,6 @@ function App() {
 
         {/* Content Area */}
         <div className="p-6 overflow-hidden w-full max-w-full">
-          {activeTab === 'dashboard' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                {activeUserId ? (
-                  <ProgressDashboard userId={activeUserId} />
-                ) : (
-                  <Card title="Progress Dashboard">
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No user found. Seed data or create a user to view progress.</p>
-                    </div>
-                  </Card>
-                )}
-              </div>
-              <div>
-                <Card title="Quick Stats">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Total Courses</span>
-                      <span className="font-bold text-xl">{courses.length}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Prerequisites</span>
-                      <span className="font-bold text-xl">
-                        {courses.reduce((sum, c) => sum + c.prerequisites.length, 0)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Completed</span>
-                      <span className="font-bold text-xl text-green-600">
-                        {completedCourseIds().length}
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </div>
-          )}
-
           {activeTab === 'curriculum' && (
             <div className="overflow-hidden w-full max-w-full">
               <CurriculumProgressMap />

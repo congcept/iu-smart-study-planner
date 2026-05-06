@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCurriculum, planSemester } from '@/lib/api';
+import { getCurriculum, getUserProgress, planSemester } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
+import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
+import { ProgressBar } from '@components/ui';
+import { GraduationCap, BookOpen, Target, Award, Clock } from 'lucide-react';
+import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
   name: string;
@@ -26,6 +29,40 @@ export const CurriculumProgressMap = () => {
   const [error, setError] = useState<string | null>(null);
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
   const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
+
+  const [progress, setProgress] = useState<{
+    completed: StudentRecord[];
+    inProgress: StudentRecord[];
+    planned: StudentRecord[];
+    available: Course[];
+    progress: {
+      totalCourses: number;
+      completedCourses: number;
+      totalCredits: number;
+      completedCredits: number;
+      percentage: number;
+    };
+  } | null>(null);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const usersResponse = await fetch('/api/users');
+        const usersJson = await usersResponse.json();
+        if (usersJson.success && usersJson.data && usersJson.data.length > 0) {
+          const userId = usersJson.data[0].id;
+          const progressResponse = await fetch(`/api/users/${userId}/progress`);
+          const progressJson = await progressResponse.json();
+          if (progressJson.success && progressJson.data) {
+            setProgress(progressJson.data);
+          }
+        }
+      } catch {
+        // Progress fetch failure is non-critical
+      }
+    };
+    fetchProgress();
+  }, []);
 
   const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned } = useAppStore();
   const completedIds = useAppStore((state) => state.completedIds);
@@ -546,6 +583,59 @@ export const CurriculumProgressMap = () => {
           })}
         </div>
       </div>
+
+      {progress && (
+        <div className="mt-8 space-y-6">
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold mb-4">Overall Progress</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="p-4 bg-blue-50 rounded-lg text-center">
+                <GraduationCap size={28} className="mx-auto mb-2 text-blue-600" />
+                <div className="text-xl font-bold">{progress.progress.completedCourses}</div>
+                <div className="text-sm text-gray-600">Courses Completed</div>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg text-center">
+                <Award size={28} className="mx-auto mb-2 text-green-600" />
+                <div className="text-xl font-bold">{progress.progress.completedCredits}</div>
+                <div className="text-sm text-gray-600">Credits Earned</div>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-lg text-center">
+                <Clock size={28} className="mx-auto mb-2 text-amber-600" />
+                <div className="text-xl font-bold">{progress.inProgress.length}</div>
+                <div className="text-sm text-gray-600">In Progress</div>
+              </div>
+              <div className="p-4 bg-purple-50 rounded-lg text-center">
+                <BookOpen size={28} className="mx-auto mb-2 text-purple-600" />
+                <div className="text-xl font-bold">{progress.available.length}</div>
+                <div className="text-sm text-gray-600">Available</div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700">Courses Completed</span>
+                  <span className="text-sm text-gray-500">{progress.progress.completedCourses} / {progress.progress.totalCourses}</span>
+                </div>
+                <ProgressBar progress={progress.progress.completedCourses} max={progress.progress.totalCourses} />
+              </div>
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700">Credits Completed</span>
+                  <span className="text-sm text-gray-500">{progress.progress.completedCredits} / {progress.progress.totalCredits}</span>
+                </div>
+                <ProgressBar progress={progress.progress.completedCredits} max={progress.progress.totalCredits} />
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target size={18} className="text-blue-600" />
+                <span className="font-medium">Degree Progress</span>
+              </div>
+              <span className="text-xl font-bold text-blue-600">{progress.progress.percentage}%</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
