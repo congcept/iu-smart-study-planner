@@ -9,6 +9,7 @@ interface ElectiveGroup {
   name: string;
   selectCount: number;
   courses: Course[];
+  remaining: number;
 }
 
 interface SemesterDisplay {
@@ -127,11 +128,15 @@ export const CurriculumProgressMap = () => {
       }
 
       const electiveGroups: ElectiveGroup[] = Array.from(electiveByGroup.entries()).map(
-        ([name, data]) => ({
-          name,
-          selectCount: data.selectCount,
-          courses: data.courses,
-        }),
+        ([name, data]) => {
+          const completedInGroup = data.courses.filter((c) => completedIdsSet.has(c.id)).length;
+          return {
+            name,
+            selectCount: data.selectCount,
+            courses: data.courses,
+            remaining: Math.max(0, data.selectCount - completedInGroup),
+          };
+        },
       );
 
       const requiredCredits = requiredCourses.reduce((sum, c) => sum + c.credits, 0);
@@ -150,7 +155,7 @@ export const CurriculumProgressMap = () => {
         electiveCredits,
       };
     });
-  }, [groups]);
+  }, [groups, completedIdsSet]);
 
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
@@ -217,7 +222,7 @@ export const CurriculumProgressMap = () => {
         className="w-full rounded-lg border border-gray-200 bg-gray-50 overflow-auto"
         style={{ height: 'calc(100vh - 500px)' }}
       >
-        <div className="inline-flex gap-4 p-4">
+        <div className="inline-flex gap-3 p-3">
           {semesterDisplays.map(({ group, requiredCourses, electiveGroups, requiredCredits, electiveCredits }) => {
             const semesterLabel =
               group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
@@ -225,15 +230,12 @@ export const CurriculumProgressMap = () => {
             return (
               <div
                 key={`${group.year}-${group.semester}`}
-                className="w-60 shrink-0"
+                className="w-48 shrink-0"
               >
-                <div className="bg-gray-100 rounded-t-lg px-3 py-2 border-b-2 border-blue-500">
+                <div className="bg-gray-100 rounded-t-lg px-2.5 py-1.5 border-b-2 border-blue-500">
                   <h3 className="font-bold text-sm text-gray-800">
                     Year {group.year} - {semesterLabel}
                   </h3>
-                  <p className="text-xs text-gray-500">
-                    {requiredCredits} cr{electiveCredits > 0 ? ` + ${electiveCredits} cr elective` : ''}
-                  </p>
                 </div>
 
                 <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0">
@@ -258,40 +260,68 @@ export const CurriculumProgressMap = () => {
                     );
                   })}
 
-                  {electiveGroups.map((eg) => (
-                    <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] font-semibold text-amber-700">
-                          {eg.name}
-                        </p>
-                        <span className="text-[10px] font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
-                          Select {eg.selectCount}
-                        </span>
-                      </div>
-                      <div className="space-y-1.5">
-                        {eg.courses.map((course) => {
-                          const isCompleted = completedIdsSet.has(course.id);
-                          const isLocked = !isCompleted && !isCourseAvailable(course);
-                          const isRecommended = !isCompleted && recommendedIds.has(course.id);
-                          const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+                  {electiveGroups.map((eg) => {
+                    const completedCourses = eg.courses.filter((c) => completedIdsSet.has(c.id));
+                    const isComplete = eg.remaining === 0;
 
-                          return (
+                    if (isComplete) {
+                      return (
+                        <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300">
+                          <p className="text-xs font-semibold text-green-700 mb-1.5 truncate">
+                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')} ✓
+                          </p>
+                          {completedCourses.map((course) => (
                             <CourseCard
                               key={`${eg.name}-${course.id}`}
                               course={course}
-                              isCompleted={isCompleted}
-                              isPlanned={isPlanned}
-                              isLocked={isLocked}
-                              isRecommended={isRecommended}
+                              isCompleted={true}
+                              isPlanned={false}
+                              isLocked={false}
+                              isRecommended={false}
                               onToggleComplete={handleToggleComplete}
                               onTogglePlanned={handleTogglePlanned}
                               onCompleteToPlanned={handleCompleteToPlanned}
                             />
-                          );
-                        })}
+                          ))}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-semibold text-amber-700 truncate">
+                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')}
+                          </p>
+                          <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 ml-1">
+                            {eg.remaining}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {eg.courses.map((course) => {
+                            const isCompleted = completedIdsSet.has(course.id);
+                            const isLocked = !isCompleted && !isCourseAvailable(course);
+                            const isRecommended = !isCompleted && recommendedIds.has(course.id);
+                            const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+
+                            return (
+                              <CourseCard
+                                key={`${eg.name}-${course.id}`}
+                                course={course}
+                                isCompleted={isCompleted}
+                                isPlanned={isPlanned}
+                                isLocked={isLocked}
+                                isRecommended={isRecommended}
+                                onToggleComplete={handleToggleComplete}
+                                onTogglePlanned={handleTogglePlanned}
+                                onCompleteToPlanned={handleCompleteToPlanned}
+                              />
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
