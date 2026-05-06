@@ -9,6 +9,7 @@ interface CourseCardProps {
   isLocked: boolean;
   isRecommended: boolean;
   isHighlighted?: boolean;
+  isBlurred?: boolean;
   onToggleComplete: (courseId: string) => void;
   onTogglePlanned: (courseId: string) => void;
   onCompleteToPlanned: (courseId: string) => void;
@@ -23,6 +24,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   isLocked,
   isRecommended,
   isHighlighted = false,
+  isBlurred = false,
   onToggleComplete,
   onTogglePlanned,
   onCompleteToPlanned,
@@ -69,10 +71,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   }
 
   if (isHighlighted) {
-    highlightRing = 'ring-2 ring-violet-400 bg-violet-50';
+    highlightRing = 'ring-2 ring-violet-500 bg-violet-50 scale-[1.02] shadow-md';
   }
 
-  if (hovered && !isLocked) {
+  if (isBlurred) {
+    opacity = 'opacity-25 blur-[1px]';
+  } else if (hovered && !isLocked) {
     borderColor = isCompleted ? 'border-green-600' : 'border-blue-500';
   }
 

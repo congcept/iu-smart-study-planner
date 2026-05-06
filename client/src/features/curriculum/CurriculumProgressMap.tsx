@@ -72,44 +72,12 @@ export const CurriculumProgressMap = () => {
 
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
+  const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
 
-  useEffect(() => {
-    const fetchPlan = async () => {
-      if (!recommendationsEnabled) {
-        setRecommendedIds(new Set());
-        return;
-      }
-      try {
-        const response = await planSemester(intensityMode, completedIdKeys);
-        if (response.success && response.data) {
-          setRecommendedIds(new Set(response.data.nextRecommendedIds));
-        }
-      } catch {
-        // Planning failure is non-critical, just don't highlight
-      }
-    };
-
-    fetchPlan();
-  }, [intensityMode, completedIdKeys, recommendationsEnabled]);
-
-  useEffect(() => {
-    const fetchCurriculum = async () => {
-      try {
-        const response = await getCurriculum();
-        if (response.success && response.data) {
-          setGroups(response.data);
-        } else {
-          setError(response.error || 'Failed to fetch curriculum');
-        }
-      } catch {
-        setError('Failed to connect to server');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCurriculum();
+  const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
+    setHighlightedPrereqIds(new Set(prereqIds));
+    setHoveredLockedId(courseId);
   }, []);
 
   const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
@@ -144,10 +112,6 @@ export const CurriculumProgressMap = () => {
     },
     [completeToPlanned],
   );
-
-  const handlePrereqsHover = useCallback((prereqIds: string[]) => {
-    setHighlightedPrereqIds(new Set(prereqIds));
-  }, []);
 
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
@@ -544,10 +508,11 @@ export const CurriculumProgressMap = () => {
                         isLocked={isLocked}
                         isRecommended={isRecommended}
                         isHighlighted={highlightedPrereqIds.has(course.id)}
+                        isBlurred={hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
                         onToggleComplete={handleToggleComplete}
                         onTogglePlanned={handleTogglePlanned}
                         onCompleteToPlanned={handleCompleteToPlanned}
-                        onPrereqsHover={handlePrereqsHover}
+                        onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
                         onPrereqsLeave={handlePrereqsLeave}
                       />
                     );
@@ -572,10 +537,11 @@ export const CurriculumProgressMap = () => {
                               isLocked={false}
                               isRecommended={false}
                               isHighlighted={highlightedPrereqIds.has(course.id)}
+                              isBlurred={hoveredLockedId !== null && !highlightedPrereqIds.has(course.id)}
                               onToggleComplete={handleToggleComplete}
                               onTogglePlanned={handleTogglePlanned}
                               onCompleteToPlanned={handleCompleteToPlanned}
-                              onPrereqsHover={handlePrereqsHover}
+                              onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
                               onPrereqsLeave={handlePrereqsLeave}
                             />
                           ))}
@@ -614,10 +580,11 @@ export const CurriculumProgressMap = () => {
                                 isLocked={isLocked}
                                 isRecommended={isRecommended}
                                 isHighlighted={highlightedPrereqIds.has(course.id)}
+                                isBlurred={hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
                                 onToggleComplete={() => handleToggleComplete(course.id, eg.name)}
                                 onTogglePlanned={handleTogglePlanned}
                                 onCompleteToPlanned={handleCompleteToPlanned}
-                                onPrereqsHover={handlePrereqsHover}
+                                onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
                                 onPrereqsLeave={handlePrereqsLeave}
                               />
                             );
