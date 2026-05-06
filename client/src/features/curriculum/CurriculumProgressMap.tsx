@@ -63,6 +63,25 @@ export const CurriculumProgressMap = () => {
     fetchProgress();
   }, []);
 
+  useEffect(() => {
+    const fetchCurriculum = async () => {
+      try {
+        const response = await getCurriculum();
+        if (response.success && response.data) {
+          setGroups(response.data);
+        } else {
+          setError(response.error || 'Failed to fetch curriculum');
+        }
+      } catch {
+        setError('Failed to connect to server');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCurriculum();
+  }, []);
+
   const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned } = useAppStore();
   const completedRecord = useAppStore((state) => state.completedIds);
   const plannedIds = useAppStore((state) => state.plannedIds);
@@ -115,6 +134,7 @@ export const CurriculumProgressMap = () => {
 
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
+    setHoveredLockedId(null);
   }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
@@ -468,7 +488,7 @@ export const CurriculumProgressMap = () => {
                 <div className="bg-gray-100 px-2.5 py-1.5 border-b-2 border-transparent h-[34px]" />
 
                 {group.year === 4 && group.semester === 2 && (
-                  <div className="flex gap-1 mt-1 mb-1 px-1">
+                  <div className={`flex gap-1 mt-1 mb-1 px-1 transition-all duration-150 ${hoveredLockedId !== null ? 'blur-[1px] opacity-25' : ''}`}>
                     <button
                       onClick={() => setY4s2GpaMode('above')}
                       className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
@@ -524,8 +544,9 @@ export const CurriculumProgressMap = () => {
 
                     if (isComplete) {
                       return (
-                        <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300 space-y-1.5">
-                          <p className="text-xs font-semibold text-green-700 truncate">
+                        <div key={eg.name} className="mt-2 pt-2 relative space-y-1.5">
+                          <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
+                          <p className={`text-xs font-semibold text-green-700 truncate transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
                             {eg.name.replace(/\s*\(.*?\)\s*/g, '')} ✓
                           </p>
                           {completedCourses.map((course) => (
@@ -555,8 +576,9 @@ export const CurriculumProgressMap = () => {
                     });
 
                     return (
-                      <div key={eg.name} className="mt-2 pt-2 border-t-2 border-dashed border-amber-300">
-                        <div className="flex items-center justify-between mb-1">
+                      <div key={eg.name} className="mt-2 pt-2 relative">
+                        <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
+                        <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
                           <p className="text-xs font-semibold text-amber-700 truncate">
                             {eg.name.replace(/\s*\(.*?\)\s*/g, '')}
                           </p>
