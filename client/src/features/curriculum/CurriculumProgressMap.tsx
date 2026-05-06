@@ -657,26 +657,34 @@ export const CurriculumProgressMap = () => {
 
       {progress && (
         <div className="mt-8 space-y-6">
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
-            <h3 className="text-lg font-semibold mb-4">Overall Progress</h3>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-4 bg-blue-50 rounded-lg text-center">
-                <GraduationCap size={28} className="mx-auto mb-2 text-blue-600" />
-                <div className="text-xl font-bold">{completedIdKeys.length}</div>
-                <div className="text-sm text-gray-600">Completed</div>
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h3 className="text-sm font-semibold mb-3">Overall Progress</h3>
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-blue-50 rounded-lg text-center shrink-0 w-20">
+                <GraduationCap size={16} className="mx-auto mb-0.5 text-blue-600" />
+                <div className="text-sm font-bold">{completedIdKeys.length}</div>
+                <div className="text-[10px] text-gray-600">Completed</div>
               </div>
-              <div className="p-4 bg-purple-50 rounded-lg text-center">
-                <BookOpen size={28} className="mx-auto mb-2 text-purple-600" />
-                <div className="text-xl font-bold">{remainingCourses}</div>
-                <div className="text-sm text-gray-600">Remaining</div>
+              <div className="p-2 bg-purple-50 rounded-lg text-center shrink-0 w-20">
+                <BookOpen size={16} className="mx-auto mb-0.5 text-purple-600" />
+                <div className="text-sm font-bold">{remainingCourses}</div>
+                <div className="text-[10px] text-gray-600">Remaining</div>
               </div>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target size={18} className="text-blue-600" />
-                <span className="font-medium">Degree Progress</span>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Target size={14} className="text-blue-600" />
+                    <span className="text-sm font-medium">Degree Progress</span>
+                  </div>
+                  <span className="text-sm font-bold text-blue-600">{progress.progress.percentage}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${progress.progress.percentage}%` }}
+                  />
+                </div>
               </div>
-              <span className="text-xl font-bold text-blue-600">{progress.progress.percentage}%</span>
             </div>
           </div>
         </div>
