@@ -5,7 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
-import { GraduationCap, BookOpen, Target, ListChecks, Layers, ChevronRight } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, ListChecks, ChevronRight } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 const getElectiveGroupLabel = (groupName: string): string => {
@@ -108,6 +108,40 @@ export const CurriculumProgressMap = () => {
 
   const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
 
+  const dependencyMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const course of allCourses) {
+      for (const prereq of course.prerequisites) {
+        if (!map.has(prereq.prerequisiteId)) {
+          map.set(prereq.prerequisiteId, []);
+        }
+        map.get(prereq.prerequisiteId)!.push(course.id);
+      }
+    }
+    return map;
+  }, [allCourses]);
+
+  const getCascadedUncompleteIds = useCallback((courseId: string, record: Record<string, string | null>): string[] => {
+    const ids: string[] = [];
+    const queue = [courseId];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const dependents = dependencyMap.get(current) || [];
+      for (const depId of dependents) {
+        if (visited.has(depId)) continue;
+        if (record[depId] !== undefined) {
+          ids.push(depId);
+          visited.add(depId);
+          queue.push(depId);
+        }
+      }
+    }
+
+    return ids;
+  }, [dependencyMap]);
+
   const isY4S2ThesisMode = y4s2GpaMode === 'above';
 
   const creditsPerSemester = useMemo(() => {
@@ -173,12 +207,19 @@ export const CurriculumProgressMap = () => {
 
   const handleToggleComplete = useCallback(
     (courseId: string, electiveGroup?: string | null) => {
+      const wasCompleted = completedRecord[courseId] !== undefined;
+      if (wasCompleted) {
+        const cascadeIds = getCascadedUncompleteIds(courseId, completedRecord);
+        for (const id of cascadeIds) {
+          toggleCourseComplete(id);
+        }
+      }
       if (plannedIdsSet.has(courseId)) {
         toggleCoursePlanned(courseId);
       }
       toggleCourseComplete(courseId, electiveGroup);
     },
-    [toggleCourseComplete, toggleCoursePlanned, plannedIdsSet],
+    [toggleCourseComplete, toggleCoursePlanned, plannedIdsSet, completedRecord, getCascadedUncompleteIds],
   );
 
   const handleTogglePlanned = useCallback(
@@ -190,9 +231,13 @@ export const CurriculumProgressMap = () => {
 
   const handleCompleteToPlanned = useCallback(
     (courseId: string) => {
+      const cascadeIds = getCascadedUncompleteIds(courseId, completedRecord);
+      for (const id of cascadeIds) {
+        toggleCourseComplete(id);
+      }
       completeToPlanned(courseId);
     },
-    [completeToPlanned],
+    [completeToPlanned, completedRecord, getCascadedUncompleteIds, toggleCourseComplete],
   );
 
   const handlePrereqsLeave = useCallback(() => {
@@ -383,14 +428,31 @@ export const CurriculumProgressMap = () => {
     return () => window.removeEventListener('resize', fitToFrame);
   }, [groups.length]);
 
+  const wasSidebarOpen = useRef(false);
+
   useEffect(() => {
+    const isSidebarOpen = activeElectiveGroup !== null;
+    const isOpeningOrClosing = wasSidebarOpen.current !== isSidebarOpen;
+    wasSidebarOpen.current = isSidebarOpen;
+
+    if (!isOpeningOrClosing) return;
+    if (!frameRef.current || !contentRef.current) return;
+
+    const fw = frameRef.current.clientWidth;
+    const cw = contentRef.current.scrollWidth;
+    if (cw === 0) return;
+
+    const SIDEBAR_WIDTH = 160;
+    const targetWidth = isSidebarOpen ? fw - SIDEBAR_WIDTH : fw + SIDEBAR_WIDTH;
+    setBaseScale((targetWidth - 24) / (cw - 24));
+    setPan({ x: 0, y: 0 });
+
     const timeout = setTimeout(() => {
       if (!frameRef.current || !contentRef.current) return;
-      const fw = frameRef.current.clientWidth;
-      const cw = contentRef.current.scrollWidth;
-      if (cw === 0) return;
-      setBaseScale((fw - 24) / (cw - 24));
-      setPan({ x: 0, y: 0 });
+      const actualFw = frameRef.current.clientWidth;
+      const actualCw = contentRef.current.scrollWidth;
+      if (actualCw === 0) return;
+      setBaseScale((actualFw - 24) / (actualCw - 24));
     }, 220);
     return () => clearTimeout(timeout);
   }, [activeElectiveGroup]);
@@ -653,43 +715,46 @@ export const CurriculumProgressMap = () => {
                     const hasPlanned = eg.courses.some((c) => plannedIdsSet.has(c.id) && completedRecord[c.id] !== eg.name);
                     const isComplete = eg.remaining === 0;
                     const isActive = activeElectiveGroup === eg.name;
+                    const hasLocked = eg.courses.some(
+                      (c) => completedRecord[c.id] !== eg.name && !isCourseAvailable(c),
+                    );
 
                     let statusIcon = null;
                     let borderColor = 'border-gray-300';
-                    let hoverBorder = 'hover:border-violet-500';
                     let statusRing = '';
                     if (isComplete) {
                       statusIcon = <span className="text-green-600 font-bold text-[11px]">DONE</span>;
-                      borderColor = isActive ? 'border-violet-500' : 'border-green-500';
-                      hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-green-600';
+                      borderColor = isActive ? 'border-amber-500' : 'border-green-500';
                     } else if (hasPlanned) {
                       statusIcon = <span className="text-blue-600 font-bold text-[11px]">PLANNED</span>;
-                      borderColor = isActive ? 'border-violet-500' : 'border-blue-500';
-                      hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-blue-600';
+                      borderColor = isActive ? 'border-amber-500' : 'border-blue-500';
                       if (!isActive) statusRing = 'ring-2 ring-blue-200';
                     } else if (hasRecommended) {
                       statusIcon = <span className="text-amber-600 font-bold text-[11px]">NEXT</span>;
-                      borderColor = isActive ? 'border-violet-500' : 'border-amber-500';
-                      hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-amber-600';
+                      borderColor = isActive ? 'border-amber-500' : 'border-amber-500';
                       if (!isActive) statusRing = 'ring-2 ring-amber-200';
                     }
 
                     return (
                       <div
                         key={`${eg.name}-summary`}
-                        className={`bg-white rounded-md shadow-sm border-2 p-2 ${borderColor} ${hoverBorder} ${statusRing} transition-all duration-150 hover:shadow-md hover:scale-[1.02] cursor-pointer`}
+                        className={`rounded-md shadow-sm border-2 p-2 transition-all duration-150 hover:shadow-md hover:scale-[1.02] cursor-pointer ${
+                          isActive
+                            ? 'bg-amber-100 border-amber-500 ring-2 ring-amber-300'
+                            : `bg-white ${borderColor} ${statusRing}`
+                        }`}
                         onClick={() => handleElectiveCardClick(eg.name)}
                       >
                         <div className="flex items-center justify-between gap-1.5">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
-                            <span className="text-[11px] font-bold text-gray-700">Group {getElectiveGroupLabel(eg.name)}</span>
+                            <span className="text-[11px] font-bold text-gray-700">Elective Group {getElectiveGroupLabel(eg.name)}</span>
                           </div>
                           {statusIcon}
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-[11px] text-gray-500">{completedCount}/{eg.selectCount}</span>
-                          <ChevronRight size={12} className={`text-gray-400 transition-transform ${isActive ? 'rotate-90' : ''}`} />
+                          {!isActive && <ChevronRight size={12} className="text-gray-400" />}
                         </div>
                       </div>
                     );
@@ -725,12 +790,11 @@ export const CurriculumProgressMap = () => {
         </div>
 
         <div
-          className={`shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm transition-all duration-200 ease-in-out ${
-            activeElectiveGroup ? 'w-40' : 'w-0 border-transparent'
-          }`}
-          style={{ height: 'calc(100vh - 500px)' }}
+          className="shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm transition-[width] duration-200 ease-in-out"
+          style={{ width: activeElectiveGroup ? '160px' : '0px', height: 'calc(100vh - 500px)', borderWidth: activeElectiveGroup ? '1px' : '0' }}
         >
-          {activeElectiveGroup && (() => {
+          <div className="w-40 h-full">
+            {activeElectiveGroup && (() => {
             const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
             if (!activeGroup) return null;
 
@@ -747,10 +811,9 @@ export const CurriculumProgressMap = () => {
 
             return (
               <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between px-2.5 py-2 bg-gray-50 border-b border-gray-200 shrink-0">
+                <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50 border-b border-gray-200 shrink-0">
                   <div className="flex items-center gap-2">
-                    <Layers size={14} className="text-amber-600" />
-                    <h3 className="text-xs font-semibold text-gray-800">Group {getElectiveGroupLabel(activeGroup.name)}</h3>
+                    <h3 className="text-xs font-semibold text-gray-800 whitespace-nowrap">Elective Group {getElectiveGroupLabel(activeGroup.name)}</h3>
                     <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums">{completedCount}/{activeGroup.selectCount}</span>
                   </div>
                   <button
@@ -789,6 +852,7 @@ export const CurriculumProgressMap = () => {
               </div>
             );
           })()}
+          </div>
         </div>
       </div>
 
