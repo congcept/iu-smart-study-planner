@@ -47,3 +47,8 @@ export const playLockedSound = () => {
 export const playToggleSound = () => {
   playTone(1200, 0.03, 'sine', 0.05);
 };
+
+export const playRecommendationsSound = () => {
+  playTone(1000, 0.04, 'sine', 0.06);
+  setTimeout(() => playTone(1400, 0.04, 'sine', 0.06), 30);
+};

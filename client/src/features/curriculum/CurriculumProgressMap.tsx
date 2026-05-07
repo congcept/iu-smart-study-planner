@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurriculum, getUserProgress, planSemester } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-import { playToggleSound } from '@/lib/sounds';
+import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
@@ -434,7 +434,7 @@ export const CurriculumProgressMap = () => {
         <div className="flex items-center gap-3">
           <span className="text-base font-semibold text-gray-700">Recommendations</span>
           <button
-            onClick={() => { setRecommendationsEnabled(!recommendationsEnabled); playToggleSound(); }}
+            onClick={() => { setRecommendationsEnabled(!recommendationsEnabled); playRecommendationsSound(); }}
             className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
               recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
             }`}
