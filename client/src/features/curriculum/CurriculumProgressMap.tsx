@@ -381,7 +381,19 @@ export const CurriculumProgressMap = () => {
     fitToFrame();
     window.addEventListener('resize', fitToFrame);
     return () => window.removeEventListener('resize', fitToFrame);
-  }, [groups.length, activeElectiveGroup]);
+  }, [groups.length]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!frameRef.current || !contentRef.current) return;
+      const fw = frameRef.current.clientWidth;
+      const cw = contentRef.current.scrollWidth;
+      if (cw === 0) return;
+      setBaseScale((fw - 24) / (cw - 24));
+      setPan({ x: 0, y: 0 });
+    }, 220);
+    return () => clearTimeout(timeout);
+  }, [activeElectiveGroup]);
 
   const clampPan = useCallback((px: number, py: number, s: number) => {
     if (!frameRef.current || !contentRef.current) return { x: px, y: py };
