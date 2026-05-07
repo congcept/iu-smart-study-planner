@@ -103,6 +103,8 @@ export const CurriculumProgressMap = () => {
 
   const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
 
+  const isY4S2ThesisMode = y4s2GpaMode === 'above';
+
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
       case 'low': return 9;
@@ -253,8 +255,6 @@ export const CurriculumProgressMap = () => {
     }
     return result;
   }, [semesterDisplays]);
-
-  const isY4S2ThesisMode = y4s2GpaMode === 'above';
 
   const filteredElectiveGroups = useMemo((): ElectiveGroup[] => {
     return allElectiveGroups.filter((eg) => {
