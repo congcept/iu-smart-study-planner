@@ -93,6 +93,7 @@ export const CurriculumProgressMap = () => {
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
+  const [activeElectiveGroup, setActiveElectiveGroup] = useState<string | null>(null);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
@@ -192,6 +193,10 @@ export const CurriculumProgressMap = () => {
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
     setHoveredLockedId(null);
+  }, []);
+
+  const handleElectiveCardClick = useCallback((groupName: string | null) => {
+    setActiveElectiveGroup((prev) => prev === groupName ? null : groupName);
   }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
@@ -356,7 +361,7 @@ export const CurriculumProgressMap = () => {
     fitToFrame();
     window.addEventListener('resize', fitToFrame);
     return () => window.removeEventListener('resize', fitToFrame);
-  }, [groups.length]);
+  }, [groups.length, activeElectiveGroup]);
 
   const clampPan = useCallback((px: number, py: number, s: number) => {
     if (!frameRef.current || !contentRef.current) return { x: px, y: py };
@@ -614,28 +619,30 @@ export const CurriculumProgressMap = () => {
                     const hasRecommended = eg.courses.some((c) => recommendedIds.has(c.id) && completedRecord[c.id] !== eg.name);
                     const hasPlanned = eg.courses.some((c) => plannedIdsSet.has(c.id) && completedRecord[c.id] !== eg.name);
                     const isComplete = eg.remaining === 0;
+                    const isActive = activeElectiveGroup === eg.name;
 
                     let statusIcon = null;
                     let borderColor = 'border-gray-300';
                     let hoverBorder = 'hover:border-violet-500';
                     if (isComplete) {
                       statusIcon = <span className="text-green-600 font-bold text-[11px]">DONE</span>;
-                      borderColor = 'border-green-500';
-                      hoverBorder = 'hover:border-green-600';
+                      borderColor = isActive ? 'border-violet-500' : 'border-green-500';
+                      hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-green-600';
                     } else if (hasPlanned) {
                       statusIcon = <span className="text-blue-600 font-bold text-[11px]">PLANNED</span>;
-                      borderColor = 'border-blue-500';
-                      hoverBorder = 'hover:border-blue-600';
+                      borderColor = isActive ? 'border-violet-500' : 'border-blue-500';
+                      hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-blue-600';
                     } else if (hasRecommended) {
                       statusIcon = <span className="text-amber-600 font-bold text-[11px]">NEXT</span>;
-                      borderColor = 'border-amber-500';
-                      hoverBorder = 'hover:border-amber-600';
+                      borderColor = isActive ? 'border-violet-500' : 'border-amber-500';
+                      hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-amber-600';
                     }
 
                     return (
                       <div
                         key={`${eg.name}-summary`}
                         className={`bg-white rounded-md shadow-sm border-2 p-2 ${borderColor} ${hoverBorder} transition-all duration-150 hover:shadow-md hover:scale-[1.02] cursor-pointer`}
+                        onClick={() => handleElectiveCardClick(eg.name)}
                       >
                         <div className="flex items-center justify-between gap-1.5">
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -646,7 +653,7 @@ export const CurriculumProgressMap = () => {
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-[11px] text-gray-500">{completedCount}/{eg.selectCount}</span>
-                          <ChevronRight size={12} className="text-gray-400" />
+                          <ChevronRight size={12} className={`text-gray-400 transition-transform ${isActive ? 'rotate-90' : ''}`} />
                         </div>
                       </div>
                     );
@@ -679,68 +686,71 @@ export const CurriculumProgressMap = () => {
             Reset
           </button>
         </div>
-      </div>
+        </div>
 
-        <div className="w-40 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
-            <div className="flex items-center gap-2 px-2.5 py-2 bg-gray-50 border-b border-gray-200">
-              <Layers size={14} className="text-amber-600" />
-              <h3 className="text-xs font-semibold text-gray-800">Elective Courses</h3>
+        {activeElectiveGroup && (() => {
+          const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
+          if (!activeGroup) return null;
+
+          const completedCourses = activeGroup.courses.filter((c) => completedRecord[c.id] === activeGroup.name);
+          const isComplete = activeGroup.remaining === 0;
+          const completedCount = completedCourses.length;
+
+          const visibleCourses = isComplete
+            ? completedCourses
+            : activeGroup.courses.filter((c) => {
+                const claimedGroup = completedRecord[c.id];
+                return claimedGroup === undefined || claimedGroup === activeGroup.name;
+              });
+
+          return (
+            <div className="w-40 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
+              <div className="flex items-center justify-between px-2.5 py-2 bg-gray-50 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Layers size={14} className="text-amber-600" />
+                  <h3 className="text-xs font-semibold text-gray-800 truncate">{activeGroup.name.replace(/\s*\(.*?\)\s*/g, '')}</h3>
+                </div>
+                <button
+                  onClick={() => handleElectiveCardClick(null)}
+                  className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
+                >
+                  <span className="text-sm leading-none">&times;</span>
+                </button>
+              </div>
+              <div className="overflow-y-auto p-1.5 space-y-1.5" style={{ height: 'calc(100% - 40px)' }}>
+                <div className="flex items-center justify-between mb-1 px-1">
+                  <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
+                    {completedCount}/{activeGroup.selectCount}
+                  </p>
+                </div>
+                {visibleCourses.map((course) => {
+                  const isCompleted = completedRecord[course.id] === activeGroup.name;
+                  const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+                  const isRecommended = !isCompleted && recommendedIds.has(course.id);
+                  const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
+
+                  return (
+                    <CourseCard
+                      key={`${activeGroup.name}-${course.id}`}
+                      course={course}
+                      isCompleted={isCompleted}
+                      isPlanned={isPlanned}
+                      isLocked={isLocked}
+                      isRecommended={isRecommended}
+                      isHighlighted={highlightedPrereqIds.has(course.id)}
+                      isBlurred={hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
+                      onToggleComplete={() => handleToggleComplete(course.id, activeGroup.name)}
+                      onTogglePlanned={handleTogglePlanned}
+                      onCompleteToPlanned={handleCompleteToPlanned}
+                      onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
+                      onPrereqsLeave={handlePrereqsLeave}
+                    />
+                  );
+                })}
+              </div>
             </div>
-            <div className="overflow-y-auto p-1 space-y-1" style={{ height: 'calc(100% - 36px)' }}>
-              {filteredElectiveGroups.map((eg) => {
-                const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
-                const isComplete = eg.remaining === 0;
-                const completedCount = completedCourses.length;
-
-                const visibleCourses = isComplete
-                  ? completedCourses
-                  : eg.courses.filter((c) => {
-                      const claimedGroup = completedRecord[c.id];
-                      return claimedGroup === undefined || claimedGroup === eg.name;
-                    });
-
-                return (
-                  <div key={eg.name} className="pt-2 relative">
-                    <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
-                    <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
-                      <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
-                        {eg.name.replace(/\s*\(.*?\)\s*/g, '')} {isComplete ? '\u2713' : ''}
-                      </p>
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums ${isComplete ? 'invisible' : 'bg-amber-100 text-amber-800'}`}>
-                        {completedCount}/{eg.selectCount}
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {visibleCourses.map((course) => {
-                        const isCompleted = completedRecord[course.id] === eg.name;
-                        const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
-                        const isRecommended = !isCompleted && recommendedIds.has(course.id);
-                        const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
-
-                        return (
-                          <CourseCard
-                            key={`${eg.name}-${course.id}`}
-                            course={course}
-                            isCompleted={isCompleted}
-                            isPlanned={isPlanned}
-                            isLocked={isLocked}
-                            isRecommended={isRecommended}
-                            isHighlighted={highlightedPrereqIds.has(course.id)}
-                            isBlurred={hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
-                            onToggleComplete={() => handleToggleComplete(course.id, eg.name)}
-                            onTogglePlanned={handleTogglePlanned}
-                            onCompleteToPlanned={handleCompleteToPlanned}
-                            onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
-                            onPrereqsLeave={handlePrereqsLeave}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          );
+        })()}
       </div>
 
       {progress && (
