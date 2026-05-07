@@ -638,12 +638,12 @@ export const CurriculumProgressMap = () => {
         </div>
       </div>
 
-        <div className="w-48 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200">
-              <Layers size={16} className="text-amber-600" />
-              <h3 className="text-sm font-semibold text-gray-800">Elective Courses</h3>
+        <div className="w-40 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
+            <div className="flex items-center gap-2 px-2.5 py-2 bg-gray-50 border-b border-gray-200">
+              <Layers size={14} className="text-amber-600" />
+              <h3 className="text-xs font-semibold text-gray-800">Elective Courses</h3>
             </div>
-            <div className="overflow-y-auto p-1.5 space-y-1.5" style={{ height: 'calc(100% - 40px)' }}>
+            <div className="overflow-y-auto p-1 space-y-1" style={{ height: 'calc(100% - 36px)' }}>
               {filteredElectiveGroups.map((eg) => {
                 const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
                 const isComplete = eg.remaining === 0;
