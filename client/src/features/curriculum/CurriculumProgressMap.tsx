@@ -8,6 +8,11 @@ import { IntensitySlider } from './IntensitySlider';
 import { GraduationCap, BookOpen, Target, ListChecks, Layers, ChevronRight } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
+const getElectiveGroupLabel = (groupName: string): string => {
+  const match = groupName.match(/(\d+)/);
+  return match ? parseInt(match[1], 10).toString() : groupName;
+};
+
 interface ElectiveGroup {
   name: string;
   selectCount: number;
@@ -275,18 +280,18 @@ export const CurriculumProgressMap = () => {
 
   useEffect(() => {
     if (activeElectiveGroup && y4s2GpaMode === 'above') {
-      const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
-      if (activeGroup) {
-        const isY4S2Group = activeGroup.courses.some((c) => {
+      const wasY4S2Group = allElectiveGroups.some((eg) => {
+        if (eg.name !== activeElectiveGroup) return false;
+        return eg.courses.some((c) => {
           const courseGroup = groups.find((g) => g.courses.some((cc) => cc.id === c.id));
           return courseGroup?.year === 4 && courseGroup?.semester === 2;
         });
-        if (isY4S2Group) {
-          setActiveElectiveGroup(null);
-        }
+      });
+      if (wasY4S2Group) {
+        setActiveElectiveGroup(null);
       }
     }
-  }, [y4s2GpaMode, activeElectiveGroup, filteredElectiveGroups, groups]);
+  }, [y4s2GpaMode, activeElectiveGroup, allElectiveGroups, groups]);
 
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
@@ -666,7 +671,7 @@ export const CurriculumProgressMap = () => {
                         <div className="flex items-center justify-between gap-1.5">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
-                            <span className="text-[11px] font-bold text-gray-700 truncate">{eg.name.replace(/\s*\(.*?\)\s*/g, '')}</span>
+                            <span className="text-[11px] font-bold text-gray-700">Group {getElectiveGroupLabel(eg.name)}</span>
                           </div>
                           {statusIcon}
                         </div>
@@ -727,7 +732,7 @@ export const CurriculumProgressMap = () => {
               <div className="flex items-center justify-between px-2.5 py-2 bg-gray-50 border-b border-gray-200">
                 <div className="flex items-center gap-2">
                   <Layers size={14} className="text-amber-600" />
-                  <h3 className="text-xs font-semibold text-gray-800 truncate">{activeGroup.name.replace(/\s*\(.*?\)\s*/g, '')}</h3>
+                  <h3 className="text-xs font-semibold text-gray-800">Group {getElectiveGroupLabel(activeGroup.name)}</h3>
                 </div>
                 <button
                   onClick={() => handleElectiveCardClick(null)}
