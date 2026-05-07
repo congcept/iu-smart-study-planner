@@ -39,3 +39,7 @@ export const playPlanSound = () => {
 export const playUnplanSound = () => {
   playTone(660, 0.08, 'sine', 0.05);
 };
+
+export const playLockedSound = () => {
+  playTone(150, 0.05, 'triangle', 0.08);
+};
