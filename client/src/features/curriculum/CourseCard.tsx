@@ -110,7 +110,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       <div className="flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-[11px] font-bold text-gray-700 truncate">{course.code}</span>
-          <span className={`w-2 h-2 rounded-full shrink-0 ${categoryColor}`} />
+          {(course.category === 'ELECTIVE' || course.category === 'FREE_ELECTIVE' || course.category === 'MAJOR_ELECTIVE') && (
+            <span className="text-[9px] font-semibold px-1 rounded bg-amber-100 text-amber-700 shrink-0">EL</span>
+          )}
           <span className="text-[11px] text-gray-500 shrink-0">{course.credits} cr</span>
         </div>
         {statusIcon}
