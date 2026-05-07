@@ -384,22 +384,13 @@ export const CurriculumProgressMap = () => {
   }, [groups.length]);
 
   useEffect(() => {
-    if (!frameRef.current || !contentRef.current) return;
-    const fw = frameRef.current.clientWidth;
-    const cw = contentRef.current.scrollWidth;
-    if (cw === 0) return;
-
-    const SIDEBAR_WIDTH = 160;
-    const targetWidth = activeElectiveGroup ? fw - SIDEBAR_WIDTH : fw + SIDEBAR_WIDTH;
-    setBaseScale((targetWidth - 24) / (cw - 24));
-    setPan({ x: 0, y: 0 });
-
     const timeout = setTimeout(() => {
       if (!frameRef.current || !contentRef.current) return;
-      const actualFw = frameRef.current.clientWidth;
-      const actualCw = contentRef.current.scrollWidth;
-      if (actualCw === 0) return;
-      setBaseScale((actualFw - 24) / (actualCw - 24));
+      const fw = frameRef.current.clientWidth;
+      const cw = contentRef.current.scrollWidth;
+      if (cw === 0) return;
+      setBaseScale((fw - 24) / (cw - 24));
+      setPan({ x: 0, y: 0 });
     }, 220);
     return () => clearTimeout(timeout);
   }, [activeElectiveGroup]);
@@ -552,7 +543,7 @@ export const CurriculumProgressMap = () => {
           className="absolute top-0 left-0 z-10 origin-top-left pointer-events-none"
           style={{
             transform: `translateX(${pan.x}px) scale(${scale})`,
-            transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
             width: '99999px',
           }}
         >
@@ -583,7 +574,7 @@ export const CurriculumProgressMap = () => {
           className="inline-flex gap-3 pt-1 px-3 pb-3 origin-top-left"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-            transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
           }}
         >
           {semesterDisplays.map(({ group, requiredCourses, electiveGroups }) => {
