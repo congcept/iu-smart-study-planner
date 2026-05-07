@@ -141,44 +141,52 @@ export const CurriculumProgressMap = () => {
   panRef.current = pan;
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
+  const courseToColumnIndexRef = useRef(courseToColumnIndex);
+  courseToColumnIndexRef.current = courseToColumnIndex;
+  const allCoursesRef = useRef(allCourses);
+  allCoursesRef.current = allCourses;
 
-  useEffect(() => {
-    if (currentPrereqIdsRef.current.size === 0 || frameWidth === 0) {
+  const computeHiddenPrereqs = useCallback((prereqIds: string[]) => {
+    const currentPan = panRef.current;
+    const currentScale = scaleRef.current;
+    const colMap = courseToColumnIndexRef.current;
+    const courses = allCoursesRef.current;
+    const fw = frameWidth;
+
+    if (fw === 0) {
       setHiddenPrereqCourses([]);
       return;
     }
 
-    const currentPan = panRef.current;
-    const currentScale = scaleRef.current;
-
-    const visibleLeft = -currentPan.x / currentScale;
-    const visibleRight = visibleLeft + frameWidth / currentScale;
+    const visibleLeft = -currentPan.x / currentScale - 12;
+    const visibleRight = visibleLeft + fw / currentScale;
 
     const hiddenCourses: { course: Course; isLeft: boolean }[] = [];
-    for (const prereqId of currentPrereqIdsRef.current) {
-      const colIndex = courseToColumnIndex.get(prereqId);
+    for (const prereqId of prereqIds) {
+      const colIndex = colMap.get(prereqId);
       if (colIndex === undefined) continue;
 
       const colWidth = 204;
-      const colLeftPx = colIndex * colWidth;
-      const colRightPx = colLeftPx + colWidth;
+      const colLeftPx = 12 + colIndex * colWidth;
+      const colRightPx = colLeftPx + 192;
 
       const isLeft = colRightPx < visibleLeft;
       const isRight = colLeftPx > visibleRight;
 
       if (isLeft || isRight) {
-        const course = allCourses.find((c) => c.id === prereqId);
+        const course = courses.find((c) => c.id === prereqId);
         if (course) hiddenCourses.push({ course, isLeft });
       }
     }
     setHiddenPrereqCourses(hiddenCourses);
-  }, [allCourses, courseToColumnIndex, pan.x, scale, frameWidth, highlightedPrereqIds]);
+  }, [frameWidth]);
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
     setHoveredLockedId(courseId);
     currentPrereqIdsRef.current = new Set(prereqIds);
-  }, []);
+    computeHiddenPrereqs(prereqIds);
+  }, [computeHiddenPrereqs]);
 
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
@@ -273,6 +281,12 @@ export const CurriculumProgressMap = () => {
     setHiddenPrereqCourses([]);
     currentPrereqIdsRef.current = new Set();
   }, []);
+
+  useEffect(() => {
+    if (currentPrereqIdsRef.current.size > 0) {
+      computeHiddenPrereqs([...currentPrereqIdsRef.current]);
+    }
+  }, [pan.x, scale, computeHiddenPrereqs]);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
     return groups.map((group) => {
