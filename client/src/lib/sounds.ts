@@ -49,6 +49,5 @@ export const playToggleSound = () => {
 };
 
 export const playRecommendationsSound = () => {
-  playTone(1000, 0.04, 'sine', 0.06);
-  setTimeout(() => playTone(1400, 0.04, 'sine', 0.06), 30);
+  playTone(200, 0.03, 'square', 0.08);
 };
