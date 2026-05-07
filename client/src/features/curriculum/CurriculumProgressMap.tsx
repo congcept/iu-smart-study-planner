@@ -616,18 +616,26 @@ export const CurriculumProgressMap = () => {
                     const isComplete = eg.remaining === 0;
 
                     let statusIcon = null;
+                    let borderColor = 'border-gray-300';
+                    let hoverBorder = 'hover:border-violet-500';
                     if (isComplete) {
                       statusIcon = <span className="text-green-600 font-bold text-[11px]">DONE</span>;
-                    } else if (hasRecommended) {
-                      statusIcon = <span className="text-amber-600 font-bold text-[11px]">NEXT</span>;
+                      borderColor = 'border-green-500';
+                      hoverBorder = 'hover:border-green-600';
                     } else if (hasPlanned) {
                       statusIcon = <span className="text-blue-600 font-bold text-[11px]">PLANNED</span>;
+                      borderColor = 'border-blue-500';
+                      hoverBorder = 'hover:border-blue-600';
+                    } else if (hasRecommended) {
+                      statusIcon = <span className="text-amber-600 font-bold text-[11px]">NEXT</span>;
+                      borderColor = 'border-amber-500';
+                      hoverBorder = 'hover:border-amber-600';
                     }
 
                     return (
                       <div
                         key={`${eg.name}-summary`}
-                        className="bg-white rounded-md shadow-sm border-2 p-2 border-gray-300"
+                        className={`bg-white rounded-md shadow-sm border-2 p-2 ${borderColor} ${hoverBorder} transition-all duration-150 hover:shadow-md hover:scale-[1.02] cursor-pointer`}
                       >
                         <div className="flex items-center justify-between gap-1.5">
                           <div className="flex items-center gap-1.5 min-w-0">
