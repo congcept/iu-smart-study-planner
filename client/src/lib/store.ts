@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AppState } from '../types';
-import { playCompleteSound, playUncompleteSound } from './sounds';
+import { playCompleteSound, playUncompleteSound, playPlanSound, playUnplanSound } from './sounds';
 
 const STORAGE_KEY = 'completed_courses';
 const PLAN_KEY = 'planned_courses';
@@ -79,11 +79,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleCoursePlanned: (courseId) => {
     set((state) => {
+      const wasPlanned = state.plannedIds.includes(courseId);
       const ids = new Set(state.plannedIds);
-      if (ids.has(courseId)) {
+      if (wasPlanned) {
         ids.delete(courseId);
+        playUnplanSound();
       } else {
         ids.add(courseId);
+        playPlanSound();
       }
       const arr = Array.from(ids);
       savePlannedIds(arr);
@@ -96,6 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const completedIds = { ...state.completedIds };
       delete completedIds[courseId];
       saveCompletedIds(completedIds);
+      playUncompleteSound();
 
       const plannedIds = new Set(state.plannedIds);
       plannedIds.add(courseId);

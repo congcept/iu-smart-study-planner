@@ -31,3 +31,11 @@ export const playUncompleteSound = () => {
   playTone(440, 0.1, 'sine', 0.05);
   setTimeout(() => playTone(349.23, 0.15, 'sine', 0.05), 60);
 };
+
+export const playPlanSound = () => {
+  playTone(880, 0.06, 'sine', 0.08);
+};
+
+export const playUnplanSound = () => {
+  playTone(660, 0.08, 'sine', 0.05);
+};
