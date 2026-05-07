@@ -99,7 +99,6 @@ export const CurriculumProgressMap = () => {
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
   const [activeElectiveGroup, setActiveElectiveGroup] = useState<string | null>(null);
-  const [displayElectiveGroup, setDisplayElectiveGroup] = useState<string | null>(null);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
@@ -202,13 +201,7 @@ export const CurriculumProgressMap = () => {
   }, []);
 
   const handleElectiveCardClick = useCallback((groupName: string | null) => {
-    if (groupName !== null) {
-      setDisplayElectiveGroup(groupName);
-      setActiveElectiveGroup((prev) => prev === groupName ? null : groupName);
-    } else {
-      setActiveElectiveGroup(null);
-      setTimeout(() => setDisplayElectiveGroup(null), 200);
-    }
+    setActiveElectiveGroup((prev) => prev === groupName ? null : groupName);
   }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
@@ -296,7 +289,6 @@ export const CurriculumProgressMap = () => {
       });
       if (wasY4S2Group) {
         setActiveElectiveGroup(null);
-        setTimeout(() => setDisplayElectiveGroup(null), 200);
       }
     }
   }, [y4s2GpaMode, activeElectiveGroup, allElectiveGroups, groups]);
@@ -720,9 +712,14 @@ export const CurriculumProgressMap = () => {
         </div>
         </div>
 
-        <div className={`flex flex-col shrink-0 rounded-lg border transition-all duration-200 ease-in-out ${displayElectiveGroup ? 'w-40 border-gray-200 shadow-sm' : 'w-0 border-transparent'}`} style={{ height: 'calc(100vh - 500px)', overflow: 'hidden' }}>
-          {displayElectiveGroup && (() => {
-            const activeGroup = filteredElectiveGroups.find((eg) => eg.name === displayElectiveGroup);
+        <div
+          className={`shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm transition-all duration-200 ease-in-out ${
+            activeElectiveGroup ? 'w-40' : 'w-0 border-transparent'
+          }`}
+          style={{ height: 'calc(100vh - 500px)' }}
+        >
+          {activeElectiveGroup && (() => {
+            const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
             if (!activeGroup) return null;
 
             const completedCourses = activeGroup.courses.filter((c) => completedRecord[c.id] === activeGroup.name);
@@ -737,21 +734,21 @@ export const CurriculumProgressMap = () => {
                 });
 
             return (
-              <>
+              <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between px-2.5 py-2 bg-gray-50 border-b border-gray-200 shrink-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Layers size={14} className="text-amber-600 shrink-0" />
-                    <h3 className="text-xs font-semibold text-gray-800 truncate">Group {getElectiveGroupLabel(activeGroup.name)}</h3>
-                    <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums shrink-0">{completedCount}/{activeGroup.selectCount}</span>
+                  <div className="flex items-center gap-2">
+                    <Layers size={14} className="text-amber-600" />
+                    <h3 className="text-xs font-semibold text-gray-800">Group {getElectiveGroupLabel(activeGroup.name)}</h3>
+                    <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums">{completedCount}/{activeGroup.selectCount}</span>
                   </div>
                   <button
                     onClick={() => handleElectiveCardClick(null)}
-                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500 shrink-0"
+                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
                   >
                     <span className="text-sm leading-none">&times;</span>
                   </button>
                 </div>
-                <div className="overflow-y-auto p-1.5 space-y-1.5 flex-1" style={{ height: 'calc(100% - 40px)' }}>
+                <div className="overflow-y-auto p-1.5 space-y-1.5 flex-1">
                   {visibleCourses.map((course) => {
                     const isCompleted = completedRecord[course.id] === activeGroup.name;
                     const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
@@ -777,7 +774,7 @@ export const CurriculumProgressMap = () => {
                     );
                   })}
                 </div>
-              </>
+              </div>
             );
           })()}
         </div>
