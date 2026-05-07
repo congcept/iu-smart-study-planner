@@ -5,7 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
-import { GraduationCap, BookOpen, Target, ListChecks, Layers, X } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, ListChecks, Layers } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
@@ -94,7 +94,6 @@ export const CurriculumProgressMap = () => {
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
-  const [isElectivePanelOpen, setIsElectivePanelOpen] = useState(false);
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
@@ -269,10 +268,6 @@ export const CurriculumProgressMap = () => {
     });
   }, [allElectiveGroups, isY4S2ThesisMode, groups]);
 
-  const handleToggleElectivePanel = useCallback(() => {
-    setIsElectivePanelOpen((prev) => !prev);
-  }, []);
-
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
 
@@ -361,7 +356,7 @@ export const CurriculumProgressMap = () => {
     fitToFrame();
     window.addEventListener('resize', fitToFrame);
     return () => window.removeEventListener('resize', fitToFrame);
-  }, [groups.length, isElectivePanelOpen]);
+  }, [groups.length]);
 
   const clampPan = useCallback((px: number, py: number, s: number) => {
     if (!frameRef.current || !contentRef.current) return { x: px, y: py };
@@ -477,22 +472,6 @@ export const CurriculumProgressMap = () => {
 
         <IntensitySlider mode={intensityMode} onChange={setIntensityMode} disabled={!recommendationsEnabled} />
 
-        <div className="flex items-center gap-3">
-          <span className="text-base font-semibold text-gray-700">Electives</span>
-          <button
-            onClick={handleToggleElectivePanel}
-            className={`relative w-12 h-6 rounded-lg transition-colors duration-200 ${
-              isElectivePanelOpen ? 'bg-amber-500' : 'bg-gray-300'
-            }`}
-          >
-            <span
-              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-md shadow transition-transform duration-200 ${
-                isElectivePanelOpen ? 'translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-base text-gray-600 min-w-0">
           <span>
             <span className="font-semibold">Program:</span>{' '}
@@ -514,7 +493,7 @@ export const CurriculumProgressMap = () => {
       <div className="flex gap-3">
         <div
           ref={frameRef}
-          className={`relative rounded-lg border border-gray-200 bg-gray-50 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isElectivePanelOpen ? 'flex-1' : 'w-full'}`}
+          className={`relative flex-1 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           style={{ height: 'calc(100vh - 500px)' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -659,21 +638,12 @@ export const CurriculumProgressMap = () => {
         </div>
       </div>
 
-        {isElectivePanelOpen && (
-          <div className="w-72 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
-            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-center gap-2">
-                <Layers size={16} className="text-amber-600" />
-                <h3 className="text-sm font-semibold text-gray-800">Elective Courses</h3>
-              </div>
-              <button
-                onClick={handleToggleElectivePanel}
-                className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
-              >
-                <X size={14} />
-              </button>
+        <div className="w-48 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200">
+              <Layers size={16} className="text-amber-600" />
+              <h3 className="text-sm font-semibold text-gray-800">Elective Courses</h3>
             </div>
-            <div className="overflow-y-auto p-2 space-y-2" style={{ height: 'calc(100% - 40px)' }}>
+            <div className="overflow-y-auto p-1.5 space-y-1.5" style={{ height: 'calc(100% - 40px)' }}>
               {filteredElectiveGroups.map((eg) => {
                 const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
                 const isComplete = eg.remaining === 0;
@@ -727,7 +697,6 @@ export const CurriculumProgressMap = () => {
               })}
             </div>
           </div>
-        )}
       </div>
 
       {progress && (
