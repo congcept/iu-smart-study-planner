@@ -49,5 +49,5 @@ export const playToggleSound = () => {
 };
 
 export const playRecommendationsSound = () => {
-  playTone(200, 0.03, 'square', 0.08);
+  playTone(800, 0.02, 'square', 0.1);
 };
