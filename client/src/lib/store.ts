@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { AppState } from '../types';
+import { playCompleteSound, playUncompleteSound } from './sounds';
 
 const STORAGE_KEY = 'completed_courses';
 const PLAN_KEY = 'planned_courses';
@@ -62,11 +63,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleCourseComplete: (courseId, electiveGroup = null) => {
     set((state) => {
+      const wasCompleted = state.completedIds[courseId] !== undefined;
       const record = { ...state.completedIds };
-      if (record[courseId] !== undefined) {
+      if (wasCompleted) {
         delete record[courseId];
+        playUncompleteSound();
       } else {
         record[courseId] = electiveGroup;
+        playCompleteSound();
       }
       saveCompletedIds(record);
       return { completedIds: record, completionVersion: state.completionVersion + 1 };
