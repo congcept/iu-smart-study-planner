@@ -101,18 +101,18 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         }
       }}
       className={`
-        bg-white rounded-md shadow-sm border-2 p-2 relative
+        bg-white rounded-md shadow-sm border-2 p-2
         transition-all duration-150 hover:shadow-md
         ${borderColor} ${opacity} ${highlightRing}
         ${!isLocked ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-not-allowed'}
       `}
     >
-      {(course.category === 'ELECTIVE' || course.category === 'FREE_ELECTIVE' || course.category === 'MAJOR_ELECTIVE') && (
-        <span className="absolute top-1 left-1 w-2 h-2 rounded-full bg-amber-500" />
-      )}
       <div className="flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-[11px] font-bold text-gray-700 truncate">{course.code}</span>
+          {(course.category === 'ELECTIVE' || course.category === 'FREE_ELECTIVE' || course.category === 'MAJOR_ELECTIVE') && (
+            <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
+          )}
           <span className="text-[11px] text-gray-500 shrink-0">{course.credits} cr</span>
         </div>
         {statusIcon}

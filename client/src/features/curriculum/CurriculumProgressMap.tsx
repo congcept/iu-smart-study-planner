@@ -452,15 +452,15 @@ export const CurriculumProgressMap = () => {
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-base text-gray-600 min-w-0">
           <span>
             <span className="font-semibold">Program:</span>{' '}
-            <span className="font-bold text-gray-900">{REQUIRED_YEARS} years, {REQUIRED_CREDITS} credits</span>
+            <span className="font-bold text-gray-900 tabular-nums">{REQUIRED_YEARS} years, {REQUIRED_CREDITS} credits</span>
           </span>
           <span>
             <span className="font-semibold">Completed:</span>{' '}
-            <span className="font-bold text-green-600">{completedCredits} / {REQUIRED_CREDITS} credits</span>
+            <span className="font-bold text-green-600 tabular-nums">{completedCredits} / {REQUIRED_CREDITS} credits</span>
           </span>
           <span>
             <span className="font-semibold">Planned:</span>{' '}
-            <span className={`font-bold ${plannedCredits > 24 ? 'text-red-600' : 'text-blue-600'}`}>
+            <span className={`font-bold tabular-nums ${plannedCredits > 24 ? 'text-red-600' : 'text-blue-600'}`}>
               {plannedCredits} / 24 credits
             </span>
           </span>
@@ -630,7 +630,7 @@ export const CurriculumProgressMap = () => {
                           <p className="text-xs font-semibold text-amber-700 truncate">
                             {eg.name.replace(/\s*\(.*?\)\s*/g, '')}
                           </p>
-                          <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 ml-1">
+                          <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums">
                             {eg.remaining}
                           </span>
                         </div>
@@ -676,7 +676,7 @@ export const CurriculumProgressMap = () => {
           >
             −
           </button>
-          <span className="text-xs font-medium text-gray-500 w-10 text-center">{Math.round(zoomMultiplier * 100)}%</span>
+          <span className="text-xs font-medium text-gray-500 w-10 text-center tabular-nums">{Math.round(zoomMultiplier * 100)}%</span>
           <button
             onClick={handleZoomIn}
             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
@@ -705,14 +705,14 @@ export const CurriculumProgressMap = () => {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 rounded-xl shrink-0">
                     <GraduationCap size={24} className="text-blue-600" />
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex items-baseline gap-1.5 tabular-nums">
                       <div className="text-xl font-bold">{completedIdKeys.length}</div>
                       <div className="text-sm text-gray-600">Completed</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 rounded-xl shrink-0">
                     <BookOpen size={24} className="text-purple-600" />
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex items-baseline gap-1.5 tabular-nums">
                       <div className="text-xl font-bold">{remainingCourses}</div>
                       <div className="text-sm text-gray-600">Remaining</div>
                     </div>
@@ -726,8 +726,8 @@ export const CurriculumProgressMap = () => {
                     <span className="text-lg font-semibold">Degree Progress</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-gray-900">ETA: <span className="font-bold text-amber-600">{eta}</span></span>
-                    <span className="text-3xl font-bold text-blue-600">{degreeProgress}%</span>
+                    <span className="text-sm font-medium text-gray-900 tabular-nums">ETA: <span className="font-bold text-amber-600">{eta}</span></span>
+                    <span className="text-3xl font-bold text-blue-600 tabular-nums">{degreeProgress}%</span>
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 rounded-xl h-8 overflow-hidden">
