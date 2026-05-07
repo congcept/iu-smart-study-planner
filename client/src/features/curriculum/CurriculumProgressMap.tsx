@@ -602,13 +602,11 @@ export const CurriculumProgressMap = () => {
                         <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
                         <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
                           <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
-                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')} {isComplete && '✓'}
+                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')} {isComplete ? '✓' : ''}
                           </p>
-                          {!isComplete && (
-                            <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums">
-                              {eg.remaining}
-                            </span>
-                          )}
+                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums ${isComplete ? 'invisible' : 'bg-amber-100 text-amber-800'}`}>
+                            {eg.remaining}
+                          </span>
                         </div>
                         <div className="space-y-1.5">
                           {visibleCourses.map((course) => {
