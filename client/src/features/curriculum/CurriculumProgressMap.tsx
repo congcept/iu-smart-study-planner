@@ -199,6 +199,21 @@ export const CurriculumProgressMap = () => {
     setActiveElectiveGroup((prev) => prev === groupName ? null : groupName);
   }, []);
 
+  useEffect(() => {
+    if (activeElectiveGroup && y4s2GpaMode === 'above') {
+      const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
+      if (activeGroup) {
+        const isY4S2Group = activeGroup.courses.some((c) => {
+          const courseGroup = groups.find((g) => g.courses.some((cc) => cc.id === c.id));
+          return courseGroup?.year === 4 && courseGroup?.semester === 2;
+        });
+        if (isY4S2Group) {
+          setActiveElectiveGroup(null);
+        }
+      }
+    }
+  }, [y4s2GpaMode, activeElectiveGroup, filteredElectiveGroups, groups]);
+
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
     return groups.map((group) => {
       const requiredCourses: Course[] = [];
@@ -555,6 +570,7 @@ export const CurriculumProgressMap = () => {
                 ? requiredCourses.filter((c) => c.code === 'IT058IU')
                 : requiredCourses.filter((c) => c.code !== 'IT058IU')
               : requiredCourses;
+            const visibleElectiveGroups = isY4S2 && y4s2GpaMode === 'above' ? [] : electiveGroups;
 
             return (
               <div
@@ -614,7 +630,7 @@ export const CurriculumProgressMap = () => {
                     );
                   })}
 
-                  {electiveGroups.map((eg) => {
+                  {visibleElectiveGroups.map((eg) => {
                     const completedCount = eg.courses.filter((c) => completedRecord[c.id] === eg.name).length;
                     const hasRecommended = eg.courses.some((c) => recommendedIds.has(c.id) && completedRecord[c.id] !== eg.name);
                     const hasPlanned = eg.courses.some((c) => plannedIdsSet.has(c.id) && completedRecord[c.id] !== eg.name);
@@ -624,6 +640,7 @@ export const CurriculumProgressMap = () => {
                     let statusIcon = null;
                     let borderColor = 'border-gray-300';
                     let hoverBorder = 'hover:border-violet-500';
+                    let statusRing = '';
                     if (isComplete) {
                       statusIcon = <span className="text-green-600 font-bold text-[11px]">DONE</span>;
                       borderColor = isActive ? 'border-violet-500' : 'border-green-500';
@@ -632,16 +649,18 @@ export const CurriculumProgressMap = () => {
                       statusIcon = <span className="text-blue-600 font-bold text-[11px]">PLANNED</span>;
                       borderColor = isActive ? 'border-violet-500' : 'border-blue-500';
                       hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-blue-600';
+                      if (!isActive) statusRing = 'ring-2 ring-blue-200';
                     } else if (hasRecommended) {
                       statusIcon = <span className="text-amber-600 font-bold text-[11px]">NEXT</span>;
                       borderColor = isActive ? 'border-violet-500' : 'border-amber-500';
                       hoverBorder = isActive ? 'hover:border-violet-600' : 'hover:border-amber-600';
+                      if (!isActive) statusRing = 'ring-2 ring-amber-200';
                     }
 
                     return (
                       <div
                         key={`${eg.name}-summary`}
-                        className={`bg-white rounded-md shadow-sm border-2 p-2 ${borderColor} ${hoverBorder} transition-all duration-150 hover:shadow-md hover:scale-[1.02] cursor-pointer`}
+                        className={`bg-white rounded-md shadow-sm border-2 p-2 ${borderColor} ${hoverBorder} ${statusRing} transition-all duration-150 hover:shadow-md hover:scale-[1.02] cursor-pointer`}
                         onClick={() => handleElectiveCardClick(eg.name)}
                       >
                         <div className="flex items-center justify-between gap-1.5">
