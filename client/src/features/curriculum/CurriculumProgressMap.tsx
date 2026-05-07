@@ -729,25 +729,21 @@ export const CurriculumProgressMap = () => {
 
           return (
             <div className="w-40 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
-              <div className="flex items-center justify-between px-2.5 py-2 bg-gray-50 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Layers size={14} className="text-amber-600" />
-                  <h3 className="text-xs font-semibold text-gray-800">Group {getElectiveGroupLabel(activeGroup.name)}</h3>
-                </div>
-                <button
-                  onClick={() => handleElectiveCardClick(null)}
-                  className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
-                >
-                  <span className="text-sm leading-none">&times;</span>
-                </button>
-              </div>
-              <div className="overflow-y-auto p-1.5 space-y-1.5" style={{ height: 'calc(100% - 40px)' }}>
-                <div className="flex items-center justify-between mb-1 px-1">
-                  <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
-                    {completedCount}/{activeGroup.selectCount}
-                  </p>
-                </div>
-                {visibleCourses.map((course) => {
+               <div className="flex items-center justify-between px-2.5 py-2 bg-gray-50 border-b border-gray-200">
+                 <div className="flex items-center gap-2">
+                   <Layers size={14} className="text-amber-600" />
+                   <h3 className="text-xs font-semibold text-gray-800">Group {getElectiveGroupLabel(activeGroup.name)}</h3>
+                   <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums">{completedCount}/{activeGroup.selectCount}</span>
+                 </div>
+                 <button
+                   onClick={() => handleElectiveCardClick(null)}
+                   className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
+                 >
+                   <span className="text-sm leading-none">&times;</span>
+                 </button>
+               </div>
+               <div className="overflow-y-auto p-1.5 space-y-1.5" style={{ height: 'calc(100% - 40px)' }}>
+                 {visibleCourses.map((course) => {
                   const isCompleted = completedRecord[course.id] === activeGroup.name;
                   const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
                   const isRecommended = !isCompleted && recommendedIds.has(course.id);
