@@ -381,7 +381,7 @@ export const CurriculumProgressMap = () => {
     fitToFrame();
     window.addEventListener('resize', fitToFrame);
     return () => window.removeEventListener('resize', fitToFrame);
-  }, [groups.length]);
+  }, [groups.length, activeElectiveGroup]);
 
   const clampPan = useCallback((px: number, py: number, s: number) => {
     if (!frameRef.current || !contentRef.current) return { x: px, y: py };
