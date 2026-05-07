@@ -590,49 +590,25 @@ export const CurriculumProgressMap = () => {
                     const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
                     const isComplete = eg.remaining === 0;
 
-                    if (isComplete) {
-                      return (
-                        <div key={eg.name} className="mt-2 pt-2 relative space-y-1.5">
-                          <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
-                          <p className={`text-xs font-semibold text-green-700 truncate transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
-                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')} ✓
-                          </p>
-                          {completedCourses.map((course) => (
-                            <CourseCard
-                              key={`${eg.name}-${course.id}`}
-                              course={course}
-                              isCompleted={true}
-                              isPlanned={false}
-                              isLocked={false}
-                              isRecommended={false}
-                              isHighlighted={highlightedPrereqIds.has(course.id)}
-                              isBlurred={hoveredLockedId !== null && !highlightedPrereqIds.has(course.id)}
-                              onToggleComplete={handleToggleComplete}
-                              onTogglePlanned={handleTogglePlanned}
-                              onCompleteToPlanned={handleCompleteToPlanned}
-                              onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
-                              onPrereqsLeave={handlePrereqsLeave}
-                            />
-                          ))}
-                        </div>
-                      );
-                    }
-
-                    const visibleCourses = eg.courses.filter((c) => {
-                      const claimedGroup = completedRecord[c.id];
-                      return claimedGroup === undefined || claimedGroup === eg.name;
-                    });
+                    const visibleCourses = isComplete
+                      ? completedCourses
+                      : eg.courses.filter((c) => {
+                          const claimedGroup = completedRecord[c.id];
+                          return claimedGroup === undefined || claimedGroup === eg.name;
+                        });
 
                     return (
                       <div key={eg.name} className="mt-2 pt-2 relative">
                         <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
                         <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
-                          <p className="text-xs font-semibold text-amber-700 truncate">
-                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')}
+                          <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
+                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')} {isComplete && '✓'}
                           </p>
-                          <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums">
-                            {eg.remaining}
-                          </span>
+                          {!isComplete && (
+                            <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums">
+                              {eg.remaining}
+                            </span>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           {visibleCourses.map((course) => {
