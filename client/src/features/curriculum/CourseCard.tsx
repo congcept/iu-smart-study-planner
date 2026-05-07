@@ -54,7 +54,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   let opacity = 'opacity-100';
   let statusIcon = null;
   let highlightRing = '';
-  let blurEffect = '';
 
   if (isCompleted) {
     borderColor = 'border-green-500';
@@ -71,7 +70,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     statusIcon = <span className="text-gray-400 font-bold text-[11px]">LOCKED</span>;
   }
 
-  if (isLocked && (isHighlighted || hovered)) {
+  if (isHighlighted || (isLocked && hovered)) {
     opacity = 'opacity-100';
     borderColor = 'border-violet-500';
     highlightRing = 'ring-2 ring-violet-400 bg-violet-50 scale-[1.02] shadow-md';

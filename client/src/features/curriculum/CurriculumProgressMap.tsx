@@ -4,7 +4,7 @@ import { useAppStore } from '@/lib/store';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
-import { GraduationCap, BookOpen, Target } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, ListChecks } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
@@ -100,6 +100,62 @@ export const CurriculumProgressMap = () => {
   }, []);
 
   const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
+
+  const creditsPerSemester = useMemo(() => {
+    switch (intensityMode) {
+      case 'low': return 9;
+      case 'normal': return 15;
+      case 'high': return 18;
+      case 'max': return 21;
+    }
+  }, [intensityMode]);
+
+  useEffect(() => {
+    if (!recommendationsEnabled) {
+      setRecommendedIds(new Set());
+      return;
+    }
+
+    const availableCourses = allCourses.filter(
+      (c) => !completedIdsSet.has(c.id),
+    );
+
+    const unlockedCourses = availableCourses.filter((c) =>
+      c.prerequisites.every((p) => completedIdsSet.has(p.prerequisiteId)),
+    );
+
+    const isY4S2ThesisMode = y4s2GpaMode === 'above';
+
+    unlockedCourses.sort((a, b) => {
+      const aGroup = groups.find((g) => g.courses.some((c) => c.id === a.id));
+      const bGroup = groups.find((g) => g.courses.some((c) => c.id === b.id));
+      if (!aGroup || !bGroup) return 0;
+      if (aGroup.year !== bGroup.year) return aGroup.year - bGroup.year;
+      if (aGroup.semester !== bGroup.semester) return aGroup.semester - bGroup.semester;
+      return a.code.localeCompare(b.code);
+    });
+
+    const recommended: string[] = [];
+    let totalCredits = 0;
+
+    for (const course of unlockedCourses) {
+      if (isY4S2ThesisMode) {
+        const courseGroup = groups.find((g) => g.courses.some((c) => c.id === course.id));
+        if (courseGroup && courseGroup.year === 4 && courseGroup.semester === 2 && course.code !== 'IT058IU') {
+          continue;
+        }
+      }
+
+      if (totalCredits + course.credits <= creditsPerSemester) {
+        recommended.push(course.id);
+        totalCredits += course.credits;
+      }
+
+      if (totalCredits >= creditsPerSemester) break;
+    }
+
+    setRecommendedIds(new Set(recommended));
+  }, [allCourses, completedIdsSet, recommendationsEnabled, y4s2GpaMode, groups, creditsPerSemester]);
 
   const isCourseAvailable = useCallback(
     (course: Course) => {
@@ -226,15 +282,6 @@ export const CurriculumProgressMap = () => {
     const target = y4s2GpaMode === 'above' ? 41 : 43;
     return Math.min(100, Math.round((completedIdKeys.length / target) * 100));
   }, [completedIdKeys, y4s2GpaMode]);
-
-  const creditsPerSemester = useMemo(() => {
-    switch (intensityMode) {
-      case 'low': return 9;
-      case 'normal': return 15;
-      case 'high': return 18;
-      case 'max': return 21;
-    }
-  }, [intensityMode]);
 
   const eta = useMemo(() => {
     const remainingCredits = REQUIRED_CREDITS - completedCredits;
@@ -648,19 +695,31 @@ export const CurriculumProgressMap = () => {
       {progress && (
         <div className="mt-10 space-y-6">
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-6">
-              <div className="p-4 bg-blue-50 rounded-xl text-center shrink-0 w-28">
-                <GraduationCap size={26} className="mx-auto mb-1.5 text-blue-600" />
-                <div className="text-xl font-bold">{completedIdKeys.length}</div>
-                <div className="text-sm text-gray-600">Completed</div>
+            <div className="flex items-start gap-8">
+              <div className="shrink-0">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <ListChecks size={20} className="text-blue-600" />
+                  <span className="text-lg font-semibold text-gray-700">Courses Progress</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 rounded-xl shrink-0">
+                    <GraduationCap size={24} className="text-blue-600" />
+                    <div className="flex items-baseline gap-1.5">
+                      <div className="text-xl font-bold">{completedIdKeys.length}</div>
+                      <div className="text-sm text-gray-600">Completed</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 rounded-xl shrink-0">
+                    <BookOpen size={24} className="text-purple-600" />
+                    <div className="flex items-baseline gap-1.5">
+                      <div className="text-xl font-bold">{remainingCourses}</div>
+                      <div className="text-sm text-gray-600">Remaining</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="p-4 bg-purple-50 rounded-xl text-center shrink-0 w-28">
-                <BookOpen size={26} className="mx-auto mb-1.5 text-purple-600" />
-                <div className="text-xl font-bold">{remainingCourses}</div>
-                <div className="text-sm text-gray-600">Remaining</div>
-              </div>
-              <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
                     <Target size={20} className="text-blue-600" />
                     <span className="text-lg font-semibold">Degree Progress</span>
@@ -670,9 +729,9 @@ export const CurriculumProgressMap = () => {
                     <span className="text-3xl font-bold text-blue-600">{degreeProgress}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-4">
+                <div className="w-full bg-gray-200 rounded-full h-8">
                   <div
-                    className="bg-blue-600 h-4 rounded-full transition-all duration-500"
+                    className="bg-blue-600 h-8 rounded-full transition-all duration-500"
                     style={{ width: `${degreeProgress}%` }}
                   />
                 </div>
