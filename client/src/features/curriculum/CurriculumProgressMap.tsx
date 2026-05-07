@@ -5,7 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
-import { GraduationCap, BookOpen, Target, ListChecks, Layers } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, ListChecks, Layers, ChevronRight } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
@@ -93,6 +93,7 @@ export const CurriculumProgressMap = () => {
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
+  const [hoveredElectiveGroup, setHoveredElectiveGroup] = useState<string | null>(null);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
@@ -192,6 +193,10 @@ export const CurriculumProgressMap = () => {
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
     setHoveredLockedId(null);
+  }, []);
+
+  const handleElectiveGroupHover = useCallback((groupName: string | null) => {
+    setHoveredElectiveGroup(groupName);
   }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
@@ -540,7 +545,7 @@ export const CurriculumProgressMap = () => {
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
           }}
         >
-          {semesterDisplays.map(({ group, requiredCourses }) => {
+          {semesterDisplays.map(({ group, requiredCourses, electiveGroups }) => {
             const semesterLabel =
               group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
 
@@ -608,6 +613,40 @@ export const CurriculumProgressMap = () => {
                       />
                     );
                   })}
+
+                  {electiveGroups.map((eg) => {
+                    const isComplete = eg.remaining === 0;
+                    const isHovered = hoveredElectiveGroup === eg.name;
+
+                    return (
+                      <div
+                        key={`${eg.name}-summary`}
+                        className="bg-white rounded-md shadow-sm border-2 p-2 transition-all duration-150 cursor-pointer"
+                        style={{
+                          borderColor: isHovered ? '#8b5cf6' : '#fbbf24',
+                          boxShadow: isHovered ? '0 0 0 2px rgba(139, 92, 246, 0.3)' : undefined,
+                        }}
+                        onMouseEnter={() => handleElectiveGroupHover(eg.name)}
+                        onMouseLeave={() => handleElectiveGroupHover(null)}
+                      >
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
+                            <span className="text-[11px] font-bold text-gray-700 truncate">{eg.name.replace(/\s*\(.*?\)\s*/g, '')}</span>
+                          </div>
+                          {isComplete ? (
+                            <span className="text-green-600 font-bold text-[11px]">✓</span>
+                          ) : (
+                            <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums">{eg.remaining}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[11px] text-gray-500">{eg.courses.length} options</span>
+                          <ChevronRight size={12} className="text-gray-400" />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -647,6 +686,7 @@ export const CurriculumProgressMap = () => {
               {filteredElectiveGroups.map((eg) => {
                 const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
                 const isComplete = eg.remaining === 0;
+                const isHighlighted = hoveredElectiveGroup === eg.name;
 
                 const visibleCourses = isComplete
                   ? completedCourses
@@ -656,13 +696,22 @@ export const CurriculumProgressMap = () => {
                     });
 
                 return (
-                  <div key={eg.name} className="pt-2 relative">
-                    <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
-                    <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
-                      <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
+                  <div
+                    key={eg.name}
+                    className={`pt-2 relative rounded-md transition-all duration-150 ${
+                      isHighlighted ? 'ring-2 ring-violet-400 bg-violet-50' : ''
+                    } ${hoveredElectiveGroup && !isHighlighted ? 'opacity-30' : 'opacity-100'}`}
+                    onMouseEnter={() => handleElectiveGroupHover(eg.name)}
+                    onMouseLeave={() => handleElectiveGroupHover(null)}
+                  >
+                    <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed transition-all duration-150 ${
+                      isHighlighted ? 'border-violet-400' : 'border-amber-300'
+                    } ${hoveredLockedId && !isHighlighted ? 'blur-[1px] opacity-25' : ''}`} />
+                    <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId && !isHighlighted ? 'blur-[1px] opacity-25' : ''}`}>
+                      <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : isHighlighted ? 'text-violet-700' : 'text-amber-700'}`}>
                         {eg.name.replace(/\s*\(.*?\)\s*/g, '')} {isComplete ? '\u2713' : ''}
                       </p>
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums ${isComplete ? 'invisible' : 'bg-amber-100 text-amber-800'}`}>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums ${isComplete ? 'invisible' : isHighlighted ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800'}`}>
                         {eg.remaining}
                       </span>
                     </div>
@@ -681,8 +730,8 @@ export const CurriculumProgressMap = () => {
                             isPlanned={isPlanned}
                             isLocked={isLocked}
                             isRecommended={isRecommended}
-                            isHighlighted={highlightedPrereqIds.has(course.id)}
-                            isBlurred={hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
+                            isHighlighted={highlightedPrereqIds.has(course.id) || isHighlighted}
+                            isBlurred={hoveredElectiveGroup && !isHighlighted ? true : hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
                             onToggleComplete={() => handleToggleComplete(course.id, eg.name)}
                             onTogglePlanned={handleTogglePlanned}
                             onCompleteToPlanned={handleCompleteToPlanned}
