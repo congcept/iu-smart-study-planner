@@ -105,6 +105,7 @@ export const CurriculumProgressMap = () => {
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
   const scale = baseScale * zoomMultiplier;
   const [isDragging, setIsDragging] = useState(false);
+  const [frameWidth, setFrameWidth] = useState(0);
   const dragStart = useRef({ x: 0, y: 0 });
   const panStart = useRef({ x: 0, y: 0 });
 
@@ -135,37 +136,49 @@ export const CurriculumProgressMap = () => {
     return map;
   }, [groups, courseColumnPositions]);
 
+  const currentPrereqIdsRef = useRef<Set<string>>(new Set());
+  const panRef = useRef(pan);
+  panRef.current = pan;
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
+
+  useEffect(() => {
+    if (currentPrereqIdsRef.current.size === 0 || frameWidth === 0) {
+      setHiddenPrereqCourses([]);
+      return;
+    }
+
+    const currentPan = panRef.current;
+    const currentScale = scaleRef.current;
+
+    const visibleLeft = -currentPan.x / currentScale;
+    const visibleRight = visibleLeft + frameWidth / currentScale;
+
+    const hiddenCourses: { course: Course; isLeft: boolean }[] = [];
+    for (const prereqId of currentPrereqIdsRef.current) {
+      const colIndex = courseToColumnIndex.get(prereqId);
+      if (colIndex === undefined) continue;
+
+      const colWidth = 204;
+      const colLeftPx = colIndex * colWidth;
+      const colRightPx = colLeftPx + colWidth;
+
+      const isLeft = colRightPx < visibleLeft;
+      const isRight = colLeftPx > visibleRight;
+
+      if (isLeft || isRight) {
+        const course = allCourses.find((c) => c.id === prereqId);
+        if (course) hiddenCourses.push({ course, isLeft });
+      }
+    }
+    setHiddenPrereqCourses(hiddenCourses);
+  }, [allCourses, courseToColumnIndex, pan.x, scale, frameWidth, highlightedPrereqIds]);
+
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
     setHoveredLockedId(courseId);
-
-    requestAnimationFrame(() => {
-      if (!frameRef.current) return;
-      const frameWidth = frameRef.current.clientWidth;
-
-      const visibleLeft = -pan.x / scale;
-      const visibleRight = visibleLeft + frameWidth / scale;
-
-      const hiddenCourses: { course: Course; isLeft: boolean }[] = [];
-      for (const prereqId of prereqIds) {
-        const colIndex = courseToColumnIndex.get(prereqId);
-        if (colIndex === undefined) continue;
-
-        const colWidth = 204;
-        const colLeftPx = colIndex * colWidth;
-        const colRightPx = colLeftPx + colWidth;
-
-        const isLeft = colRightPx < visibleLeft;
-        const isRight = colLeftPx > visibleRight;
-
-        if (isLeft || isRight) {
-          const course = allCourses.find((c) => c.id === prereqId);
-          if (course) hiddenCourses.push({ course, isLeft });
-        }
-      }
-      setHiddenPrereqCourses(hiddenCourses);
-    });
-  }, [allCourses, courseToColumnIndex, scale, pan.x]);
+    currentPrereqIdsRef.current = new Set(prereqIds);
+  }, []);
 
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
@@ -258,6 +271,7 @@ export const CurriculumProgressMap = () => {
     setHighlightedPrereqIds(new Set());
     setHoveredLockedId(null);
     setHiddenPrereqCourses([]);
+    currentPrereqIdsRef.current = new Set();
   }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
@@ -393,6 +407,18 @@ export const CurriculumProgressMap = () => {
     window.addEventListener('resize', fitToFrame);
     return () => window.removeEventListener('resize', fitToFrame);
   }, [groups.length]);
+
+  useEffect(() => {
+    if (!frameRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setFrameWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(frameRef.current);
+    setFrameWidth(frameRef.current.clientWidth);
+    return () => observer.disconnect();
+  }, []);
 
   const clampPan = useCallback((px: number, py: number, s: number) => {
     if (!frameRef.current || !contentRef.current) return { x: px, y: py };
