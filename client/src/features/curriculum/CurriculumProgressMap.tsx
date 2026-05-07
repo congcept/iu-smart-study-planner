@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurriculum, getUserProgress, planSemester } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
@@ -433,7 +434,7 @@ export const CurriculumProgressMap = () => {
         <div className="flex items-center gap-3">
           <span className="text-base font-semibold text-gray-700">Recommendations</span>
           <button
-            onClick={() => setRecommendationsEnabled(!recommendationsEnabled)}
+            onClick={() => { setRecommendationsEnabled(!recommendationsEnabled); playRecommendationsSound(); }}
             className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
               recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
             }`}
@@ -537,7 +538,7 @@ export const CurriculumProgressMap = () => {
                 {group.year === 4 && group.semester === 2 && (
                   <div className={`flex gap-1 mt-1 mb-1 px-1 transition-all duration-150 ${hoveredLockedId !== null ? 'blur-[1px] opacity-25' : ''}`}>
                     <button
-                      onClick={() => setY4s2GpaMode('above')}
+                      onClick={() => { setY4s2GpaMode('above'); playToggleSound(); }}
                       className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
                         y4s2GpaMode === 'above'
                           ? 'bg-blue-600 text-white'
@@ -547,7 +548,7 @@ export const CurriculumProgressMap = () => {
                       GPA {'>'} 70
                     </button>
                     <button
-                      onClick={() => setY4s2GpaMode('below')}
+                      onClick={() => { setY4s2GpaMode('below'); playToggleSound(); }}
                       className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
                         y4s2GpaMode === 'below'
                           ? 'bg-orange-600 text-white'

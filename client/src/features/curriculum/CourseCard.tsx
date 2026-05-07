@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import type { Course } from '@/types';
 import { categoryColors } from '@lib/utils';
+import { playLockedSound } from '@/lib/sounds';
 
 interface CourseCardProps {
   course: Course;
@@ -34,7 +35,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   const [hovered, setHovered] = useState(false);
 
   const handleClick = useCallback(() => {
-    if (!isLocked) {
+    if (isLocked) {
+      playLockedSound();
+    } else {
       onToggleComplete(course.id);
     }
   }, [course.id, isLocked, onToggleComplete]);
