@@ -730,9 +730,9 @@ export const CurriculumProgressMap = () => {
                     <span className="text-3xl font-bold text-blue-600">{degreeProgress}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-xl h-8">
+                <div className="w-full bg-gray-200 rounded-xl h-8 overflow-hidden">
                   <div
-                    className="progress-liquid h-8 rounded-xl transition-all duration-500"
+                    className="bg-blue-600 h-8 rounded-xl transition-all duration-500 progress-liquid"
                     style={{ width: `${degreeProgress}%` }}
                   />
                 </div>

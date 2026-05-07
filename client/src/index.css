@@ -53,15 +53,37 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-
+  
   .progress-liquid {
-    background: linear-gradient(90deg, #2563eb, #3b82f6, #2563eb, #3b82f6);
-    background-size: 200% 100%;
-    animation: liquid-wave 3s linear infinite;
+    position: relative;
+    overflow: hidden;
   }
-
-  @keyframes liquid-wave {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
+  
+  .progress-liquid::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.15) 20%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0.15) 80%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: liquidWave 2s ease-in-out infinite;
+  }
+  
+  @keyframes liquidWave {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 }
