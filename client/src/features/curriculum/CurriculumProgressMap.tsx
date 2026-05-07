@@ -5,7 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
-import { GraduationCap, BookOpen, Target, ListChecks, BookCheck } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, ListChecks } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
@@ -93,22 +93,79 @@ export const CurriculumProgressMap = () => {
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
-  const [hoveredLockedCourse, setHoveredLockedCourse] = useState<Course | null>(null);
-  const [hoveredPrereqCourses, setHoveredPrereqCourses] = useState<Course[]>([]);
+  const [hiddenPrereqCourses, setHiddenPrereqCourses] = useState<{ course: Course; isLeft: boolean }[]>([]);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
 
   const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
 
+  const frameRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [baseScale, setBaseScale] = useState(1);
+  const [zoomMultiplier, setZoomMultiplier] = useState(1);
+  const scale = baseScale * zoomMultiplier;
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
+
+  const courseColumnPositions = useMemo(() => {
+    const map = new Map<string, number>();
+    let columnIndex = 0;
+    for (const group of groups) {
+      const hasContent = group.courses.length > 0;
+      if (hasContent) {
+        map.set(`${group.year}-${group.semester}`, columnIndex);
+        columnIndex++;
+      }
+    }
+    return map;
+  }, [groups]);
+
+  const courseToColumnIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const group of groups) {
+      const semesterKey = `${group.year}-${group.semester}`;
+      const colIndex = courseColumnPositions.get(semesterKey);
+      if (colIndex !== undefined) {
+        for (const course of group.courses) {
+          map.set(course.id, colIndex);
+        }
+      }
+    }
+    return map;
+  }, [groups, courseColumnPositions]);
+
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
     setHoveredLockedId(courseId);
-    const course = allCourses.find((c) => c.id === courseId);
-    if (course) setHoveredLockedCourse(course);
-    const prereqCourses = prereqIds
-      .map((id) => allCourses.find((c) => c.id === id))
-      .filter((c): c is Course => c !== undefined);
-    setHoveredPrereqCourses(prereqCourses);
-  }, [allCourses]);
+
+    requestAnimationFrame(() => {
+      if (!frameRef.current) return;
+      const frameWidth = frameRef.current.clientWidth;
+
+      const visibleLeft = -pan.x / scale;
+      const visibleRight = visibleLeft + frameWidth / scale;
+
+      const hiddenCourses: { course: Course; isLeft: boolean }[] = [];
+      for (const prereqId of prereqIds) {
+        const colIndex = courseToColumnIndex.get(prereqId);
+        if (colIndex === undefined) continue;
+
+        const colWidth = 204;
+        const colLeftPx = colIndex * colWidth;
+        const colRightPx = colLeftPx + colWidth;
+
+        const isLeft = colRightPx < visibleLeft;
+        const isRight = colLeftPx > visibleRight;
+
+        if (isLeft || isRight) {
+          const course = allCourses.find((c) => c.id === prereqId);
+          if (course) hiddenCourses.push({ course, isLeft });
+        }
+      }
+      setHiddenPrereqCourses(hiddenCourses);
+    });
+  }, [allCourses, courseToColumnIndex, scale, pan.x]);
 
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
@@ -200,8 +257,7 @@ export const CurriculumProgressMap = () => {
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
     setHoveredLockedId(null);
-    setHoveredLockedCourse(null);
-    setHoveredPrereqCourses([]);
+    setHiddenPrereqCourses([]);
   }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
@@ -321,19 +377,9 @@ export const CurriculumProgressMap = () => {
     return `${semLabels[sem]} ${year}`;
   }, [completedCredits, creditsPerSemester]);
 
-  const frameRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [baseScale, setBaseScale] = useState(1);
-  const [zoomMultiplier, setZoomMultiplier] = useState(1);
-  const scale = baseScale * zoomMultiplier;
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const panStart = useRef({ x: 0, y: 0 });
-
   useEffect(() => {
     const fitToFrame = () => {
-      const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
         if (!frameRef.current || !contentRef.current) return;
         const fw = frameRef.current.clientWidth;
         const cw = contentRef.current.scrollWidth;
@@ -680,38 +726,31 @@ export const CurriculumProgressMap = () => {
            </button>
          </div>
 
-         {hoveredLockedCourse && hoveredPrereqCourses.length > 0 && (
-           <div className="absolute top-3 right-3 z-20 pointer-events-none">
-             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 w-56">
-               <div className="flex items-center gap-2 mb-2">
-                 <BookCheck size={14} className="text-violet-600 shrink-0" />
-                 <span className="text-xs font-semibold text-gray-900 truncate">Prerequisites for</span>
-               </div>
-               <div className="mb-1.5 px-2 py-1 bg-gray-50 rounded">
-                 <span className="text-[11px] font-bold text-violet-700">{hoveredLockedCourse.code}</span>
-                 <span className="text-[11px] text-gray-600 ml-1 truncate block">{hoveredLockedCourse.name}</span>
-               </div>
-               <div className="space-y-1">
-                 {hoveredPrereqCourses.map((prereq) => {
-                   const isCompleted = completedIdsSet.has(prereq.id);
-                   const isPlanned = !isCompleted && plannedIdsSet.has(prereq.id);
-                   return (
-                     <div key={prereq.id} className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px]">
-                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                         isCompleted ? 'bg-green-500' : isPlanned ? 'bg-blue-500' : 'bg-gray-400'
-                       }`} />
-                       <span className="font-bold text-gray-700">{prereq.code}</span>
-                       <span className="text-gray-500 truncate">{prereq.name}</span>
-                       {isCompleted && <span className="text-green-600 font-bold ml-auto shrink-0 text-[9px]">DONE</span>}
-                       {isPlanned && <span className="text-blue-600 font-bold ml-auto shrink-0 text-[9px]">PLANNED</span>}
-                     </div>
-                   );
-                 })}
-               </div>
-             </div>
-           </div>
-         )}
-       </div>
+          {hiddenPrereqCourses.length > 0 && (
+            <div className="absolute top-0 bottom-0 left-0 right-0 z-20 pointer-events-none">
+              {hiddenPrereqCourses.map(({ course, isLeft }) => {
+                const isCompleted = completedIdsSet.has(course.id);
+                const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+
+                return (
+                  <div
+                    key={course.id}
+                    className={`absolute top-1/2 -translate-y-1/2 ${isLeft ? 'left-3' : 'right-3'}`}
+                  >
+                    <div className={`bg-white rounded-md shadow-lg border-2 border-violet-500 ring-2 ring-violet-400 p-2 w-48 ${isLeft ? 'animate-slide-in-left' : 'animate-slide-in-right'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-gray-700">{course.code}</span>
+                        {isCompleted && <span className="text-green-600 font-bold text-[9px] ml-auto">DONE</span>}
+                        {isPlanned && <span className="text-blue-600 font-bold text-[9px] ml-auto">PLANNED</span>}
+                      </div>
+                      <p className="text-[11px] text-gray-500 leading-snug truncate">{course.name}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
       {progress && (
         <div className="mt-10 space-y-6">
