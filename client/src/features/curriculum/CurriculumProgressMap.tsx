@@ -199,21 +199,6 @@ export const CurriculumProgressMap = () => {
     setActiveElectiveGroup((prev) => prev === groupName ? null : groupName);
   }, []);
 
-  useEffect(() => {
-    if (activeElectiveGroup && y4s2GpaMode === 'above') {
-      const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
-      if (activeGroup) {
-        const isY4S2Group = activeGroup.courses.some((c) => {
-          const courseGroup = groups.find((g) => g.courses.some((cc) => cc.id === c.id));
-          return courseGroup?.year === 4 && courseGroup?.semester === 2;
-        });
-        if (isY4S2Group) {
-          setActiveElectiveGroup(null);
-        }
-      }
-    }
-  }, [y4s2GpaMode, activeElectiveGroup, filteredElectiveGroups, groups]);
-
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
     return groups.map((group) => {
       const requiredCourses: Course[] = [];
@@ -287,6 +272,21 @@ export const CurriculumProgressMap = () => {
       return true;
     });
   }, [allElectiveGroups, isY4S2ThesisMode, groups]);
+
+  useEffect(() => {
+    if (activeElectiveGroup && y4s2GpaMode === 'above') {
+      const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
+      if (activeGroup) {
+        const isY4S2Group = activeGroup.courses.some((c) => {
+          const courseGroup = groups.find((g) => g.courses.some((cc) => cc.id === c.id));
+          return courseGroup?.year === 4 && courseGroup?.semester === 2;
+        });
+        if (isY4S2Group) {
+          setActiveElectiveGroup(null);
+        }
+      }
+    }
+  }, [y4s2GpaMode, activeElectiveGroup, filteredElectiveGroups, groups]);
 
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
