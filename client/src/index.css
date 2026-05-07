@@ -53,4 +53,15 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  .progress-liquid {
+    background: linear-gradient(90deg, #2563eb, #3b82f6, #2563eb, #3b82f6);
+    background-size: 200% 100%;
+    animation: liquid-wave 3s linear infinite;
+  }
+
+  @keyframes liquid-wave {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
 }

@@ -435,13 +435,13 @@ export const CurriculumProgressMap = () => {
           <span className="text-base font-semibold text-gray-700">Recommendations</span>
           <button
             onClick={() => { setRecommendationsEnabled(!recommendationsEnabled); playRecommendationsSound(); }}
-            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
+            className={`relative w-12 h-6 rounded-lg transition-colors duration-200 ${
               recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
             }`}
           >
             <span
-              className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                recommendationsEnabled ? 'translate-x-5' : 'translate-x-0'
+              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-md shadow transition-transform duration-200 ${
+                recommendationsEnabled ? 'translate-x-6' : 'translate-x-0'
               }`}
             />
           </button>
@@ -730,9 +730,9 @@ export const CurriculumProgressMap = () => {
                     <span className="text-3xl font-bold text-blue-600">{degreeProgress}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-8">
+                <div className="w-full bg-gray-200 rounded-xl h-8">
                   <div
-                    className="bg-blue-600 h-8 rounded-full transition-all duration-500"
+                    className="progress-liquid h-8 rounded-xl transition-all duration-500"
                     style={{ width: `${degreeProgress}%` }}
                   />
                 </div>
