@@ -5,7 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
-import { GraduationCap, BookOpen, Target, ListChecks } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, ListChecks, Layers, X } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
@@ -93,100 +93,15 @@ export const CurriculumProgressMap = () => {
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
-  const [hiddenPrereqCourses, setHiddenPrereqCourses] = useState<{ course: Course; isLeft: boolean }[]>([]);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
-
-  const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
-
-  const frameRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [baseScale, setBaseScale] = useState(1);
-  const [zoomMultiplier, setZoomMultiplier] = useState(1);
-  const scale = baseScale * zoomMultiplier;
-  const [isDragging, setIsDragging] = useState(false);
-  const [frameWidth, setFrameWidth] = useState(0);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const panStart = useRef({ x: 0, y: 0 });
-
-  const courseColumnPositions = useMemo(() => {
-    const map = new Map<string, number>();
-    let columnIndex = 0;
-    for (const group of groups) {
-      const hasContent = group.courses.length > 0;
-      if (hasContent) {
-        map.set(`${group.year}-${group.semester}`, columnIndex);
-        columnIndex++;
-      }
-    }
-    return map;
-  }, [groups]);
-
-  const courseToColumnIndex = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const group of groups) {
-      const semesterKey = `${group.year}-${group.semester}`;
-      const colIndex = courseColumnPositions.get(semesterKey);
-      if (colIndex !== undefined) {
-        for (const course of group.courses) {
-          map.set(course.id, colIndex);
-        }
-      }
-    }
-    return map;
-  }, [groups, courseColumnPositions]);
-
-  const currentPrereqIdsRef = useRef<Set<string>>(new Set());
-  const panRef = useRef(pan);
-  panRef.current = pan;
-  const scaleRef = useRef(scale);
-  scaleRef.current = scale;
-  const courseToColumnIndexRef = useRef(courseToColumnIndex);
-  courseToColumnIndexRef.current = courseToColumnIndex;
-  const allCoursesRef = useRef(allCourses);
-  allCoursesRef.current = allCourses;
-
-  const computeHiddenPrereqs = useCallback((prereqIds: string[]) => {
-    const currentPan = panRef.current;
-    const currentScale = scaleRef.current;
-    const colMap = courseToColumnIndexRef.current;
-    const courses = allCoursesRef.current;
-    const fw = frameWidth;
-
-    if (fw === 0) {
-      setHiddenPrereqCourses([]);
-      return;
-    }
-
-    const visibleLeft = -currentPan.x / currentScale - 12;
-    const visibleRight = visibleLeft + fw / currentScale;
-
-    const hiddenCourses: { course: Course; isLeft: boolean }[] = [];
-    for (const prereqId of prereqIds) {
-      const colIndex = colMap.get(prereqId);
-      if (colIndex === undefined) continue;
-
-      const colWidth = 204;
-      const colLeftPx = 12 + colIndex * colWidth;
-      const colRightPx = colLeftPx + 192;
-
-      const isLeft = colRightPx < visibleLeft;
-      const isRight = colLeftPx > visibleRight;
-
-      if (isLeft || isRight) {
-        const course = courses.find((c) => c.id === prereqId);
-        if (course) hiddenCourses.push({ course, isLeft });
-      }
-    }
-    setHiddenPrereqCourses(hiddenCourses);
-  }, [frameWidth]);
+  const [isElectivePanelOpen, setIsElectivePanelOpen] = useState(false);
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
     setHoveredLockedId(courseId);
-    currentPrereqIdsRef.current = new Set(prereqIds);
-    computeHiddenPrereqs(prereqIds);
-  }, [computeHiddenPrereqs]);
+  }, []);
+
+  const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
 
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
@@ -210,8 +125,6 @@ export const CurriculumProgressMap = () => {
     const unlockedCourses = availableCourses.filter((c) =>
       c.prerequisites.every((p) => completedIdsSet.has(p.prerequisiteId)),
     );
-
-    const isY4S2ThesisMode = y4s2GpaMode === 'above';
 
     unlockedCourses.sort((a, b) => {
       const aGroup = groups.find((g) => g.courses.some((c) => c.id === a.id));
@@ -242,7 +155,7 @@ export const CurriculumProgressMap = () => {
     }
 
     setRecommendedIds(new Set(recommended));
-  }, [allCourses, completedIdsSet, recommendationsEnabled, y4s2GpaMode, groups, creditsPerSemester]);
+  }, [allCourses, completedIdsSet, recommendationsEnabled, isY4S2ThesisMode, groups, creditsPerSemester]);
 
   const isCourseAvailable = useCallback(
     (course: Course) => {
@@ -278,15 +191,7 @@ export const CurriculumProgressMap = () => {
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
     setHoveredLockedId(null);
-    setHiddenPrereqCourses([]);
-    currentPrereqIdsRef.current = new Set();
   }, []);
-
-  useEffect(() => {
-    if (currentPrereqIdsRef.current.size > 0) {
-      computeHiddenPrereqs([...currentPrereqIdsRef.current]);
-    }
-  }, [pan.x, scale, computeHiddenPrereqs]);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
     return groups.map((group) => {
@@ -312,14 +217,11 @@ export const CurriculumProgressMap = () => {
           const completedInGroup = data.courses.filter(
             (c) => completedRecord[c.id] === name,
           ).length;
-          const plannedInGroup = data.courses.filter(
-            (c) => plannedIdsSet.has(c.id) && completedRecord[c.id] === undefined,
-          ).length;
           return {
             name,
             selectCount: data.selectCount,
             courses: data.courses,
-            remaining: Math.max(0, data.selectCount - completedInGroup - plannedInGroup),
+            remaining: Math.max(0, data.selectCount - completedInGroup),
           };
         },
       );
@@ -340,7 +242,36 @@ export const CurriculumProgressMap = () => {
         electiveCredits,
       };
     });
-  }, [groups, completedRecord, plannedIdsSet]);
+  }, [groups, completedRecord]);
+
+  const allElectiveGroups = useMemo((): ElectiveGroup[] => {
+    const result: ElectiveGroup[] = [];
+    for (const sd of semesterDisplays) {
+      for (const eg of sd.electiveGroups) {
+        result.push(eg);
+      }
+    }
+    return result;
+  }, [semesterDisplays]);
+
+  const isY4S2ThesisMode = y4s2GpaMode === 'above';
+
+  const filteredElectiveGroups = useMemo((): ElectiveGroup[] => {
+    return allElectiveGroups.filter((eg) => {
+      if (isY4S2ThesisMode) {
+        const isY4S2Group = eg.courses.some((c) => {
+          const courseGroup = groups.find((g) => g.courses.some((cc) => cc.id === c.id));
+          return courseGroup?.year === 4 && courseGroup?.semester === 2;
+        });
+        if (isY4S2Group) return false;
+      }
+      return true;
+    });
+  }, [allElectiveGroups, isY4S2ThesisMode, groups]);
+
+  const handleToggleElectivePanel = useCallback(() => {
+    setIsElectivePanelOpen((prev) => !prev);
+  }, []);
 
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
@@ -405,9 +336,19 @@ export const CurriculumProgressMap = () => {
     return `${semLabels[sem]} ${year}`;
   }, [completedCredits, creditsPerSemester]);
 
+  const frameRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [baseScale, setBaseScale] = useState(1);
+  const [zoomMultiplier, setZoomMultiplier] = useState(1);
+  const scale = baseScale * zoomMultiplier;
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
+
   useEffect(() => {
     const fitToFrame = () => {
-      requestAnimationFrame(() => {
+      const raf = requestAnimationFrame(() => {
         if (!frameRef.current || !contentRef.current) return;
         const fw = frameRef.current.clientWidth;
         const cw = contentRef.current.scrollWidth;
@@ -420,19 +361,7 @@ export const CurriculumProgressMap = () => {
     fitToFrame();
     window.addEventListener('resize', fitToFrame);
     return () => window.removeEventListener('resize', fitToFrame);
-  }, [groups.length]);
-
-  useEffect(() => {
-    if (!frameRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setFrameWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(frameRef.current);
-    setFrameWidth(frameRef.current.clientWidth);
-    return () => observer.disconnect();
-  }, []);
+  }, [groups.length, isElectivePanelOpen]);
 
   const clampPan = useCallback((px: number, py: number, s: number) => {
     if (!frameRef.current || !contentRef.current) return { x: px, y: py };
@@ -548,6 +477,22 @@ export const CurriculumProgressMap = () => {
 
         <IntensitySlider mode={intensityMode} onChange={setIntensityMode} disabled={!recommendationsEnabled} />
 
+        <div className="flex items-center gap-3">
+          <span className="text-base font-semibold text-gray-700">Electives</span>
+          <button
+            onClick={handleToggleElectivePanel}
+            className={`relative w-12 h-6 rounded-lg transition-colors duration-200 ${
+              isElectivePanelOpen ? 'bg-amber-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-md shadow transition-transform duration-200 ${
+                isElectivePanelOpen ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-base text-gray-600 min-w-0">
           <span>
             <span className="font-semibold">Program:</span>{' '}
@@ -566,17 +511,18 @@ export const CurriculumProgressMap = () => {
         </div>
       </div>
 
-      <div
-        ref={frameRef}
-        className={`relative w-full rounded-lg border border-gray-200 bg-gray-50 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-        style={{ height: 'calc(100vh - 500px)' }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
-        onDoubleClick={handleDoubleClick}
-      >
+      <div className="flex gap-3">
+        <div
+          ref={frameRef}
+          className={`relative rounded-lg border border-gray-200 bg-gray-50 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isElectivePanelOpen ? 'flex-1' : 'w-full'}`}
+          style={{ height: 'calc(100vh - 500px)' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+          onDoubleClick={handleDoubleClick}
+        >
         <div
           className="absolute top-0 left-0 z-10 origin-top-left pointer-events-none"
           style={{
@@ -615,7 +561,7 @@ export const CurriculumProgressMap = () => {
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
           }}
         >
-          {semesterDisplays.map(({ group, requiredCourses, electiveGroups }) => {
+          {semesterDisplays.map(({ group, requiredCourses }) => {
             const semesterLabel =
               group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
 
@@ -625,7 +571,6 @@ export const CurriculumProgressMap = () => {
                 ? requiredCourses.filter((c) => c.code === 'IT058IU')
                 : requiredCourses.filter((c) => c.code !== 'IT058IU')
               : requiredCourses;
-            const visibleElectiveGroups = isY4S2 && y4s2GpaMode === 'above' ? [] : electiveGroups;
 
             return (
               <div
@@ -684,113 +629,106 @@ export const CurriculumProgressMap = () => {
                       />
                     );
                   })}
-
-                  {visibleElectiveGroups.map((eg) => {
-                    const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
-                    const plannedCourses = eg.courses.filter((c) => plannedIdsSet.has(c.id) && completedRecord[c.id] === undefined);
-                    const isComplete = eg.remaining === 0;
-
-                    const visibleCourses = isComplete
-                      ? [...completedCourses, ...plannedCourses]
-                      : eg.courses.filter((c) => {
-                          const claimedGroup = completedRecord[c.id];
-                          return claimedGroup === undefined || claimedGroup === eg.name;
-                        });
-
-                    return (
-                      <div key={eg.name} className="mt-2 pt-2 relative">
-                        <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
-                        <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
-                          <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
-                            {eg.name.replace(/\s*\(.*?\)\s*/g, '')} {isComplete ? '✓' : ''}
-                          </p>
-                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums ${isComplete ? 'invisible' : 'bg-amber-100 text-amber-800'}`}>
-                            {eg.remaining}
-                          </span>
-                        </div>
-                        <div className="space-y-1.5">
-                          {visibleCourses.map((course) => {
-                            const isCompleted = completedRecord[course.id] === eg.name;
-                            const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
-                            const isRecommended = !isCompleted && recommendedIds.has(course.id);
-                            const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
-
-                            return (
-                              <CourseCard
-                                key={`${eg.name}-${course.id}`}
-                                course={course}
-                                isCompleted={isCompleted}
-                                isPlanned={isPlanned}
-                                isLocked={isLocked}
-                                isRecommended={isRecommended}
-                                isHighlighted={highlightedPrereqIds.has(course.id)}
-                                isBlurred={hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
-                                onToggleComplete={() => handleToggleComplete(course.id, eg.name)}
-                                onTogglePlanned={handleTogglePlanned}
-                                onCompleteToPlanned={handleCompleteToPlanned}
-                                onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
-                                onPrereqsLeave={handlePrereqsLeave}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
             );
           })}
         </div>
 
-         <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
-           <button
-             onClick={handleZoomOut}
-             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
-           >
-             −
-           </button>
-           <span className="text-xs font-medium text-gray-500 w-10 text-center tabular-nums">{Math.round(zoomMultiplier * 100)}%</span>
-           <button
-             onClick={handleZoomIn}
-             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
-           >
-             +
-           </button>
-           <div className="w-px h-4 bg-gray-300" />
-           <button
-             onClick={() => { setPan({ x: 0, y: 0 }); setZoomMultiplier(1); }}
-             className="text-[10px] font-medium text-gray-500 hover:text-gray-700 px-1"
-           >
-             Reset
-           </button>
-         </div>
+        <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
+          <button
+            onClick={handleZoomOut}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+          >
+            −
+          </button>
+          <span className="text-xs font-medium text-gray-500 w-10 text-center tabular-nums">{Math.round(zoomMultiplier * 100)}%</span>
+          <button
+            onClick={handleZoomIn}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+          >
+            +
+          </button>
+          <div className="w-px h-4 bg-gray-300" />
+          <button
+            onClick={() => { setPan({ x: 0, y: 0 }); setZoomMultiplier(1); }}
+            className="text-[10px] font-medium text-gray-500 hover:text-gray-700 px-1"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
 
-          {hiddenPrereqCourses.length > 0 && (
-            <div className="absolute top-0 bottom-0 left-0 right-0 z-20 pointer-events-none">
-              {hiddenPrereqCourses.map(({ course, isLeft }) => {
-                const isCompleted = completedIdsSet.has(course.id);
-                const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+        {isElectivePanelOpen && (
+          <div className="w-72 shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 500px)' }}>
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Layers size={16} className="text-amber-600" />
+                <h3 className="text-sm font-semibold text-gray-800">Elective Courses</h3>
+              </div>
+              <button
+                onClick={handleToggleElectivePanel}
+                className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-2 space-y-2" style={{ height: 'calc(100% - 40px)' }}>
+              {filteredElectiveGroups.map((eg) => {
+                const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
+                const isComplete = eg.remaining === 0;
+
+                const visibleCourses = isComplete
+                  ? completedCourses
+                  : eg.courses.filter((c) => {
+                      const claimedGroup = completedRecord[c.id];
+                      return claimedGroup === undefined || claimedGroup === eg.name;
+                    });
 
                 return (
-                  <div
-                    key={course.id}
-                    className={`absolute top-1/2 -translate-y-1/2 ${isLeft ? 'left-3' : 'right-3'}`}
-                  >
-                    <div className={`bg-white rounded-md shadow-lg border-2 border-violet-500 ring-2 ring-violet-400 p-2 w-48 ${isLeft ? 'animate-slide-in-left' : 'animate-slide-in-right'}`}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-gray-700">{course.code}</span>
-                        {isCompleted && <span className="text-green-600 font-bold text-[9px] ml-auto">DONE</span>}
-                        {isPlanned && <span className="text-blue-600 font-bold text-[9px] ml-auto">PLANNED</span>}
-                      </div>
-                      <p className="text-[11px] text-gray-500 leading-snug truncate">{course.name}</p>
+                  <div key={eg.name} className="pt-2 relative">
+                    <div className={`absolute top-0 left-0 right-0 border-t-2 border-dashed border-amber-300 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`} />
+                    <div className={`flex items-center justify-between mb-1 transition-all duration-150 ${hoveredLockedId ? 'blur-[1px] opacity-25' : ''}`}>
+                      <p className={`text-xs font-semibold truncate ${isComplete ? 'text-green-700' : 'text-amber-700'}`}>
+                        {eg.name.replace(/\s*\(.*?\)\s*/g, '')} {isComplete ? '\u2713' : ''}
+                      </p>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-1 tabular-nums ${isComplete ? 'invisible' : 'bg-amber-100 text-amber-800'}`}>
+                        {eg.remaining}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {visibleCourses.map((course) => {
+                        const isCompleted = completedRecord[course.id] === eg.name;
+                        const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
+                        const isRecommended = !isCompleted && recommendedIds.has(course.id);
+                        const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
+
+                        return (
+                          <CourseCard
+                            key={`${eg.name}-${course.id}`}
+                            course={course}
+                            isCompleted={isCompleted}
+                            isPlanned={isPlanned}
+                            isLocked={isLocked}
+                            isRecommended={isRecommended}
+                            isHighlighted={highlightedPrereqIds.has(course.id)}
+                            isBlurred={hoveredLockedId !== null && hoveredLockedId !== course.id && !highlightedPrereqIds.has(course.id)}
+                            onToggleComplete={() => handleToggleComplete(course.id, eg.name)}
+                            onTogglePlanned={handleTogglePlanned}
+                            onCompleteToPlanned={handleCompleteToPlanned}
+                            onPrereqsHover={(prereqIds) => handlePrereqsHover(course.id, prereqIds)}
+                            onPrereqsLeave={handlePrereqsLeave}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
       {progress && (
         <div className="mt-10 space-y-6">
