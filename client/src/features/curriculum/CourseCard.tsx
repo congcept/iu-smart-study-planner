@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import type { Course } from '@/types';
-import { categoryColors } from '@lib/utils';
 import { playLockedSound } from '@/lib/sounds';
 
 interface CourseCardProps {
@@ -50,8 +49,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       onTogglePlanned(course.id);
     }
   }, [course.id, isCompleted, onTogglePlanned, onCompleteToPlanned]);
-
-  const categoryColor = categoryColors[course.category] || 'bg-gray-500';
 
   let borderColor = 'border-gray-300';
   let opacity = 'opacity-100';

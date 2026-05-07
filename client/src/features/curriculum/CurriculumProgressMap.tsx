@@ -5,7 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
-import { GraduationCap, BookOpen, Target, ListChecks } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, ListChecks, BookCheck } from 'lucide-react';
 import { categoryLabels } from '@/lib/utils';
 
 interface ElectiveGroup {
@@ -93,14 +93,22 @@ export const CurriculumProgressMap = () => {
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
+  const [hoveredLockedCourse, setHoveredLockedCourse] = useState<Course | null>(null);
+  const [hoveredPrereqCourses, setHoveredPrereqCourses] = useState<Course[]>([]);
   const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
+
+  const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
     setHoveredLockedId(courseId);
-  }, []);
-
-  const allCourses = useMemo(() => groups.flatMap((g) => g.courses), [groups]);
+    const course = allCourses.find((c) => c.id === courseId);
+    if (course) setHoveredLockedCourse(course);
+    const prereqCourses = prereqIds
+      .map((id) => allCourses.find((c) => c.id === id))
+      .filter((c): c is Course => c !== undefined);
+    setHoveredPrereqCourses(prereqCourses);
+  }, [allCourses]);
 
   const creditsPerSemester = useMemo(() => {
     switch (intensityMode) {
@@ -192,6 +200,8 @@ export const CurriculumProgressMap = () => {
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
     setHoveredLockedId(null);
+    setHoveredLockedCourse(null);
+    setHoveredPrereqCourses([]);
   }, []);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
@@ -218,11 +228,14 @@ export const CurriculumProgressMap = () => {
           const completedInGroup = data.courses.filter(
             (c) => completedRecord[c.id] === name,
           ).length;
+          const plannedInGroup = data.courses.filter(
+            (c) => plannedIdsSet.has(c.id) && completedRecord[c.id] === undefined,
+          ).length;
           return {
             name,
             selectCount: data.selectCount,
             courses: data.courses,
-            remaining: Math.max(0, data.selectCount - completedInGroup),
+            remaining: Math.max(0, data.selectCount - completedInGroup - plannedInGroup),
           };
         },
       );
@@ -243,7 +256,7 @@ export const CurriculumProgressMap = () => {
         electiveCredits,
       };
     });
-  }, [groups, completedRecord]);
+  }, [groups, completedRecord, plannedIdsSet]);
 
   const REQUIRED_CREDITS = 130;
   const REQUIRED_YEARS = 4;
@@ -588,10 +601,11 @@ export const CurriculumProgressMap = () => {
 
                   {visibleElectiveGroups.map((eg) => {
                     const completedCourses = eg.courses.filter((c) => completedRecord[c.id] === eg.name);
+                    const plannedCourses = eg.courses.filter((c) => plannedIdsSet.has(c.id) && completedRecord[c.id] === undefined);
                     const isComplete = eg.remaining === 0;
 
                     const visibleCourses = isComplete
-                      ? completedCourses
+                      ? [...completedCourses, ...plannedCourses]
                       : eg.courses.filter((c) => {
                           const claimedGroup = completedRecord[c.id];
                           return claimedGroup === undefined || claimedGroup === eg.name;
@@ -643,29 +657,61 @@ export const CurriculumProgressMap = () => {
           })}
         </div>
 
-        <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
-          <button
-            onClick={handleZoomOut}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
-          >
-            −
-          </button>
-          <span className="text-xs font-medium text-gray-500 w-10 text-center tabular-nums">{Math.round(zoomMultiplier * 100)}%</span>
-          <button
-            onClick={handleZoomIn}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
-          >
-            +
-          </button>
-          <div className="w-px h-4 bg-gray-300" />
-          <button
-            onClick={() => { setPan({ x: 0, y: 0 }); setZoomMultiplier(1); }}
-            className="text-[10px] font-medium text-gray-500 hover:text-gray-700 px-1"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
+         <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
+           <button
+             onClick={handleZoomOut}
+             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+           >
+             −
+           </button>
+           <span className="text-xs font-medium text-gray-500 w-10 text-center tabular-nums">{Math.round(zoomMultiplier * 100)}%</span>
+           <button
+             onClick={handleZoomIn}
+             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+           >
+             +
+           </button>
+           <div className="w-px h-4 bg-gray-300" />
+           <button
+             onClick={() => { setPan({ x: 0, y: 0 }); setZoomMultiplier(1); }}
+             className="text-[10px] font-medium text-gray-500 hover:text-gray-700 px-1"
+           >
+             Reset
+           </button>
+         </div>
+
+         {hoveredLockedCourse && hoveredPrereqCourses.length > 0 && (
+           <div className="absolute top-3 right-3 z-20 pointer-events-none">
+             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 w-56">
+               <div className="flex items-center gap-2 mb-2">
+                 <BookCheck size={14} className="text-violet-600 shrink-0" />
+                 <span className="text-xs font-semibold text-gray-900 truncate">Prerequisites for</span>
+               </div>
+               <div className="mb-1.5 px-2 py-1 bg-gray-50 rounded">
+                 <span className="text-[11px] font-bold text-violet-700">{hoveredLockedCourse.code}</span>
+                 <span className="text-[11px] text-gray-600 ml-1 truncate block">{hoveredLockedCourse.name}</span>
+               </div>
+               <div className="space-y-1">
+                 {hoveredPrereqCourses.map((prereq) => {
+                   const isCompleted = completedIdsSet.has(prereq.id);
+                   const isPlanned = !isCompleted && plannedIdsSet.has(prereq.id);
+                   return (
+                     <div key={prereq.id} className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px]">
+                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                         isCompleted ? 'bg-green-500' : isPlanned ? 'bg-blue-500' : 'bg-gray-400'
+                       }`} />
+                       <span className="font-bold text-gray-700">{prereq.code}</span>
+                       <span className="text-gray-500 truncate">{prereq.name}</span>
+                       {isCompleted && <span className="text-green-600 font-bold ml-auto shrink-0 text-[9px]">DONE</span>}
+                       {isPlanned && <span className="text-blue-600 font-bold ml-auto shrink-0 text-[9px]">PLANNED</span>}
+                     </div>
+                   );
+                 })}
+               </div>
+             </div>
+           </div>
+         )}
+       </div>
 
       {progress && (
         <div className="mt-10 space-y-6">
