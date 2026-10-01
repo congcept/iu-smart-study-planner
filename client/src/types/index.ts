@@ -111,20 +111,6 @@ export interface WorkloadAnalysis {
   recommendations: string[];
 }
 
-// Graph Types for React Flow
-export interface CourseNodeData extends Record<string, unknown> {
-  course: Course;
-  isCompleted: boolean;
-  isInProgress: boolean;
-  isAvailable: boolean;
-  onClick?: (course: Course) => void;
-}
-
-export interface GraphEdgeData {
-  isCorequisite: boolean;
-  isStrict: boolean;
-}
-
 // API Response Types
 export interface ApiResponse<T> {
   success: boolean;
