@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCurriculum, getUserProgress, planSemester } from '@/lib/api';
+import { getCurriculum } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
 import { GraduationCap, BookOpen, Target, ListChecks, ChevronRight } from 'lucide-react';
-import { categoryLabels } from '@/lib/utils';
 
 const getElectiveGroupLabel = (groupName: string): string => {
   const match = groupName.match(/(\d+)/);
@@ -383,8 +382,8 @@ export const CurriculumProgressMap = () => {
     const semestersNeeded = Math.ceil(remainingCredits / creditsPerSemester);
     const now = new Date();
     const currentMonth = now.getMonth();
-    let startYear = currentMonth >= 8 ? now.getFullYear() + 1 : now.getFullYear();
-    let startSem = currentMonth >= 8 ? 1 : currentMonth >= 1 ? 2 : 1;
+    const startYear = currentMonth >= 8 ? now.getFullYear() + 1 : now.getFullYear();
+    const startSem = currentMonth >= 8 ? 1 : currentMonth >= 1 ? 2 : 1;
 
     let sem = startSem;
     let year = startYear;
@@ -413,7 +412,7 @@ export const CurriculumProgressMap = () => {
 
   useEffect(() => {
     const fitToFrame = () => {
-      const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
         if (!frameRef.current || !contentRef.current) return;
         const fw = frameRef.current.clientWidth;
         const cw = contentRef.current.scrollWidth;
@@ -640,8 +639,6 @@ export const CurriculumProgressMap = () => {
           }}
         >
           {semesterDisplays.map(({ group, requiredCourses, electiveGroups }) => {
-            const semesterLabel =
-              group.semester === 1 ? 'Semester 1' : group.semester === 2 ? 'Semester 2' : 'Summer';
 
             const isY4S2 = group.year === 4 && group.semester === 2;
             const visibleRequiredCourses = isY4S2
@@ -715,9 +712,6 @@ export const CurriculumProgressMap = () => {
                     const hasPlanned = eg.courses.some((c) => plannedIdsSet.has(c.id) && completedRecord[c.id] !== eg.name);
                     const isComplete = eg.remaining === 0;
                     const isActive = activeElectiveGroup === eg.name;
-                    const hasLocked = eg.courses.some(
-                      (c) => completedRecord[c.id] !== eg.name && !isCourseAvailable(c),
-                    );
 
                     let statusIcon = null;
                     let borderColor = 'border-gray-300';

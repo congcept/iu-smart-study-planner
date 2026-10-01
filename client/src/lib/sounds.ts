@@ -1,9 +1,14 @@
-const audioContext = typeof window !== 'undefined'
-  ? new (window.AudioContext || (window as unknown as Record<string, AudioContextConstructor>).webkitAudioContext)()
-  : null;
+let audioContext: AudioContext | null = null;
 
-const playTone = (frequency: number, duration: number, type: OscillatorType = 'sine', volume = 0.1) => {
-  if (!audioContext) return;
+const playTone = (
+  frequency: number,
+  duration: number,
+  type: OscillatorType = 'sine',
+  volume = 0.1,
+) => {
+  if (typeof window === 'undefined' || !window.AudioContext) return;
+  audioContext ??= new window.AudioContext();
+  if (audioContext.state === 'suspended') void audioContext.resume();
 
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
