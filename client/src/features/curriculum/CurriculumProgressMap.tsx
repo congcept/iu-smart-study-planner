@@ -5,6 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
+import { collectCompletedDependents } from './prerequisites';
 import { GraduationCap, BookOpen, Target, ListChecks, ChevronRight } from 'lucide-react';
 
 const getElectiveGroupLabel = (groupName: string): string => {
@@ -120,26 +121,11 @@ export const CurriculumProgressMap = () => {
     return map;
   }, [allCourses]);
 
-  const getCascadedUncompleteIds = useCallback((courseId: string, record: Record<string, string | null>): string[] => {
-    const ids: string[] = [];
-    const queue = [courseId];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const dependents = dependencyMap.get(current) || [];
-      for (const depId of dependents) {
-        if (visited.has(depId)) continue;
-        if (record[depId] !== undefined) {
-          ids.push(depId);
-          visited.add(depId);
-          queue.push(depId);
-        }
-      }
-    }
-
-    return ids;
-  }, [dependencyMap]);
+  const getCascadedUncompleteIds = useCallback(
+    (courseId: string, record: Record<string, string | null>) =>
+      collectCompletedDependents(courseId, dependencyMap, record),
+    [dependencyMap],
+  );
 
   const isY4S2ThesisMode = y4s2GpaMode === 'above';
 
@@ -685,7 +671,7 @@ export const CurriculumProgressMap = () => {
                     const isCompleted = completedIdsSet.has(course.id);
                     const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
                     const isRecommended = !isCompleted && recommendedIds.has(course.id);
-                    const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
+                    const isLocked = !isCompleted && !isCourseAvailable(course);
 
                     return (
                       <CourseCard
@@ -822,7 +808,7 @@ export const CurriculumProgressMap = () => {
                     const isCompleted = completedRecord[course.id] === activeGroup.name;
                     const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
                     const isRecommended = !isCompleted && recommendedIds.has(course.id);
-                    const isLocked = !isCompleted && !isPlanned && !isCourseAvailable(course);
+                    const isLocked = !isCompleted && !isCourseAvailable(course);
 
                     return (
                       <CourseCard
