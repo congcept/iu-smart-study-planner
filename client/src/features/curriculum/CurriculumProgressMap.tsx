@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCurriculum } from '@/lib/api';
+import { getCurriculum, getUserProgress } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
@@ -28,7 +28,7 @@ interface SemesterDisplay {
   electiveCredits: number;
 }
 
-export const CurriculumProgressMap = () => {
+export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [groups, setGroups] = useState<YearSemesterGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +52,11 @@ export const CurriculumProgressMap = () => {
   useEffect(() => {
     const fetchProgress = async () => {
       try {
+        if (userId) {
+          const response = await getUserProgress(userId);
+          if (response.success && response.data) setProgress(response.data);
+          return;
+        }
         const usersResponse = await fetch('/api/users');
         const usersJson = await usersResponse.json();
         if (usersJson.success && usersJson.data && usersJson.data.length > 0) {
@@ -67,7 +72,7 @@ export const CurriculumProgressMap = () => {
       }
     };
     fetchProgress();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const fetchCurriculum = async () => {

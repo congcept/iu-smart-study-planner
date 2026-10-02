@@ -7,9 +7,11 @@ const PLAN_KEY = 'planned_courses';
 
 type StoredCompletion = Record<string, string | null>;
 
-const loadCompletedIds = (): StoredCompletion => {
+const storageKey = (key: string, userId: string | null) => (userId ? `${key}:${userId}` : key);
+
+const loadCompletedIds = (userId: string | null = null): StoredCompletion => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey(STORAGE_KEY, userId));
     if (!stored) return {};
     const parsed = JSON.parse(stored);
     if (Array.isArray(parsed)) {
@@ -23,21 +25,21 @@ const loadCompletedIds = (): StoredCompletion => {
   }
 };
 
-const saveCompletedIds = (record: StoredCompletion) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+const saveCompletedIds = (record: StoredCompletion, userId: string | null) => {
+  localStorage.setItem(storageKey(STORAGE_KEY, userId), JSON.stringify(record));
 };
 
-const loadPlannedIds = (): string[] => {
+const loadPlannedIds = (userId: string | null = null): string[] => {
   try {
-    const stored = localStorage.getItem(PLAN_KEY);
+    const stored = localStorage.getItem(storageKey(PLAN_KEY, userId));
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
   }
 };
 
-const savePlannedIds = (ids: string[]) => {
-  localStorage.setItem(PLAN_KEY, JSON.stringify(ids));
+const savePlannedIds = (ids: string[], userId: string | null) => {
+  localStorage.setItem(storageKey(PLAN_KEY, userId), JSON.stringify(ids));
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -49,6 +51,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   error: null,
   completionVersion: 0,
+  progressOwnerId: null,
   pendingCompletionIds: new Set(),
   completedIds: loadCompletedIds(),
   plannedIds: loadPlannedIds(),
@@ -60,6 +63,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActivePlan: (plan) => set({ activePlan: plan }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
+  setProgressOwner: (userId) => {
+    set((state) =>
+      state.progressOwnerId === userId
+        ? state
+        : {
+            progressOwnerId: userId,
+            completedIds: loadCompletedIds(userId),
+            plannedIds: loadPlannedIds(userId),
+            completionVersion: state.completionVersion + 1,
+          },
+    );
+  },
 
   toggleCourseComplete: (courseId, electiveGroup = null) => {
     set((state) => {
@@ -72,7 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         record[courseId] = electiveGroup;
         playCompleteSound();
       }
-      saveCompletedIds(record);
+      saveCompletedIds(record, state.progressOwnerId);
       return { completedIds: record, completionVersion: state.completionVersion + 1 };
     });
   },
@@ -89,7 +104,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         playPlanSound();
       }
       const arr = Array.from(ids);
-      savePlannedIds(arr);
+      savePlannedIds(arr, state.progressOwnerId);
       return { plannedIds: arr };
     });
   },
@@ -98,13 +113,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => {
       const completedIds = { ...state.completedIds };
       delete completedIds[courseId];
-      saveCompletedIds(completedIds);
+      saveCompletedIds(completedIds, state.progressOwnerId);
       playUncompleteSound();
 
       const plannedIds = new Set(state.plannedIds);
       plannedIds.add(courseId);
       const plannedArr = Array.from(plannedIds);
-      savePlannedIds(plannedArr);
+      savePlannedIds(plannedArr, state.progressOwnerId);
 
       return { completedIds, plannedIds: plannedArr, completionVersion: state.completionVersion + 1 };
     });

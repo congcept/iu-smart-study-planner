@@ -1,7 +1,8 @@
 # Cookie authentication backend
 
-This slice adds registration and session APIs. The login/register pages and
-server-backed browser progress remain the next implementation steps.
+This slice adds registration and session APIs. The browser now includes
+[login/register pages and session recovery](auth-screens.md). Server-backed
+browser progress remains the next implementation step.
 
 | Endpoint                  | Successful response                                       |
 | ------------------------- | --------------------------------------------------------- |
@@ -27,7 +28,7 @@ Production refuses absent, short, or placeholder signing secrets; set a random
 State-changing browser requests must have the configured `CORS_ORIGIN` when
 they provide an Origin header. Cross-site Fetch Metadata is rejected when
 Origin is absent. Origin-less CLI requests are allowed. This works alongside
-SameSite=Lax; frontend requests must eventually use `credentials: include`.
+SameSite=Lax; frontend Axios requests use `withCredentials: true`.
 
 All existing course, user, and study-plan mutations require a session. Catalog
 changes and legacy user creation require ADMIN. Students can only mutate their
@@ -36,8 +37,8 @@ belongs to the specified plan. The current database role is checked on every
 authenticated request, so role changes take effect immediately.
 
 Legacy read-only demo routes remain public for compatibility with the current
-curriculum screen. They must move behind account access when that screen uses
-authenticated progress. Password and password-hash fields are excluded from
+demo curriculum screen. They must move behind account access when server-backed
+progress is connected. Password and password-hash fields are excluded from
 user responses now. Legacy passwordless demo students are preserved; they cannot
 log in. Register a new account to test authentication.
 
