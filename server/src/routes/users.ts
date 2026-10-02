@@ -1,9 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { CourseStatus } from '@prisma/client';
 import { z } from 'zod';
-import { CreateUserSchema, UpdateStudentRecordSchema } from '@iu-study-planner/shared';
+import {
+  CreateUserSchema,
+  ToggleStudentRecordSchema,
+  UpdateStudentRecordSchema,
+} from '@iu-study-planner/shared';
 import { prisma } from '../db';
+import { StudentRecordError, updateStudentRecord } from '../services/studentRecords';
 
 async function findUserByIdentifier(identifier: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
@@ -209,179 +213,58 @@ router.get('/:id/records', async (req: Request, res: Response) => {
 // Add or update student record
 router.post('/:id/records', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const validatedData = UpdateStudentRecordSchema.parse(req.body);
-
-    // Check if user exists
-    const user = await findUserByIdentifier(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-    }
-
-    // Check if course exists
-    const course = await prisma.course.findUnique({ where: { id: validatedData.courseId } });
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        error: 'Course not found',
-      });
-    }
-
-    const record = await prisma.studentRecord.upsert({
-      where: {
-        userId_courseId: {
-          userId: user.id,
-          courseId: validatedData.courseId,
-        },
-      },
-      update: validatedData,
-      create: {
-        userId: user.id,
-        ...validatedData,
-      },
-      include: {
-        course: true,
-      },
-    });
+    const data = UpdateStudentRecordSchema.parse(req.body);
+    const result = await updateStudentRecord(req.params.id, data);
 
     return res.json({
       success: true,
-      data: record,
+      data: result.record,
+      details: { uncompletedCourseIds: result.uncompletedCourseIds },
       message: 'Student record updated successfully',
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation error',
-        details: error.errors,
-      });
-    }
-    console.error('Error updating student record:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to update student record',
-    });
+    return handleRecordError(error, res);
   }
 });
 
-// Toggle course completion status
+// Preserve the legacy toggle's PLANNED response and idempotent removal behavior.
 router.post('/:id/records/toggle', async (req: Request, res: Response) => {
-  const { id } = req.params;
-
   try {
-    const { courseId, status } = z.object({
-      courseId: z.string().uuid(),
-      status: z.enum(['COMPLETED', 'PLANNED', 'IN_PROGRESS', 'FAILED', 'DROPPED']),
-    }).parse(req.body);
-
-    const user = await findUserByIdentifier(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-    }
-
-    const course = await prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        error: 'Course not found',
-      });
-    }
-
-    if (status === 'PLANNED') {
-      await prisma.studentRecord.delete({
-        where: {
-          userId_courseId: {
-            userId: user.id,
-            courseId,
-          },
-        },
-      });
-
-      return res.json({
-        success: true,
-        data: {
-          id: '',
-          userId: user.id,
-          courseId,
-          grade: null,
-          gradePoints: null,
-          semester: null,
-          year: null,
-          status: 'PLANNED' as const,
-          course,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        message: 'Course marked as not completed',
-      });
-    }
-
-    const record = await prisma.studentRecord.upsert({
-      where: {
-        userId_courseId: {
-          userId: user.id,
-          courseId,
-        },
-      },
-      update: { status },
-      create: {
-        userId: user.id,
-        courseId,
-        status,
-      },
-      include: {
-        course: true,
-      },
-    });
+    const data = ToggleStudentRecordSchema.parse(req.body);
+    const result = await updateStudentRecord(req.params.id, data, true);
 
     return res.json({
       success: true,
-      data: record,
-      message: `Course marked as ${status.toLowerCase()}`,
+      data: result.record,
+      details: { uncompletedCourseIds: result.uncompletedCourseIds },
+      message: `Course marked as ${data.status.toLowerCase()}`,
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation error',
-        details: error.errors,
-      });
-    }
-    if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
-      const course = await prisma.course.findUnique({ where: { id: req.body.courseId } });
-      const user = await findUserByIdentifier(id);
-      return res.json({
-        success: true,
-        data: {
-          id: '',
-          userId: user?.id ?? id,
-          courseId: req.body.courseId,
-          grade: null,
-          gradePoints: null,
-          semester: null,
-          year: null,
-          status: 'PLANNED' as const,
-          course: course ?? { id: req.body.courseId, code: '', name: '', credits: 0, difficultyLevel: 1, category: 'REQUIRED', semesterOffered: ['FALL', 'SPRING'], prerequisites: [], isPrerequisiteFor: [], createdAt: new Date(), updatedAt: new Date() },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        message: 'Course was already not completed',
-      });
-    }
-    console.error('Error toggling course completion:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to toggle course completion',
-    });
+    return handleRecordError(error, res);
   }
 });
+
+function handleRecordError(error: unknown, res: Response) {
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation error',
+      details: error.errors,
+    });
+  }
+  if (error instanceof StudentRecordError) {
+    return res.status(error.status).json({
+      success: false,
+      error: error.message,
+      details: error.details,
+    });
+  }
+  console.error('Error updating student record:', error);
+  return res.status(500).json({
+    success: false,
+    error: 'Failed to update student record',
+  });
+}
 
 // Get user's progress summary
 router.get('/:id/progress', async (req: Request, res: Response) => {

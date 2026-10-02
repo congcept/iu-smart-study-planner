@@ -42,6 +42,11 @@ export const UpdateStudentRecordSchema = z.object({
   status: CourseStatusSchema,
 });
 
+export const ToggleStudentRecordSchema = UpdateStudentRecordSchema.pick({
+  courseId: true,
+  status: true,
+});
+
 // Courses
 export const CreateCourseSchema = z.object({
   code: z.string().min(1),
