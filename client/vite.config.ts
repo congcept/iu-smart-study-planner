@@ -5,6 +5,15 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // The linked shared workspace emits CommonJS; bundle it for browser imports.
+  optimizeDeps: {
+    include: ['@iu-study-planner/shared'],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/, /shared\/dist/],
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

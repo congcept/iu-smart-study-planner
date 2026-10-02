@@ -1,6 +1,9 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
   ApiResponse,
+  AuthResponseDTO,
+  LoginDTO,
+  RegisterDTO,
   CreateCourseDTO,
   CreatePrerequisiteDTO,
   CreateUserDTO,
@@ -25,23 +28,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
-
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -49,8 +40,6 @@ apiClient.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 401:
-          localStorage.removeItem('auth_token');
-          console.warn('Unauthorized request. Please authenticate once login flow is available.');
           break;
         case 403:
           console.error('Access forbidden');
@@ -70,6 +59,32 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+async function readAuthResponse(response: ApiResponse<AuthResponseDTO>) {
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'Could not verify your account');
+  }
+  return response.data.user;
+}
+
+export const getSession = async () => {
+  const response = await apiClient.get<ApiResponse<AuthResponseDTO>>('/auth/me');
+  return readAuthResponse(response.data);
+};
+
+export const login = async (data: LoginDTO) => {
+  const response = await apiClient.post<ApiResponse<AuthResponseDTO>>('/auth/login', data);
+  return readAuthResponse(response.data);
+};
+
+export const register = async (data: RegisterDTO) => {
+  const response = await apiClient.post<ApiResponse<AuthResponseDTO>>('/auth/register', data);
+  return readAuthResponse(response.data);
+};
+
+export const logout = async () => {
+  await apiClient.post('/auth/logout');
+};
 
 export const healthCheck = async (): Promise<
   ApiResponse<{ status: string; timestamp: string }>
