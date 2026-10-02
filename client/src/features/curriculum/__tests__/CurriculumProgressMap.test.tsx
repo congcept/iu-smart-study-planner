@@ -1,11 +1,17 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCurriculum } from '@/lib/api';
+import { getCurriculum, getCurrentStudentProgress, saveCourseProgress } from '@/lib/api';
+import type { CompleteCourseResponseDTO } from '@iu-study-planner/shared';
 import { useAppStore } from '@/lib/store';
 import type { Course } from '@/types';
 import { CurriculumProgressMap } from '../CurriculumProgressMap';
 
-vi.mock('@/lib/api', () => ({ getCurriculum: vi.fn() }));
+vi.mock('@/lib/api', () => ({
+  getCurriculum: vi.fn(),
+  getCurrentStudentProgress: vi.fn(),
+  saveCourseProgress: vi.fn(),
+}));
 vi.mock('@/lib/sounds', () => ({
   playCompleteSound: vi.fn(),
   playUncompleteSound: vi.fn(),
@@ -40,12 +46,12 @@ function course(id: string, prerequisites: string[] = [], electiveGroup?: string
   };
 }
 
-async function showCurriculum(courses: Course[]) {
+async function showCurriculum(courses: Course[], userId?: string) {
   vi.mocked(getCurriculum).mockResolvedValue({
     success: true,
     data: [{ year: 1, semester: 1, courses }],
   });
-  render(<CurriculumProgressMap />);
+  render(<CurriculumProgressMap userId={userId} />);
   await screen.findByText(courses[0].code);
 }
 
@@ -55,7 +61,15 @@ beforeEach(() => {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => storage.set(key, value),
   });
-  useAppStore.setState({ completedIds: {}, plannedIds: [] });
+  useAppStore.setState({
+    completedIds: {},
+    plannedIds: [],
+    progressOwnerId: null,
+    progressStatus: 'ready',
+    progressError: null,
+    browserProgressBackup: null,
+    pendingCompletionIds: new Set(),
+  });
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({ json: async () => ({ success: true, data: [] }) }),
@@ -73,6 +87,53 @@ afterEach(() => {
 });
 
 describe('prerequisite interactions', () => {
+  it('reconciles a signed-in cascade with server-only dependents and blocks clicks during saving', async () => {
+    useAppStore.getState().setProgressOwner('alice');
+    vi.mocked(getCurrentStudentProgress).mockResolvedValue({
+      completedIds: { A: null, B: null, C: null, E: null },
+      plannedIds: [],
+    });
+    let confirm: (response: CompleteCourseResponseDTO) => void = () => {};
+    vi.mocked(saveCourseProgress).mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve;
+      }),
+    );
+    await showCurriculum([course('A'), course('B', ['A']), course('C'), course('E')], 'alice');
+    fireEvent.click(screen.getByText('A'));
+    expect(useAppStore.getState().completedIds).toEqual({ C: null, E: null });
+    expect(screen.getByRole('status')).toHaveTextContent('Saving progress');
+    fireEvent.click(screen.getByText('E'));
+    expect(saveCourseProgress).toHaveBeenCalledTimes(1);
+    expect(saveCourseProgress).toHaveBeenCalledWith({
+      courseId: 'A',
+      electiveGroup: null,
+      status: 'DROPPED',
+    });
+    await act(async () => {
+      confirm({ completedIds: { C: null }, plannedIds: [], uncompletedCourseIds: ['B', 'E'] });
+    });
+    expect(useAppStore.getState().completedIds).toEqual({ C: null });
+    expect(screen.getByRole('status')).toHaveTextContent('Progress saved');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('blocks course editing when hydration fails and recovers through the retry action', async () => {
+    useAppStore.getState().setProgressOwner('alice');
+    vi.mocked(getCurrentStudentProgress)
+      .mockRejectedValueOnce(new Error('Offline'))
+      .mockResolvedValueOnce({ completedIds: {}, plannedIds: [] });
+    vi.mocked(getCurriculum).mockResolvedValue({
+      success: true,
+      data: [{ year: 1, semester: 1, courses: [course('A')] }],
+    });
+    render(<CurriculumProgressMap userId="alice" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Offline');
+    expect(screen.queryByText('A')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry progress' }));
+    await screen.findByText('A');
+    await waitFor(() => expect(useAppStore.getState().progressStatus).toBe('ready'));
+  });
   it('allows planning a locked required course without allowing its completion', async () => {
     await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU'])]);
     fireEvent.contextMenu(screen.getByText('IT002IU'));

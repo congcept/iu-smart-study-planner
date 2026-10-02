@@ -2,6 +2,9 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
   ApiResponse,
   AuthResponseDTO,
+  CompleteCourseDTO,
+  CompleteCourseResponseDTO,
+  StudentProgressDTO,
   DemoLoginDTO,
   DemoLoginStatusDTO,
   LoginDTO,
@@ -97,6 +100,18 @@ export const getDemoLoginStatus = async () => {
 export const demoLogin = async (data: DemoLoginDTO) => {
   const response = await apiClient.post<ApiResponse<AuthResponseDTO>>('/auth/demo', data);
   return readAuthResponse(response.data);
+};
+
+export const getCurrentStudentProgress = async (): Promise<StudentProgressDTO> => {
+  const response = await apiClient.get<ApiResponse<StudentProgressDTO>>('/users/me/progress');
+  if (!response.data.success || !response.data.data) throw new Error(response.data.error || 'Could not load progress');
+  return response.data.data;
+};
+
+export const saveCourseProgress = async (data: CompleteCourseDTO): Promise<CompleteCourseResponseDTO> => {
+  const response = await apiClient.post<ApiResponse<CompleteCourseResponseDTO>>('/users/me/complete', data);
+  if (!response.data.success || !response.data.data) throw new Error(response.data.error || 'Could not save progress');
+  return response.data.data;
 };
 
 export const healthCheck = async (): Promise<
