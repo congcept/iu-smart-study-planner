@@ -1,20 +1,50 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { LoginSchema, RegisterSchema } from '@iu-study-planner/shared';
+import { LoginSchema, RegisterSchema, type UserRole } from '@iu-study-planner/shared';
 import { Button, Card } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { getDemoLoginStatus } from '@/lib/api';
 import { authErrorMessage } from './errors';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
-  const { user, login, register } = useAuth();
+  const { user, login, register, demoLogin } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
   const isRegister = mode === 'register';
+  const [demoEnabled, setDemoEnabled] = useState(false);
+
+  useEffect(() => {
+    if (isRegister) return;
+    let active = true;
+    void getDemoLoginStatus()
+      .then(({ enabled }) => {
+        if (active) setDemoEnabled(enabled);
+      })
+      .catch(() => {
+        /* Normal sign-in stays available if demo access cannot be checked. */
+      });
+    return () => {
+      active = false;
+    };
+  }, [isRegister]);
   const title = isRegister ? 'Create account' : 'Sign in';
   const inputClass =
     'mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500';
 
   if (user) return <Navigate to="/curriculum" replace />;
+
+  async function signInDemo(role: UserRole) {
+    if (isSubmitting) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await demoLogin({ role });
+    } catch (caught) {
+      setError(authErrorMessage(caught, 'Could not sign in to the demo. Please try again.'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -127,6 +157,27 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             </Button>
           </fieldset>
         </form>
+        {demoEnabled && (
+          <div className="mt-5 border-t border-gray-200 pt-4">
+            <p className="mb-3 text-sm text-gray-600">Try a simulated account:</p>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="secondary"
+                disabled={isSubmitting}
+                onClick={() => void signInDemo('STUDENT')}
+              >
+                Demo student
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={isSubmitting}
+                onClick={() => void signInDemo('ADMIN')}
+              >
+                Demo school admin
+              </Button>
+            </div>
+          </div>
+        )}
         <p className="mt-5 text-center text-sm text-gray-600">
           {isRegister ? 'Already have an account? ' : 'New here? '}
           <Link

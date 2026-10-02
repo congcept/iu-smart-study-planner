@@ -2,6 +2,8 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
   ApiResponse,
   AuthResponseDTO,
+  DemoLoginDTO,
+  DemoLoginStatusDTO,
   LoginDTO,
   RegisterDTO,
   CreateCourseDTO,
@@ -84,6 +86,17 @@ export const register = async (data: RegisterDTO) => {
 
 export const logout = async () => {
   await apiClient.post('/auth/logout');
+};
+
+export const getDemoLoginStatus = async () => {
+  const response = await apiClient.get<ApiResponse<DemoLoginStatusDTO>>('/auth/demo');
+  if (!response.data.success || !response.data.data) throw new Error('Could not check demo access');
+  return response.data.data;
+};
+
+export const demoLogin = async (data: DemoLoginDTO) => {
+  const response = await apiClient.post<ApiResponse<AuthResponseDTO>>('/auth/demo', data);
+  return readAuthResponse(response.data);
 };
 
 export const healthCheck = async (): Promise<

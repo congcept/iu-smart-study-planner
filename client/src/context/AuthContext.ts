@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { AuthUserDTO, LoginDTO, RegisterDTO } from '@iu-study-planner/shared';
+import type { AuthUserDTO, DemoLoginDTO, LoginDTO, RegisterDTO } from '@iu-study-planner/shared';
 
 export interface AuthContextValue {
   user: AuthUserDTO | null;
@@ -8,6 +8,7 @@ export interface AuthContextValue {
   refresh: () => Promise<void>;
   login: (data: LoginDTO) => Promise<void>;
   register: (data: RegisterDTO) => Promise<void>;
+  demoLogin: (data: DemoLoginDTO) => Promise<void>;
   logout: () => Promise<void>;
 }
 

@@ -76,6 +76,9 @@ function AppShell() {
                 My curriculum
               </Link>
               <span className="text-gray-600">{user.name}</span>
+              <span className="rounded-full bg-primary-50 px-2 py-1 text-primary-700">
+                {user.role === 'ADMIN' ? 'School admin' : 'Student'}
+              </span>
               <Button size="sm" variant="secondary" isLoading={isLoggingOut} onClick={signOut}>
                 Sign out
               </Button>
