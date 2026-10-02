@@ -15,6 +15,7 @@ export type RegisterDTO = z.infer<typeof schemas.RegisterSchema>;
 export type LoginDTO = z.infer<typeof schemas.LoginSchema>;
 export type DemoLoginDTO = z.infer<typeof schemas.DemoLoginSchema>;
 export type CompleteCourseDTO = z.infer<typeof schemas.CompleteCourseSchema>;
+export type UpsertProgressDTO = z.infer<typeof schemas.UpsertProgressSchema>;
 export interface StudentProgressDTO {
   completedIds: Record<string, string | null>;
   plannedIds: string[];

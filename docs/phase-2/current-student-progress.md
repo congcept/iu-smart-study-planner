@@ -1,6 +1,6 @@
 # Current-student progress: API increment
 
-Two cookie-authenticated endpoints derive ownership from the session, never from
+Three cookie-authenticated endpoints derive ownership from the session, never from
 a submitted student ID:
 
 - `GET /api/users/me/progress` returns `{ completedIds, plannedIds }` in the normal
@@ -11,6 +11,9 @@ a submitted student ID:
   `DROPPED` removes it from completion/planning. Its response includes the full
   progress snapshot and `uncompletedCourseIds` for dependent completions removed
   by the cascade. Both snapshot and mutation occur in one serializable transaction.
+- `POST /api/users/me/progress` imports an archived selection snapshot with
+  `{ completedIds: { [courseUuid]: electiveGroupOrNull }, plannedIds: [courseUuid] }`.
+  It adds to current progress; it never replaces the whole account snapshot.
 
 All prerequisite rows are mandatory, including recommended/corequisite rows.
 Rejected completion returns 409 without changing records. Unknown course IDs
@@ -38,7 +41,30 @@ Anonymous demo selections remain browser-local. On first signed-in hydration,
 pre-sync account cache is archived under `browser_progress_backup:<userId>` and
 offered as a JSON download. A marker distinguishes confirmed server cache from
 old browser-only selections. Guest selections are never copied into an account.
-Bulk import of archived selections remains next.
+The import API is implemented; browser review/import controls remain the next slice.
+
+## Archived selection import
+
+Import is explicit and account-scoped. An existing completion keeps its elective
+claim and grade/semester/year metadata; imported completions can promote an existing
+noncompleted record while preserving its metadata. Imported plans create missing
+records only, preserving all existing statuses. Unrelated records remain unchanged,
+and empty imports are no-ops. Repeating an import does not duplicate records.
+
+The API validates the entire batch before writing. Every prerequisite is mandatory
+and may be satisfied by an existing completion or an earlier course in the same
+batch. Input order does not matter, but a cycle of newly imported completions cannot
+unlock itself. An unknown course returns 404; an unmet prerequisite or cycle returns
+409; either leaves all records unchanged. The successful response is the full
+authoritative progress snapshot from the same serializable transaction, with bounded
+retries for concurrent changes.
+
+Inputs are strict: UUID course IDs, at most 500 completions and 500 plans,
+nonempty elective claims up to 100 characters, no duplicate planned IDs, and no
+course in both lists. Submitted user IDs and grade fields are rejected. The browser
+will keep backups downloadable until review/import controls are connected; guest
+selections remain separate. No migration, dependency installation, or seed reset
+is needed.
 
 ## Legacy read access
 

@@ -86,6 +86,40 @@ export const CompleteCourseSchema = UpdateStudentRecordSchema.pick({
   .extend({ status: z.enum(['COMPLETED', 'PLANNED', 'DROPPED']).default('COMPLETED') })
   .strict();
 
+export const UpsertProgressSchema = z
+  .object({
+    completedIds: z.record(z.string().uuid(), z.string().trim().min(1).max(100).nullable()),
+    plannedIds: z.array(z.string().uuid()).max(500),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (Object.keys(data.completedIds).length > 500) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['completedIds'],
+        message: 'Import at most 500 completed courses at a time',
+      });
+    }
+    const plannedIds = new Set<string>();
+    for (const [index, id] of data.plannedIds.entries()) {
+      if (plannedIds.has(id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['plannedIds', index],
+          message: 'Planned courses must not contain duplicates',
+        });
+      }
+      if (Object.hasOwn(data.completedIds, id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['plannedIds', index],
+          message: 'A course cannot be both completed and planned',
+        });
+      }
+      plannedIds.add(id);
+    }
+  });
+
 export const ToggleStudentRecordSchema = UpdateStudentRecordSchema.pick({
   courseId: true,
   status: true,

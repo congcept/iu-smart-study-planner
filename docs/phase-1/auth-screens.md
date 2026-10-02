@@ -32,7 +32,8 @@ preserved without copying it into a new account.
 Signed-in curriculum progress uses `/api/users/me/progress`, and clicks use
 `/api/users/me/complete`. The map does not fetch a list of students or use the
 first demo student's records. Old browser-only account selections are preserved
-as a downloadable backup; bulk import remains the next slice. Legacy student,
+as a downloadable backup; the additive import API is implemented, and browser
+review/import controls remain the next slice. Legacy student,
 study-plan, and personalized recommendation reads now require owner/admin access,
 and the student directory is admin-only. No new database migration or dependency installation is needed
 for browser synchronization.
