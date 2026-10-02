@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { isAxiosError } from 'axios';
+import { UpsertProgressSchema } from '@iu-study-planner/shared';
 import type { ApiResponse, CompleteCourseDTO, StudentProgressDTO } from '@iu-study-planner/shared';
 import type { AppState } from '../types';
-import { getCurrentStudentProgress, saveCourseProgress } from './api';
+import { getCurrentStudentProgress, importStudentProgress, saveCourseProgress } from './api';
 import { playCompleteSound, playUncompleteSound, playPlanSound, playUnplanSound } from './sounds';
 
 const STORAGE_KEY = 'completed_courses';
@@ -21,12 +22,17 @@ const loadCompletedIds = (userId: string | null = null): StoredCompletion => {
     const parsed = JSON.parse(stored);
     if (Array.isArray(parsed)) {
       const result: StoredCompletion = {};
-      parsed.forEach((id: string) => {
-        result[id] = null;
+      parsed.forEach((id: unknown) => {
+        if (typeof id === 'string') result[id] = null;
       });
       return result;
     }
-    return parsed;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const result: StoredCompletion = {};
+    for (const [id, claim] of Object.entries(parsed)) {
+      if (claim === null || typeof claim === 'string') result[id] = claim;
+    }
+    return result;
   } catch {
     return {};
   }
@@ -39,7 +45,8 @@ const saveCompletedIds = (record: StoredCompletion, userId: string | null) => {
 const loadPlannedIds = (userId: string | null = null): string[] => {
   try {
     const stored = localStorage.getItem(storageKey(PLAN_KEY, userId));
-    return stored ? JSON.parse(stored) : [];
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
   } catch {
     return [];
   }
@@ -68,6 +75,20 @@ function progressErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Could not save progress. Please try again.';
 }
 
+function importErrorMessage(error: unknown) {
+  const message = progressErrorMessage(error);
+  if (!isAxiosError<ApiResponse>(error) || error.response?.status !== 409) return message;
+  const details: unknown = error.response.data.details;
+  if (!Array.isArray(details)) return message;
+  const courses = details.flatMap((detail: unknown) => {
+    if (!detail || typeof detail !== 'object' || !('code' in detail) || !('name' in detail))
+      return [];
+    if (typeof detail.code !== 'string' || typeof detail.name !== 'string') return [];
+    return [`${detail.code}: ${detail.name}`];
+  });
+  return courses.length ? `${message} Related courses: ${courses.join(', ')}.` : message;
+}
+
 async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []) {
   const state = useAppStore.getState();
   if (
@@ -77,6 +98,7 @@ async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []
     return;
   const userId = state.progressOwnerId;
   const version = ownerVersion;
+  loadVersion++;
   const before = { completedIds: state.completedIds, plannedIds: state.plannedIds };
   const completedIds = { ...state.completedIds };
   const plannedIds = state.plannedIds.filter((id) => id !== data.courseId);
@@ -148,6 +170,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   progressStatus: 'ready',
   progressError: null,
   browserProgressBackup: null,
+  browserProgressBackupError: null,
+  progressImportStatus: 'idle',
+  progressImportError: null,
   pendingCompletionIds: new Set(),
   completedIds: loadCompletedIds(),
   plannedIds: loadPlannedIds(),
@@ -171,6 +196,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             progressStatus: userId ? 'idle' : 'ready',
             progressError: null,
             browserProgressBackup: null,
+            browserProgressBackupError: null,
+            progressImportStatus: 'idle',
+            progressImportError: null,
             pendingCompletionIds: new Set(),
             completedIds: loadCompletedIds(userId),
             plannedIds: loadPlannedIds(userId),
@@ -181,7 +209,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadProgress: async () => {
     const userId = get().progressOwnerId;
-    if (!userId || get().pendingCompletionIds.size) return;
+    if (!userId || get().pendingCompletionIds.size || get().progressImportStatus === 'importing')
+      return;
     const version = ownerVersion;
     const request = ++loadVersion;
     const previous = { completedIds: get().completedIds, plannedIds: get().plannedIds };
@@ -190,20 +219,37 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const progress = await getCurrentStudentProgress();
       if (!isCurrent()) return;
-      let browserProgressBackup: StudentProgressDTO | null = null;
+      let browserProgressBackup = get().browserProgressBackup;
+      let browserProgressBackupError = get().browserProgressBackupError;
       try {
         const backupKey = `browser_progress_backup:${userId}`;
         const markerKey = `server_progress_cache:${userId}`;
+        let savedBackup = localStorage.getItem(backupKey);
         if (
           !localStorage.getItem(markerKey) &&
+          savedBackup === null &&
           (Object.keys(previous.completedIds).length || previous.plannedIds.length)
         ) {
-          localStorage.setItem(backupKey, JSON.stringify(previous));
+          savedBackup = JSON.stringify(previous);
+          localStorage.setItem(backupKey, savedBackup);
         }
-        const savedBackup = localStorage.getItem(backupKey);
-        browserProgressBackup = savedBackup
-          ? (JSON.parse(savedBackup) as StudentProgressDTO)
-          : null;
+        if (savedBackup !== null) {
+          browserProgressBackup = null;
+          browserProgressBackupError = null;
+          try {
+            const result = UpsertProgressSchema.safeParse(JSON.parse(savedBackup));
+            if (result.success) browserProgressBackup = result.data;
+            else
+              browserProgressBackupError =
+                'Archived browser selections are invalid and cannot be imported.';
+          } catch {
+            browserProgressBackupError =
+              'Archived browser selections are invalid and cannot be imported.';
+          }
+        } else {
+          browserProgressBackup = null;
+          browserProgressBackupError = null;
+        }
         localStorage.setItem(markerKey, 'true');
       } catch {
         // Server progress remains usable when browser storage is unavailable.
@@ -212,11 +258,80 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         ...progress,
         browserProgressBackup,
+        browserProgressBackupError,
         progressStatus: 'ready',
         completionVersion: state.completionVersion + 1,
       }));
     } catch (error) {
       if (isCurrent()) set({ progressStatus: 'error', progressError: progressErrorMessage(error) });
+    }
+  },
+  importBrowserProgress: async () => {
+    const state = get();
+    const userId = state.progressOwnerId;
+    if (
+      !userId ||
+      state.progressStatus !== 'ready' ||
+      state.pendingCompletionIds.size ||
+      !state.browserProgressBackup
+    )
+      return;
+    const result = UpsertProgressSchema.safeParse(state.browserProgressBackup);
+    if (!result.success) {
+      set({
+        browserProgressBackup: null,
+        browserProgressBackupError:
+          'Archived browser selections are invalid and cannot be imported.',
+      });
+      return;
+    }
+    const version = ownerVersion;
+    const request = ++loadVersion;
+    const isCurrent = () =>
+      ownerVersion === version && loadVersion === request && get().progressOwnerId === userId;
+    const reconcile = (progress: StudentProgressDTO) => {
+      cacheProgress(progress, userId);
+      set((current) => ({
+        completedIds: progress.completedIds,
+        plannedIds: progress.plannedIds,
+        completionVersion: current.completionVersion + 1,
+      }));
+    };
+    set({
+      progressStatus: 'loading',
+      progressError: null,
+      progressImportStatus: 'importing',
+      progressImportError: null,
+    });
+    try {
+      const progress = await importStudentProgress(result.data);
+      if (!isCurrent()) return;
+      reconcile(progress);
+      try {
+        localStorage.removeItem(`browser_progress_backup:${userId}`);
+      } catch {
+        // Confirmed server progress remains usable even if the archive cannot be removed.
+      }
+      set({
+        browserProgressBackup: null,
+        browserProgressBackupError: null,
+        progressStatus: 'ready',
+        progressImportStatus: 'success',
+      });
+    } catch (error) {
+      if (!isCurrent()) return;
+      const message = importErrorMessage(error);
+      set({ progressImportError: message, progressError: message });
+      // The POST may have committed before its response was lost. Keep the archive
+      // for an explicit additive retry, and recover before permitting more edits.
+      try {
+        const progress = await getCurrentStudentProgress();
+        if (!isCurrent()) return;
+        reconcile(progress);
+        set({ progressStatus: 'ready', progressImportStatus: 'error' });
+      } catch {
+        if (isCurrent()) set({ progressStatus: 'error', progressImportStatus: 'error' });
+      }
     }
   },
   toggleCourseComplete: async (courseId, electiveGroup = null, cascadeIds = []) => {

@@ -41,7 +41,7 @@ Anonymous demo selections remain browser-local. On first signed-in hydration,
 pre-sync account cache is archived under `browser_progress_backup:<userId>` and
 offered as a JSON download. A marker distinguishes confirmed server cache from
 old browser-only selections. Guest selections are never copied into an account.
-The import API is implemented; browser review/import controls remain the next slice.
+The import API and account-scoped browser action are implemented; review/import controls remain the next slice.
 
 ## Archived selection import
 
@@ -62,7 +62,7 @@ retries for concurrent changes.
 Inputs are strict: UUID course IDs, at most 500 completions and 500 plans,
 nonempty elective claims up to 100 characters, no duplicate planned IDs, and no
 course in both lists. Submitted user IDs and grade fields are rejected. The browser
-will keep backups downloadable until review/import controls are connected; guest
+keeps backups until a confirmed import; guest
 selections remain separate. No migration, dependency installation, or seed reset
 is needed.
 
@@ -88,3 +88,19 @@ Tests run against real PostgreSQL and cover session ownership, elective claims,
 plans, mandatory prerequisites, transitive cascades, idempotence, metadata
 preservation, and rejected writes. Existing service tests also cover cycles and
 concurrent mutations.
+
+## Browser import action
+
+Archived data is validated with the shared import schema before it becomes importable.
+Malformed data remains on disk and does not prevent normal account hydration. Existing
+archives are never overwritten by a newer cache. Guest data is never imported.
+
+The action posts only the archived completed/planned selections under the current
+cookie session. It pauses editing without optimistically applying the archive, then
+reconciles the full confirmed server snapshot. Successful imports clear the archive
+best-effort; a storage cleanup failure cannot turn a confirmed save into an error.
+Failures retain the archive and reload saved progress before another edit. If recovery
+also fails, editing remains blocked until reload succeeds. Account switches invalidate
+late responses and archive cleanup, including leaving and returning to the same account.
+
+The next UI increment adds course/claim review and explicit Import/Later controls.
