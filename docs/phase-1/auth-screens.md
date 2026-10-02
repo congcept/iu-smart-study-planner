@@ -22,6 +22,10 @@ from localStorage. Initial session lookup waits before showing routes. A missing
 session leads to sign-in; server/network failures show a retry action. Failed
 sign-out keeps the account visible so the student can retry.
 
+Obsolete bearer-token cleanup is best-effort. A denied `localStorage` getter or
+removal operation does not prevent cookie session recovery, including StrictMode
+initialization and expired sessions. Browser storage remains an optional cache.
+
 Signed-in completed courses, elective claims, and planned courses now persist
 through the current-student API. Server hydration overrides the account's browser
 cache. Anonymous demo selections remain browser-local. Cache keys are scoped by the authenticated database user ID.

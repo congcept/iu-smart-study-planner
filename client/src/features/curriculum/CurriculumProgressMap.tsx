@@ -137,11 +137,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     let totalCredits = 0;
 
     for (const course of unlockedCourses) {
-      if (isY4S2ThesisMode) {
-        const courseGroup = groups.find((g) => g.courses.some((c) => c.id === course.id));
-        if (courseGroup && courseGroup.year === 4 && courseGroup.semester === 2 && course.code !== 'IT058IU') {
-          continue;
-        }
+      const courseGroup = groups.find((g) => g.courses.some((c) => c.id === course.id));
+      if (courseGroup?.year === 4 && courseGroup.semester === 2) {
+        const isThesis = course.code === 'IT058IU';
+        if (isY4S2ThesisMode !== isThesis) continue;
       }
 
       if (totalCredits + course.credits <= creditsPerSemester) {
