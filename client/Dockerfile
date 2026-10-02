@@ -16,6 +16,9 @@ RUN npm install
 # Copy the rest of the monorepo source
 COPY . .
 
+# Both applications consume the compiled shared workspace.
+RUN npm run build:shared
+
 # Set working dir back to target application
 WORKDIR /app/client
 

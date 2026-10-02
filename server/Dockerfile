@@ -23,6 +23,9 @@ RUN cd server && npx prisma generate
 # Copy the rest of the monorepo source
 COPY . .
 
+# Both applications consume the compiled shared workspace.
+RUN npm run build:shared
+
 # Set working dir to target application
 WORKDIR /app/server
 

@@ -3,18 +3,21 @@
 ## Quick Start
 
 ```bash
-npm run install:all          # Install all workspace deps
-npx prisma generate          # From server/ — must run after schema changes
-docker-compose up -d         # Start Postgres
-npm run dev                  # Start all workspaces (client on 5173, server on 3001)
+npm run install:all                         # Install all workspace deps
+# First setup: copy server/client .env.example to .env without overwriting existing files
+docker compose up -d postgres               # Start only Postgres for local Node development
+npm run db:generate --workspace=server      # Generate Prisma client
+npm run db:migrate --workspace=server       # Apply development migrations
+npm run db:seed --workspace=server          # Populate an empty database
+npm run dev                                # Build shared, then run shared/client/server together
 ```
 
 ## Essential Commands
 
 ### Root (workspace)
 
-- `npm run dev` - Start all workspaces (client on 5173, server on 3001)
-- `npm run build` - Build client + server for production
+- `npm run dev` - Build shared first; start shared/client/server watchers together (5173/3001); Ctrl-C stops all watchers
+- `npm run build` - Build shared, then client + server for production
 - `npm run lint` - Lint all packages (zero warnings allowed)
 - `npm run typecheck` - Type-check all packages (tsc --noEmit)
 - `npm run test` - Run all tests (server Jest first, then client Vitest)
@@ -33,7 +36,7 @@ npm run dev                  # Start all workspaces (client on 5173, server on 3
 
 ## Database Setup Sequence
 
-1. Start PostgreSQL (`docker-compose up -d`)
+1. Start PostgreSQL (`docker compose up -d postgres` for local Node development)
 2. In `server/`: `npx prisma generate`
 3. In `server/`: `npx prisma migrate dev` (or `npx prisma migrate reset` for clean slate)
 4. In `server/`: `npx prisma db seed`
@@ -153,7 +156,7 @@ Branches, pushes, and PR creation/merge are authorized in this conversation.
 | Grades and GPA                 | Existing grade metadata preserved by completion updates                                                                                                                                                                                                                                                                                                                                                                         | Retake history/highest-score policy, grade entry and GPA dashboard                                                   |
 | Ratings and recommendations    | Seed difficulty prior retained                                                                                                                                                                                                                                                                                                                                                                                                  | Ratings API/UI, Bayesian shrinkage, remove hardcoded `RULES`, server scoring integration                             |
 | School admin                   | Real ADMIN role and demo session                                                                                                                                                                                                                                                                                                                                                                                                | Resources, demand, scarcity allocation, multi-objective scoring, dashboard — required                                |
-| Verification/deployment/thesis | Real PostgreSQL and client regression suites; local Docker smoke checks                                                                                                                                                                                                                                                                                                                                                         | Deployment gate and thesis chapters                                                                                  |
+| Verification/deployment/thesis | Real PostgreSQL and client regression suites; shared-first root builds/typechecks/tests; concurrent local startup; Docker shared builds with isolated compiled output; local Docker smoke checks                                                                                                                                                                                                                                | Deployment gate and thesis chapters                                                                                  |
 
 Full phases are **not** marked complete: curriculum context, import UI, grades,
 ratings, and resource allocation are still outstanding. The user explicitly prioritized
@@ -170,7 +173,12 @@ mandatory prerequisites, transactional cascades, optimistic store saves, failure
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
 
-Remaining stabilization findings: fresh-start scripts/shared builds and seed behavior,
+Local startup verification: root build and dev work without existing `shared/dist`;
+frontend/backend respond on separate test ports; one Ctrl-C stops all three watchers
+without leaving processes or listening ports. Docker images build from clean source,
+and backend curriculum reads work with the source bind mount and isolated shared output.
+
+Remaining stabilization findings: partially populated database seed behavior,
 legacy semester course-list validation, physical-training totals in legacy profile stats,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.

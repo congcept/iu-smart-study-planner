@@ -44,6 +44,7 @@ Elective courses are shown as group-summary cards within their semester column. 
 ### GPA-Based Thesis Path (Year 4 Semester 2)
 
 A toggle under the Y4S2 column header switches between:
+
 - **GPA > 70**: Shows only the Thesis course (IT058IU), hides all other Y4S2 courses — degree target: 41 courses
 - **GPA ≤ 70**: Shows all Y4S2 courses except Thesis — degree target: 43 courses
 
@@ -165,76 +166,70 @@ iu-smart-study-planner/
 
 ### Option 1: Docker Compose (Recommended)
 
+From the repository root, start Docker Desktop, then run:
+
 ```bash
-# Start all services (PostgreSQL, backend, frontend)
-docker-compose up -d
+# Build and start PostgreSQL, backend, and frontend
+docker compose up -d --build
 
-# View logs
-docker-compose logs -f
+# Wait until the backend logs say it is listening on port 3001
+docker compose logs -f backend
+# Press Ctrl-C to leave the logs; the containers keep running.
 
-# Stop all services
-docker-compose down
+# On the first setup, populate the empty database with sample data
+docker compose exec backend npm run db:seed
 ```
 
 Services will be available at:
 
-| Service   | URL                          |
-|-----------|------------------------------|
-| Frontend  | http://localhost:5173         |
-| Backend   | http://localhost:3001/api     |
-| Health    | http://localhost:3001/api/health |
-| Database  | localhost:5432                |
+| Service  | URL                              |
+| -------- | -------------------------------- |
+| Frontend | http://localhost:5173            |
+| Backend  | http://localhost:3001/api        |
+| Health   | http://localhost:3001/api/health |
+| Database | localhost:5432                   |
 
-The Docker setup automatically runs Prisma migrations and seeds the database on first start.
+Compose builds the shared schemas at startup and applies development migrations.
+Seeding is an explicit first-setup step. The current seed skips a database that already
+contains users; it is not a repair command for partially populated databases.
 
-### Option 2: Manual Setup
+Stop services with `docker compose down`. PostgreSQL data remains in its named volume.
 
-**1. Start PostgreSQL:**
+### Option 2: Local Node.js + Docker PostgreSQL (MacBook)
 
-```bash
-docker run -d \
-  --name isp-postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=iu_study_planner \
-  -p 5432:5432 \
-  postgres:15-alpine
-```
-
-**2. Install dependencies (from repo root):**
+Run these commands from the repository root. Use this option when you want to edit
+code with the frontend and backend running in your terminal.
 
 ```bash
+# If the full Compose app is running, stop its services to free ports 5173/3001
+docker compose stop frontend backend
+
+# Start only PostgreSQL (keep Docker Desktop open)
+docker compose up -d postgres
+
+# Install workspace dependencies
 npm run install:all
-```
 
-**3. Build shared schemas:**
+# First setup only: copy these files if your .env files do not already exist
+cp -n server/.env.example server/.env
+cp -n client/.env.example client/.env
 
-```bash
-cd shared && npm run build && cd ..
-```
+# Generate Prisma client, apply existing migrations, and seed the empty database
+npm run db:generate --workspace=server
+npm run db:migrate --workspace=server
+npm run db:seed --workspace=server
 
-**4. Set up the database:**
-
-```bash
-cd server
-npx prisma generate
-npx prisma migrate dev --name init
-npx prisma db seed
-```
-
-**5. Start the backend:**
-
-```bash
-cd server
+# Build shared schemas and start frontend, backend, and shared watcher together
 npm run dev
 ```
 
-**6. Start the frontend (in a separate terminal):**
+Open http://localhost:5173. Keep that terminal open; press Ctrl-C once to stop all
+three watchers. Database services continue running separately.
 
-```bash
-cd client
-npm run dev
-```
+Shared source edits are compiled by the watcher. Restart `npm run dev` after shared
+schema changes so the backend reloads its cached imports. Root `npm run build`,
+`npm run build:client`, `npm run build:server`, `npm run typecheck`, and `npm run test`
+compile shared schemas before their consumers.
 
 ## Stability & Run Guide
 
@@ -252,9 +247,6 @@ npm run dev
 # Install all dependencies
 npm run install:all
 
-# Shared schemas must be built first
-cd shared && npm run build && cd ..
-
 # Type-check all workspaces
 npm run typecheck
 
@@ -270,8 +262,8 @@ All commands should exit with code 0.
 ### Start with Docker (preferred)
 
 ```bash
-docker-compose up -d
-docker-compose logs -f
+docker compose up -d --build
+docker compose logs -f
 ```
 
 Verify the frontend at http://localhost:5173 and backend health at http://localhost:3001/api/health.
@@ -280,10 +272,9 @@ Stop with `docker-compose down`. Reset the database with `docker-compose down -v
 
 ### Start locally (without compose)
 
-1. Start PostgreSQL (Docker or local service)
-2. Build shared: `cd shared && npm run build && cd ..`
-3. Start backend: `cd server && npm run dev`
-4. Start frontend (separate terminal): `cd client && npm run dev`
+1. Start PostgreSQL (Docker or local service).
+2. Complete the environment, migration, and seed steps above on first setup.
+3. From the repository root, run `npm run dev` to start all three watchers.
 
 ### Functional smoke checklist
 
@@ -369,9 +360,9 @@ npx prisma migrate reset
 **Root workspace:**
 
 ```bash
-npm run dev          # Start all workspaces (client + server)
+npm run dev          # Build shared, then start shared/client/server watchers together
 npm run install:all  # Install all workspace dependencies
-npm run build        # Build client + server for production
+npm run build        # Build shared, client, and server in dependency order
 npm run lint         # Lint all packages (zero warnings)
 npm run typecheck    # Type-check all packages (tsc --noEmit)
 npm run test         # Run all tests (server first, then client)
@@ -413,6 +404,7 @@ npm run dev           # Watch mode (tsc --watch)
 All Zod validation schemas and TypeScript DTOs live in the `shared/` workspace to keep types consistent across client and server.
 
 To create a new shared schema:
+
 1. Export the Zod schema in `shared/src/schemas/index.ts`
 2. Infer the TypeScript type and export the DTO in `shared/src/dto/index.ts`
 3. Run `npm run build` in the `shared/` directory to compile changes
@@ -578,11 +570,11 @@ Unique constraint on `(studyPlanId, semester, year)`.
 
 ### Enums
 
-| Enum | Values |
-|------|--------|
+| Enum           | Values                                                                     |
+| -------------- | -------------------------------------------------------------------------- |
 | CourseCategory | REQUIRED, ELECTIVE, CORE, MAJOR_ELECTIVE, GENERAL_EDUCATION, FREE_ELECTIVE |
-| Semester | FALL, SPRING, SUMMER |
-| CourseStatus | PLANNED, IN_PROGRESS, COMPLETED, FAILED, DROPPED |
+| Semester       | FALL, SPRING, SUMMER                                                       |
+| CourseStatus   | PLANNED, IN_PROGRESS, COMPLETED, FAILED, DROPPED                           |
 
 ## Data
 

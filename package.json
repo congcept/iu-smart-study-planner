@@ -7,20 +7,22 @@
     "shared"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces",
+    "dev": "npm run build:shared && concurrently --kill-others --names shared,server,client \"npm run dev --workspace=shared\" \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
     "install:all": "npm install",
-    "build:client": "npm run build --workspace=client",
-    "build:server": "npm run build --workspace=server",
-    "build": "npm run build:client && npm run build:server",
+    "build:shared": "npm run build --workspace=shared",
+    "build:client": "npm run build:shared && npm run build --workspace=client",
+    "build:server": "npm run build:shared && npm run build --workspace=server",
+    "build": "npm run build:shared && npm run build --workspace=client && npm run build --workspace=server",
     "test:client": "npm run test:run --workspace=client",
     "test:server": "npm run test --workspace=server",
-    "test": "npm run test:server && npm run test:client",
+    "test": "npm run build:shared && npm run test:server && npm run test:client",
     "lint": "npm run lint --workspaces",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces"
   },
   "devDependencies": {
+    "concurrently": "^9.2.4",
     "prettier": "^3.8.1"
   }
 }
