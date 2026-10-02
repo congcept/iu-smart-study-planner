@@ -575,7 +575,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           <div className="mt-2 max-w-prose space-y-2">
             <p>Select a course to mark it complete, or use its Plan button to add it to your plan. You can also right-click a course to plan it.</p>
             <p>DONE means completed; PLANNED means you selected it; NEXT means recommended. LOCKED courses need all prerequisites completed first. You can still plan a locked course.</p>
-            <p>Undoing completion also clears completion from every course that depends on it. Open Prerequisites on a locked course to see what it needs.</p>
+            <p>Undoing completion also clears completion from every course that depends on it. Select a locked course to see its prerequisites.</p>
             <p>Open an elective group to choose its courses. A completed elective counts only toward the group where you selected it.</p>
             <p>Drag empty space to move the map, or swipe on a phone. Scroll to zoom. Reset view restores the map position and zoom; it keeps your course selections.</p>
           </div>
@@ -862,12 +862,24 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <div>
             <h2 id="degree-progress-title" className="text-lg font-semibold text-gray-900">Degree progress</h2>
-            <p className="mt-1 text-sm text-gray-700 tabular-nums">
-              {completedIdKeys.length} of {completedIdKeys.length + remainingCourses} courses completed · {remainingCourses} remaining
-            </p>
+            <p className="mt-1 text-sm text-gray-700">Course progress for the selected GPA path</p>
           </div>
           <span className="text-2xl font-semibold text-primary-700 tabular-nums">{degreeProgress}%</span>
         </div>
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-y border-gray-200 py-3 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-gray-600">Completed courses</dt>
+            <dd className="text-lg font-semibold tabular-nums text-gray-900">{completedIdKeys.length}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-600">Remaining courses</dt>
+            <dd className="text-lg font-semibold tabular-nums text-gray-900">{remainingCourses}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-600">Estimated finish</dt>
+            <dd className="text-sm font-semibold text-gray-900">{eta}</dd>
+          </div>
+        </dl>
         <div
           role="progressbar"
           aria-label="Degree progress"
@@ -878,7 +890,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         >
           <div className="h-full bg-primary-600" style={{ width: `${degreeProgress}%` }} />
         </div>
-        <p className="mt-3 text-sm text-gray-700">Estimated finish: <strong>{eta}</strong>. This estimate uses remaining credits at {creditsPerSemester} credits per semester; prerequisites and course availability may change it.</p>
+        <p className="mt-3 text-sm text-gray-700">The finish estimate uses remaining credits at {creditsPerSemester} credits per semester; prerequisites and course availability may change it.</p>
       </section>
     </div>
   );
