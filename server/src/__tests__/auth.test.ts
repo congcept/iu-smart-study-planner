@@ -65,7 +65,7 @@ describe('cookie authentication and access control (PostgreSQL)', () => {
     expect(me.status).toBe(200);
     expect(me.body.data.user).toEqual(response.body.data.user);
 
-    const legacy = await request(app).get(`/api/users/${userId}`);
+    const legacy = await agent.get(`/api/users/${userId}`);
     expect(legacy.status).toBe(200);
     expect(legacy.body.data).not.toHaveProperty('passwordHash');
     expect(legacy.body.data).not.toHaveProperty('password');

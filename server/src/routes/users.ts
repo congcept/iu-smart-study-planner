@@ -48,8 +48,8 @@ router.post('/me/complete', requireAuth, async (req, res) => {
   }
 });
 
-// Get all users
-router.get('/', async (_req: Request, res: Response) => {
+// Only administrators can list student identities.
+router.get('/', requireAdmin, async (_req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({
       select: {
@@ -88,7 +88,7 @@ router.get('/', async (_req: Request, res: Response) => {
 });
 
 // Get user by ID with records
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireUserAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const user = await findUserByIdentifier(id);
@@ -191,7 +191,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
 });
 
 // Get user's student records
-router.get('/:id/records', async (req: Request, res: Response) => {
+router.get('/:id/records', requireUserAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -301,7 +301,7 @@ function handleRecordError(error: unknown, res: Response) {
 }
 
 // Get user's progress summary
-router.get('/:id/progress', async (req: Request, res: Response) => {
+router.get('/:id/progress', requireUserAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 

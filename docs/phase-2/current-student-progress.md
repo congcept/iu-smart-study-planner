@@ -38,7 +38,25 @@ Anonymous demo selections remain browser-local. On first signed-in hydration,
 pre-sync account cache is archived under `browser_progress_backup:<userId>` and
 offered as a JSON download. A marker distinguishes confirmed server cache from
 old browser-only selections. Guest selections are never copied into an account.
-Bulk import of archived selections and hardening legacy public reads remain next.
+Bulk import of archived selections remains next.
+
+## Legacy read access
+
+Legacy student reads now require a cookie session. `/api/users/:id`,
+`/api/users/:id/records`, and `/api/users/:id/progress` allow the owner (database UUID
+or ordinary student ID) and administrators. A UUID-shaped identifier always refers
+to the database UUID, preventing a student ID from impersonating another user.
+Only administrators can list `/api/users`.
+
+`/api/study-plans/user/:userId` and `/api/recommendations/user/:userId` accept the
+owner's database UUID or an administrator session; they do not resolve student-ID
+aliases. Reading `/api/study-plans/:id` checks the plan's stored owner. Anonymous
+requests return 401, authenticated requests for another student's data return 403,
+and an authenticated request for a missing plan returns 404.
+
+Public curriculum/course data, prerequisite chains, and stateless workload/semester
+previews remain available to the guest demo. Their previews use submitted course IDs
+and do not read a stored student's records. No migration or app restart is required.
 
 Tests run against real PostgreSQL and cover session ownership, elective claims,
 plans, mandatory prerequisites, transitive cascades, idempotence, metadata

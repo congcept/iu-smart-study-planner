@@ -64,6 +64,17 @@ export const requireUserAccess: RequestHandler[] = [
   },
 ];
 
+// These routes query userId directly; student-ID aliases must not grant access.
+export const requireUserIdAccess: RequestHandler[] = [
+  requireAuth,
+  (req, res, next) => {
+    if (req.userRole !== 'ADMIN' && req.params.userId !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Access forbidden' });
+    }
+    return next();
+  },
+];
+
 export const checkRequestOrigin: RequestHandler = (req, res, next) => {
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     const origin = req.get('origin');

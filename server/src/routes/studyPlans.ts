@@ -4,7 +4,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { CreateStudyPlanSchema, CreateSemesterSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireUserIdAccess } from '../middleware/auth';
 import { requireStudyPlanAccess } from '../middleware/studyPlanAccess';
 
 function isNotFoundError(error: unknown): boolean {
@@ -14,7 +14,7 @@ function isNotFoundError(error: unknown): boolean {
 const router = Router();
 
 // Get all study plans for a user
-router.get('/user/:userId', async (req: Request, res: Response) => {
+router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -45,7 +45,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
 });
 
 // Get study plan by ID
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -139,152 +139,170 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 });
 
 // Add semester to study plan
-router.post('/:id/semesters', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const validatedData = CreateSemesterSchema.parse(req.body);
+router.post(
+  '/:id/semesters',
+  requireAuth,
+  requireStudyPlanAccess,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const validatedData = CreateSemesterSchema.parse(req.body);
 
-    // Check if study plan exists
-    const plan = await prisma.studyPlan.findUnique({ where: { id } });
-    if (!plan) {
-      return res.status(404).json({
-        success: false,
-        error: 'Study plan not found',
-      });
-    }
+      // Check if study plan exists
+      const plan = await prisma.studyPlan.findUnique({ where: { id } });
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          error: 'Study plan not found',
+        });
+      }
 
-    // Calculate total credits and difficulty
-    const courseIds = validatedData.courses.map((c) => c.courseId);
-    const courses = await prisma.course.findMany({
-      where: { id: { in: courseIds } },
-    });
-
-    const totalCredits = courses.reduce(
-      (sum: number, c: { credits: number }) => sum + c.credits,
-      0,
-    );
-    const difficultyScore =
-      courses.reduce((sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel, 0) /
-      (courses.length || 1);
-
-    const semester = await prisma.plannedSemester.create({
-      data: {
-        studyPlanId: id,
-        semester: validatedData.semester,
-        year: validatedData.year,
-        courses: validatedData.courses,
-        totalCredits,
-        difficultyScore,
-      },
-    });
-
-    return res.status(201).json({
-      success: true,
-      data: semester,
-      message: 'Semester added to study plan',
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation error',
-        details: error.errors,
-      });
-    }
-    console.error('Error adding semester:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to add semester',
-    });
-  }
-});
-
-// Update semester
-router.put('/:planId/semesters/:semesterId', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
-  try {
-    const { semesterId } = req.params;
-    const validatedData = CreateSemesterSchema.partial().parse(req.body);
-
-    // Recalculate if courses changed
-    const updateData: typeof validatedData & { totalCredits?: number; difficultyScore?: number } = {
-      ...validatedData,
-    };
-    if (validatedData.courses) {
+      // Calculate total credits and difficulty
       const courseIds = validatedData.courses.map((c) => c.courseId);
       const courses = await prisma.course.findMany({
         where: { id: { in: courseIds } },
       });
 
-      updateData.totalCredits = courses.reduce(
+      const totalCredits = courses.reduce(
         (sum: number, c: { credits: number }) => sum + c.credits,
         0,
       );
-      updateData.difficultyScore =
+      const difficultyScore =
         courses.reduce(
           (sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel,
           0,
         ) / (courses.length || 1);
-    }
 
-    const semester = await prisma.plannedSemester.update({
-      where: { id: semesterId },
-      data: updateData,
-    });
+      const semester = await prisma.plannedSemester.create({
+        data: {
+          studyPlanId: id,
+          semester: validatedData.semester,
+          year: validatedData.year,
+          courses: validatedData.courses,
+          totalCredits,
+          difficultyScore,
+        },
+      });
 
-    return res.json({
-      success: true,
-      data: semester,
-      message: 'Semester updated successfully',
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
+      return res.status(201).json({
+        success: true,
+        data: semester,
+        message: 'Semester added to study plan',
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation error',
+          details: error.errors,
+        });
+      }
+      console.error('Error adding semester:', error);
+      return res.status(500).json({
         success: false,
-        error: 'Validation error',
-        details: error.errors,
+        error: 'Failed to add semester',
       });
     }
-    if (isNotFoundError(error)) {
-      return res.status(404).json({
+  },
+);
+
+// Update semester
+router.put(
+  '/:planId/semesters/:semesterId',
+  requireAuth,
+  requireStudyPlanAccess,
+  async (req: Request, res: Response) => {
+    try {
+      const { semesterId } = req.params;
+      const validatedData = CreateSemesterSchema.partial().parse(req.body);
+
+      // Recalculate if courses changed
+      const updateData: typeof validatedData & { totalCredits?: number; difficultyScore?: number } =
+        {
+          ...validatedData,
+        };
+      if (validatedData.courses) {
+        const courseIds = validatedData.courses.map((c) => c.courseId);
+        const courses = await prisma.course.findMany({
+          where: { id: { in: courseIds } },
+        });
+
+        updateData.totalCredits = courses.reduce(
+          (sum: number, c: { credits: number }) => sum + c.credits,
+          0,
+        );
+        updateData.difficultyScore =
+          courses.reduce(
+            (sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel,
+            0,
+          ) / (courses.length || 1);
+      }
+
+      const semester = await prisma.plannedSemester.update({
+        where: { id: semesterId },
+        data: updateData,
+      });
+
+      return res.json({
+        success: true,
+        data: semester,
+        message: 'Semester updated successfully',
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation error',
+          details: error.errors,
+        });
+      }
+      if (isNotFoundError(error)) {
+        return res.status(404).json({
+          success: false,
+          error: 'Semester not found',
+        });
+      }
+      console.error('Error updating semester:', error);
+      return res.status(500).json({
         success: false,
-        error: 'Semester not found',
+        error: 'Failed to update semester',
       });
     }
-    console.error('Error updating semester:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to update semester',
-    });
-  }
-});
+  },
+);
 
 // Delete semester
-router.delete('/:planId/semesters/:semesterId', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
-  try {
-    const { semesterId } = req.params;
+router.delete(
+  '/:planId/semesters/:semesterId',
+  requireAuth,
+  requireStudyPlanAccess,
+  async (req: Request, res: Response) => {
+    try {
+      const { semesterId } = req.params;
 
-    await prisma.plannedSemester.delete({
-      where: { id: semesterId },
-    });
+      await prisma.plannedSemester.delete({
+        where: { id: semesterId },
+      });
 
-    return res.json({
-      success: true,
-      message: 'Semester removed from study plan',
-    });
-  } catch (error) {
-    if (isNotFoundError(error)) {
-      return res.status(404).json({
+      return res.json({
+        success: true,
+        message: 'Semester removed from study plan',
+      });
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return res.status(404).json({
+          success: false,
+          error: 'Semester not found',
+        });
+      }
+      console.error('Error deleting semester:', error);
+      return res.status(500).json({
         success: false,
-        error: 'Semester not found',
+        error: 'Failed to delete semester',
       });
     }
-    console.error('Error deleting semester:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to delete semester',
-    });
-  }
-});
+  },
+);
 
 // Delete study plan
 router.delete('/:id', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
