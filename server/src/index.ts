@@ -1,5 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import config from './config';
 import { prisma } from './db';
 
@@ -8,6 +9,8 @@ import courseRoutes from './routes/courses';
 import userRoutes from './routes/users';
 import studyPlanRoutes from './routes/studyPlans';
 import recommendationRoutes from './routes/recommendations';
+import authRoutes from './routes/auth';
+import { checkRequestOrigin } from './middleware/auth';
 
 const app: Application = express();
 
@@ -21,6 +24,8 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(checkRequestOrigin);
 
 // Request logging middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -39,6 +44,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/study-plans', studyPlanRoutes);

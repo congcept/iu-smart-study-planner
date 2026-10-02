@@ -4,6 +4,8 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { CreateStudyPlanSchema, CreateSemesterSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+import { requireAuth } from '../middleware/auth';
+import { requireStudyPlanAccess } from '../middleware/studyPlanAccess';
 
 function isNotFoundError(error: unknown): boolean {
   return error instanceof PrismaClientKnownRequestError && error.code === 'P2025';
@@ -84,9 +86,12 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create new study plan
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const validatedData = CreateStudyPlanSchema.parse(req.body);
+    if (req.userRole !== 'ADMIN' && validatedData.userId !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Access forbidden' });
+    }
 
     const plan = await prisma.$transaction(
       async (
@@ -134,7 +139,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Add semester to study plan
-router.post('/:id/semesters', async (req: Request, res: Response) => {
+router.post('/:id/semesters', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const validatedData = CreateSemesterSchema.parse(req.body);
@@ -195,7 +200,7 @@ router.post('/:id/semesters', async (req: Request, res: Response) => {
 });
 
 // Update semester
-router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response) => {
+router.put('/:planId/semesters/:semesterId', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
   try {
     const { semesterId } = req.params;
     const validatedData = CreateSemesterSchema.partial().parse(req.body);
@@ -254,7 +259,7 @@ router.put('/:planId/semesters/:semesterId', async (req: Request, res: Response)
 });
 
 // Delete semester
-router.delete('/:planId/semesters/:semesterId', async (req: Request, res: Response) => {
+router.delete('/:planId/semesters/:semesterId', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
   try {
     const { semesterId } = req.params;
 
@@ -282,7 +287,7 @@ router.delete('/:planId/semesters/:semesterId', async (req: Request, res: Respon
 });
 
 // Delete study plan
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requireAuth, requireStudyPlanAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 

@@ -24,6 +24,42 @@ export const CategorySchema = z.enum([
 export const SemesterSchema = z.enum(['FALL', 'SPRING', 'SUMMER']);
 
 // Users
+export const UserRoleSchema = z.enum(['STUDENT', 'ADMIN']);
+
+const AuthPasswordSchema = z
+  .string()
+  .min(8)
+  .refine(
+    (password) => new TextEncoder().encode(password).length <= 72,
+    'Password must be at most 72 UTF-8 bytes',
+  );
+
+export const RegisterSchema = z
+  .object({
+    studentId: z.string().trim().min(1).max(64),
+    name: z.string().trim().min(1).max(200),
+    email: z
+      .string()
+      .trim()
+      .email()
+      .max(254)
+      .transform((email) => email.toLowerCase()),
+    password: AuthPasswordSchema,
+  })
+  .strict();
+
+export const LoginSchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .email()
+      .max(254)
+      .transform((email) => email.toLowerCase()),
+    password: AuthPasswordSchema,
+  })
+  .strict();
+
 export const CreateUserSchema = z.object({
   studentId: z.string().min(1),
   name: z.string().min(1),

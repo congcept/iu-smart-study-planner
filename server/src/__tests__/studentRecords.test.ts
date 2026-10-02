@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { CourseStatus } from '@prisma/client';
 import request from 'supertest';
 import app, { prisma } from '../index';
+import { AUTH_COOKIE_NAME, issueToken } from '../services/authService';
 
 describe('student record prerequisite transactions (PostgreSQL)', () => {
   const runId = randomUUID();
@@ -15,6 +16,7 @@ describe('student record prerequisite transactions (PostgreSQL)', () => {
   const write = (course: string, status: CourseStatus, endpoint = 'records') =>
     request(app)
       .post(`/api/users/${userId}/${endpoint}`)
+      .set('Cookie', `${AUTH_COOKIE_NAME}=${issueToken(userId)}`)
       .send({ courseId: courses[course], status });
 
   async function seedRecord(
@@ -119,10 +121,13 @@ describe('student record prerequisite transactions (PostgreSQL)', () => {
   });
 
   it('preserves student ID lookup for existing API callers', async () => {
-    const response = await request(app).post(`/api/users/prereq-test-${userId}/records`).send({
-      courseId: courses.A,
-      status: 'COMPLETED',
-    });
+    const response = await request(app)
+      .post(`/api/users/prereq-test-${userId}/records`)
+      .set('Cookie', `${AUTH_COOKIE_NAME}=${issueToken(userId)}`)
+      .send({
+        courseId: courses.A,
+        status: 'COMPLETED',
+      });
     expect(response.status).toBe(200);
     expect(response.body.data.userId).toBe(userId);
   });
@@ -180,14 +185,17 @@ describe('student record prerequisite transactions (PostgreSQL)', () => {
     expect(await prisma.studentRecord.count({ where: { userId } })).toBe(0);
     const missingCourse = await request(app)
       .post(`/api/users/${userId}/records/toggle`)
+      .set('Cookie', `${AUTH_COOKIE_NAME}=${issueToken(userId)}`)
       .send({ courseId: randomUUID(), status: 'PLANNED' });
     expect(missingCourse.status).toBe(404);
     const missingUser = await request(app)
       .post(`/api/users/${randomUUID()}/records`)
+      .set('Cookie', `${AUTH_COOKIE_NAME}=${issueToken(userId)}`)
       .send({ courseId: courses.A, status: 'COMPLETED' });
-    expect(missingUser.status).toBe(404);
+    expect(missingUser.status).toBe(403);
     const invalid = await request(app)
       .post(`/api/users/${userId}/records/toggle`)
+      .set('Cookie', `${AUTH_COOKIE_NAME}=${issueToken(userId)}`)
       .send({ courseId: 'invalid', status: 'COMPLETED' });
     expect(invalid.status).toBe(400);
   });

@@ -24,6 +24,7 @@ and remove those fixtures afterward. Run:
 npm run test --workspace=server -- studentRecords.test.ts --runInBand
 ```
 
-This slice does not finish Phase 2. Cookie authentication, authenticated
-`/api/users/me` endpoints, and client progress synchronization remain to implement.
-The live curriculum view still stores progress locally.
+This slice does not finish Phase 2. Cookie authentication is now implemented in
+the backend; authenticated `/api/users/me` progress endpoints and client progress
+synchronization remain to implement. The live curriculum view still stores
+progress locally.

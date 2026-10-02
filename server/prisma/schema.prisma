@@ -62,6 +62,8 @@ model User {
   name            String
   email           String          @unique
   password        String?
+  passwordHash    String?         @map("password_hash")
+  role            UserRole        @default(STUDENT)
   major           String?
   enrollmentYear  Int?            @map("enrollment_year")
   targetGraduationYear Int?       @map("target_graduation_year")
@@ -148,6 +150,11 @@ enum CourseCategory {
   MAJOR_ELECTIVE
   GENERAL_EDUCATION
   FREE_ELECTIVE
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
 }
 
 enum Semester {
