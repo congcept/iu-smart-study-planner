@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   CreateUserSchema,
   CompleteCourseSchema,
+  UpsertProgressSchema,
   ToggleStudentRecordSchema,
   UpdateStudentRecordSchema,
 } from '@iu-study-planner/shared';
@@ -12,6 +13,7 @@ import { StudentRecordError, updateStudentRecord } from '../services/studentReco
 import { requireAdmin, requireAuth, requireUserAccess } from '../middleware/auth';
 import { PUBLIC_USER_SELECT } from '../services/authService';
 import { readStudentProgress } from '../services/studentProgress';
+import { importStudentProgress } from '../services/importStudentProgress';
 
 async function findUserByIdentifier(identifier: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
@@ -28,6 +30,17 @@ router.get('/me/progress', requireAuth, async (req, res) => {
     return res.status(401).json({ success: false, error: 'Authentication required' });
   try {
     return res.json({ success: true, data: await readStudentProgress(req.userId) });
+  } catch (error) {
+    return handleRecordError(error, res);
+  }
+});
+
+router.post('/me/progress', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const data = UpsertProgressSchema.parse(req.body);
+    return res.json({ success: true, data: await importStudentProgress(req.userId, data) });
   } catch (error) {
     return handleRecordError(error, res);
   }

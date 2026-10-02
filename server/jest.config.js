@@ -2,6 +2,9 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  // Suites share PostgreSQL; serialize fixtures to avoid cross-suite predicate-lock
+  // conflicts. Race tests still exercise concurrent requests within each suite.
+  maxWorkers: 1,
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleNameMapper: {
