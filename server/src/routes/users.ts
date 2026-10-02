@@ -3,13 +3,15 @@ import { CourseStatus } from '@prisma/client';
 import { z } from 'zod';
 import {
   CreateUserSchema,
+  CompleteCourseSchema,
   ToggleStudentRecordSchema,
   UpdateStudentRecordSchema,
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { StudentRecordError, updateStudentRecord } from '../services/studentRecords';
-import { requireAdmin, requireUserAccess } from '../middleware/auth';
+import { requireAdmin, requireAuth, requireUserAccess } from '../middleware/auth';
 import { PUBLIC_USER_SELECT } from '../services/authService';
+import { readStudentProgress } from '../services/studentProgress';
 
 async function findUserByIdentifier(identifier: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
@@ -19,6 +21,32 @@ async function findUserByIdentifier(identifier: string) {
 }
 
 const router = Router();
+
+// Place session-scoped routes before legacy identifier routes.
+router.get('/me/progress', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    return res.json({ success: true, data: await readStudentProgress(req.userId) });
+  } catch (error) {
+    return handleRecordError(error, res);
+  }
+});
+
+router.post('/me/complete', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const data = CompleteCourseSchema.parse(req.body);
+    const result = await updateStudentRecord(req.userId, data);
+    return res.json({
+      success: true,
+      data: { ...result.progress, uncompletedCourseIds: result.uncompletedCourseIds },
+    });
+  } catch (error) {
+    return handleRecordError(error, res);
+  }
+});
 
 // Get all users
 router.get('/', async (_req: Request, res: Response) => {
@@ -100,7 +128,9 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     // Calculate statistics
-    const completedCourses = fullUser.studentRecords.filter((r) => r.status === CourseStatus.COMPLETED);
+    const completedCourses = fullUser.studentRecords.filter(
+      (r) => r.status === CourseStatus.COMPLETED,
+    );
     const totalCredits = completedCourses.reduce((sum, r) => sum + r.course.credits, 0);
     const gpa =
       completedCourses.length > 0
@@ -322,9 +352,14 @@ router.get('/:id/progress', async (req: Request, res: Response) => {
     });
 
     const NON_CREDIT_COURSE_CODES = new Set(['PT001IU', 'PT002IU']);
-    const totalCredits = allCourses.reduce((sum, c) => sum + (NON_CREDIT_COURSE_CODES.has(c.code) ? 0 : c.credits), 0);
+    const totalCredits = allCourses.reduce(
+      (sum, c) => sum + (NON_CREDIT_COURSE_CODES.has(c.code) ? 0 : c.credits),
+      0,
+    );
     const completedCredits = records
-      .filter((r) => r.status === CourseStatus.COMPLETED && !NON_CREDIT_COURSE_CODES.has(r.course.code))
+      .filter(
+        (r) => r.status === CourseStatus.COMPLETED && !NON_CREDIT_COURSE_CODES.has(r.course.code),
+      )
       .reduce((sum, r) => sum + r.course.credits, 0);
     const percentage = totalCredits > 0 ? Math.round((completedCredits / totalCredits) * 100) : 0;
 

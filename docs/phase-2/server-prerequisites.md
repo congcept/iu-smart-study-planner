@@ -25,6 +25,6 @@ npm run test --workspace=server -- studentRecords.test.ts --runInBand
 ```
 
 This slice does not finish Phase 2. Cookie authentication and browser account
-screens are implemented; authenticated `/api/users/me` progress endpoints and client progress
-synchronization remain to implement. The live curriculum view still stores
+screens and [current-student progress APIs](current-student-progress.md) are implemented;
+client progress synchronization and bulk import remain to implement. The live curriculum view still stores
 progress locally.

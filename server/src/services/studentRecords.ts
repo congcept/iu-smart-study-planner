@@ -2,6 +2,7 @@ import { CourseStatus, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { UpdateStudentRecordSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+import { readStudentProgress } from './studentProgress';
 
 export class StudentRecordError extends Error {
   constructor(
@@ -119,16 +120,24 @@ export async function updateStudentRecord(
                 updatedAt: new Date(),
               },
               uncompletedCourseIds,
+              progress: await readStudentProgress(user.id, tx),
             };
           }
 
           const record = await tx.studentRecord.upsert({
             where: { userId_courseId: { userId: user.id, courseId: data.courseId } },
-            update: data,
-            create: { userId: user.id, ...data },
+            update: {
+              ...data,
+              electiveGroup: data.status === CourseStatus.COMPLETED ? data.electiveGroup : null,
+            },
+            create: {
+              userId: user.id,
+              ...data,
+              electiveGroup: data.status === CourseStatus.COMPLETED ? data.electiveGroup : null,
+            },
             include: { course: true },
           });
-          return { record, uncompletedCourseIds };
+          return { record, uncompletedCourseIds, progress: await readStudentProgress(user.id, tx) };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
