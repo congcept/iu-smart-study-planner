@@ -13,6 +13,10 @@ export interface ApiResponse<T = unknown> {
 // Infer DTOs from schemas
 export type RegisterDTO = z.infer<typeof schemas.RegisterSchema>;
 export type LoginDTO = z.infer<typeof schemas.LoginSchema>;
+export type DemoLoginDTO = z.infer<typeof schemas.DemoLoginSchema>;
+export interface DemoLoginStatusDTO {
+  enabled: boolean;
+}
 export type UserRole = z.infer<typeof schemas.UserRoleSchema>;
 export interface AuthUserDTO {
   id: string;

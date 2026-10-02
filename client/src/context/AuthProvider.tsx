@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { isAxiosError } from 'axios';
-import type { AuthUserDTO, LoginDTO, RegisterDTO } from '@iu-study-planner/shared';
+import type { AuthUserDTO, DemoLoginDTO, LoginDTO, RegisterDTO } from '@iu-study-planner/shared';
 import * as api from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { AuthContext, type AuthContextValue } from './AuthContext';
@@ -67,6 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyUser],
   );
 
+  const demoLogin = useCallback(
+    async (data: DemoLoginDTO) => {
+      const version = ++requestVersion.current;
+      const nextUser = await api.demoLogin(data);
+      if (version === requestVersion.current) applyUser(nextUser);
+    },
+    [applyUser],
+  );
+
   const logout = useCallback(async () => {
     const version = ++requestVersion.current;
     await api.logout();
@@ -74,8 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyUser]);
 
   const value = useMemo(
-    () => ({ user, status, sessionError, refresh, login, register, logout }),
-    [user, status, sessionError, refresh, login, register, logout],
+    () => ({ user, status, sessionError, refresh, login, register, demoLogin, logout }),
+    [user, status, sessionError, refresh, login, register, demoLogin, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

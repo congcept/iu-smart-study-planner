@@ -10,6 +10,7 @@ interface Config {
   corsOrigin: string;
   jwtSecret: string;
   jwtExpiresIn: number;
+  demoLoginEnabled: boolean;
 }
 
 const duration = /^([1-9]\d*)(s|m|h|d)$/.exec(process.env.JWT_EXPIRES_IN || '7d');
@@ -35,6 +36,9 @@ const config: Config = {
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
   jwtExpiresIn,
+  demoLoginEnabled:
+    (process.env.NODE_ENV || 'development') === 'development' &&
+    process.env.DEMO_LOGIN_ENABLED !== 'false',
 };
 
 export default config;

@@ -1,5 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import apiClient, { getSession, login, logout, register } from '../api';
+import apiClient, {
+  demoLogin,
+  getDemoLoginStatus,
+  getSession,
+  login,
+  logout,
+  register,
+} from '../api';
 
 const originalAdapter = apiClient.defaults.adapter;
 afterEach(() => {
@@ -30,7 +37,10 @@ it('uses credentialed cookie requests for every auth endpoint without reading be
       status: config.url === '/auth/logout' ? 204 : 200,
       statusText: 'OK',
       headers: {},
-      data: { success: true, data: { user } },
+      data: {
+        success: true,
+        data: config.url === '/auth/demo' && config.method === 'get' ? { enabled: true } : { user },
+      },
     };
   };
   expect(await getSession()).toEqual(user);
@@ -44,5 +54,14 @@ it('uses credentialed cookie requests for every auth endpoint without reading be
     }),
   ).toEqual(user);
   await logout();
-  expect(paths).toEqual(['/auth/me', '/auth/login', '/auth/register', '/auth/logout']);
+  expect(await getDemoLoginStatus()).toEqual({ enabled: true });
+  expect(await demoLogin({ role: 'STUDENT' })).toEqual(user);
+  expect(paths).toEqual([
+    '/auth/me',
+    '/auth/login',
+    '/auth/register',
+    '/auth/logout',
+    '/auth/demo',
+    '/auth/demo',
+  ]);
 });

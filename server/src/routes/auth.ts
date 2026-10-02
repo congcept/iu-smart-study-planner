@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { LoginSchema, RegisterSchema } from '@iu-study-planner/shared';
+import { DemoLoginSchema, LoginSchema, RegisterSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { getDemoAccount, isDemoLoginEnabled } from '../services/demoAuthService';
 import {
   AUTH_USER_SELECT,
   clearAuthCookie,
@@ -13,6 +14,27 @@ import {
 } from '../services/authService';
 
 const router = Router();
+
+router.get('/demo', (_req, res) => {
+  return res.json({ success: true, data: { enabled: isDemoLoginEnabled() } });
+});
+
+router.post('/demo', async (req, res, next) => {
+  if (!isDemoLoginEnabled()) {
+    return res.status(404).json({ success: false, error: 'Demo login is unavailable' });
+  }
+  try {
+    const { role } = DemoLoginSchema.parse(req.body);
+    const user = await getDemoAccount(role);
+    setAuthCookie(res, user.id);
+    return res.json({ success: true, data: { user } });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Invalid demo role' });
+    }
+    return next(error);
+  }
+});
 
 router.post('/register', async (req, res, next) => {
   try {

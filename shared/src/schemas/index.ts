@@ -98,6 +98,8 @@ export const CreateCourseSchema = z.object({
   electiveSelectCount: z.number().int().min(0).max(10).optional(),
 });
 
+export const DemoLoginSchema = z.object({ role: UserRoleSchema }).strict();
+
 export const UpdateCourseSchema = CreateCourseSchema.partial();
 
 export const UpdateUserSchema = z

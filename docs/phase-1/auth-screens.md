@@ -4,6 +4,19 @@ The browser supports account registration, sign-in, sign-out, and cookie session
 recovery after refresh. `/` remains the anonymous demo; `/login` and `/register`
 provide the forms; `/curriculum` requires a signed-in account.
 
+The sign-in page also offers **Demo student** and **Demo school admin** buttons
+in local development. They create/reuse separate simulated identities and issue
+normal httpOnly cookie sessions without passwords. The header shows the real
+account role. Both roles currently open the curriculum; the school-admin
+dashboard is a future roadmap slice. Demo accounts retain their own browser
+selections between visits and do not overwrite registered or seeded accounts.
+
+`GET /api/auth/demo` advertises availability; `POST /api/auth/demo` accepts only
+`{ role: "STUDENT" | "ADMIN" }`. Demo login is enabled by default only when
+`NODE_ENV=development`. Set `DEMO_LOGIN_ENABLED=false` to disable it locally.
+Production and test environments cannot issue demo sessions even if the flag is
+enabled. No database migration or seed reset is needed.
+
 The client sends cookies with Axios requests and no longer reads a bearer token
 from localStorage. Initial session lookup waits before showing routes. A missing
 session leads to sign-in; server/network failures show a retry action. Failed
@@ -37,6 +50,7 @@ With the app and PostgreSQL already running, refresh `http://localhost:5173`:
 - Try an incorrect password and confirm the error appears without leaving the form.
 - Sign in correctly and confirm your own selections return.
 - Register another account and confirm its selections start empty.
+- On **Sign in**, try each demo button, confirm its role in the header, then sign out.
 
 Automated client tests cover these flows, duplicate registration, password byte
 limits, session lookup retry, failed sign-out, stale session responses in React

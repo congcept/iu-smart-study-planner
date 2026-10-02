@@ -13,6 +13,8 @@ vi.mock('@/lib/api', () => ({
   login: vi.fn(),
   register: vi.fn(),
   logout: vi.fn(),
+  getDemoLoginStatus: vi.fn(),
+  demoLogin: vi.fn(),
 }));
 vi.mock('@/features/curriculum/CurriculumProgressMap', () => ({
   CurriculumProgressMap: ({ userId }: { userId?: string }) => (
@@ -56,6 +58,7 @@ beforeEach(() => {
     data: { status: 'ok', timestamp: '' },
   });
   vi.mocked(api.getSession).mockRejectedValue(httpError(401, 'Authentication required'));
+  vi.mocked(api.getDemoLoginStatus).mockResolvedValue({ enabled: false });
   window.history.replaceState({}, '', '/login');
 });
 
@@ -65,6 +68,56 @@ afterEach(() => {
 });
 
 describe('authentication screens and session routing', () => {
+  it.each(['STUDENT', 'ADMIN'] as const)(
+    'quickly signs in to the %s demo without form credentials',
+    async (role) => {
+      const demo = { ...student, id: `demo-${role}`, name: `Demo ${role}`, role };
+      vi.mocked(api.getDemoLoginStatus).mockResolvedValue({ enabled: true });
+      vi.mocked(api.demoLogin).mockResolvedValue(demo);
+      render(<App />);
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: role === 'ADMIN' ? 'Demo school admin' : 'Demo student',
+        }),
+      );
+      expect(await screen.findByText(demo.name)).toBeInTheDocument();
+      expect(
+        screen.getByText(role === 'ADMIN' ? 'School admin' : 'Student', { exact: true }),
+      ).toBeInTheDocument();
+      expect(api.demoLogin).toHaveBeenCalledWith({ role });
+      expect(api.login).not.toHaveBeenCalled();
+      expect(api.register).not.toHaveBeenCalled();
+      expect(useAppStore.getState().progressOwnerId).toBe(demo.id);
+    },
+  );
+
+  it('hides quick login when the server disables demo access', async () => {
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Sign in' });
+    await waitFor(() => expect(api.getDemoLoginStatus).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Demo student' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Demo school admin' })).toBeNull();
+  });
+
+  it('retains normal sign-in when checking demo access fails', async () => {
+    vi.mocked(api.getDemoLoginStatus).mockRejectedValue(httpError(500, 'Unavailable'));
+    render(<App />);
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Demo student' })).toBeNull();
+  });
+
+  it('shows demo errors and permits retry without changing the guest progress owner', async () => {
+    vi.mocked(api.getDemoLoginStatus).mockResolvedValue({ enabled: true });
+    vi.mocked(api.demoLogin)
+      .mockRejectedValueOnce(httpError(404, 'Demo login is unavailable'))
+      .mockResolvedValueOnce(student);
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Demo student' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Demo login is unavailable');
+    expect(useAppStore.getState().progressOwnerId).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Demo student' }));
+    expect(await screen.findByText(student.name)).toBeInTheDocument();
+  });
   it('waits for session lookup before redirecting protected content to sign in', async () => {
     let rejectSession: (error: Error) => void = () => {};
     vi.mocked(api.getSession).mockReturnValue(
