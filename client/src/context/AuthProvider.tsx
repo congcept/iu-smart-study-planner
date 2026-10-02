@@ -44,7 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Remove the obsolete bearer-token cache; cookies are the only session source.
-    localStorage.removeItem('auth_token');
+    try {
+      localStorage.removeItem('auth_token');
+    } catch {
+      // Browser storage may be unavailable; cookie session recovery must still run.
+    }
     void refresh();
     return invalidatePendingRequests;
   }, [refresh, invalidatePendingRequests]);

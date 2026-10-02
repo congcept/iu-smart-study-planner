@@ -146,8 +146,8 @@ Branches, pushes, and PR creation/merge are authorized in this conversation.
 
 | Area                           | Shipped / verified                                                                                                                                                                                                                                                                                                                                                                                                              | Remaining                                                                                                            |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Client foundation              | Dead graph/elective selector removed; build/type/lint clean; prerequisite locking and cycle-safe optimistic cascades                                                                                                                                                                                                                                                                                                            | Activate workload/recommendation/grade screens as their APIs land                                                    |
-| Auth and demo roles            | Cookie register/login/logout/me; ownership/admin guards; session recovery; development-only demo student/admin buttons; header role                                                                                                                                                                                                                                                                                             | School-admin dashboard and production deployment                                                                     |
+| Client foundation              | Dead graph/elective selector removed; build/type/lint clean; prerequisite locking and cycle-safe optimistic cascades; Y4S2 recommendations respect both GPA paths before counting credits                                                                                                                                                                                                                                       | Activate workload/recommendation/grade screens as their APIs land                                                    |
+| Auth and demo roles            | Cookie register/login/logout/me; ownership/admin guards; session recovery even when browser storage is denied; development-only demo student/admin buttons; header role                                                                                                                                                                                                                                                         | School-admin dashboard and production deployment                                                                     |
 | Student progress               | Authenticated `/users/me/progress` and `/users/me/complete`; elective claim column; mandatory prerequisite validation; transaction cascade; browser hydration, optimistic saves, reconciliation, rollback/recovery, account isolation, cache backups; owner/admin guards for legacy student, study-plan and personalized recommendation reads; additive archived-selection import API with atomic prerequisite/cycle validation | Browser review/import UI for archived selections                                                                     |
 | CS/IT/DS source gate           | User-supplied official CSE page reviewed; signed 2024/2025 curriculum links identified; existing CS JSON retained as attribute/layout reference                                                                                                                                                                                                                                                                                 | Reconcile signed PDFs with conflicting HTML; validate and seed IT/DS; implement multi-curriculum schema/API/selector |
 | Grades and GPA                 | Existing grade metadata preserved by completion updates                                                                                                                                                                                                                                                                                                                                                                         | Retake history/highest-score policy, grade entry and GPA dashboard                                                   |
@@ -165,10 +165,15 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 100 server tests and 49 client tests, covering cookie/role access,
+Current verification: 100 server tests and 60 client tests, covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
-stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, and additive import validation/concurrency. Re-run quality gates
+stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
+
+Remaining stabilization findings: fresh-start scripts/shared builds and seed behavior,
+legacy semester course-list validation, physical-training totals in legacy profile stats,
+and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
+edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Locked Architectural Decisions
 
@@ -386,7 +391,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 100 real PostgreSQL server tests and 49 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 100 real PostgreSQL server tests and 60 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
