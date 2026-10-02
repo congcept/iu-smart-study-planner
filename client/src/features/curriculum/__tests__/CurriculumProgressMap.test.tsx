@@ -52,7 +52,9 @@ async function showCurriculum(courses: Course[], userId?: string) {
     data: [{ year: 1, semester: 1, courses }],
   });
   render(<CurriculumProgressMap userId={userId} />);
-  await screen.findByText(courses[0].code);
+  await screen.findByRole('button', {
+    name: new RegExp(`^${courses[0].code} Course ${courses[0].code}:`),
+  });
 }
 
 beforeEach(() => {
@@ -130,7 +132,7 @@ describe('prerequisite interactions', () => {
     render(<CurriculumProgressMap userId="alice" />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Offline');
     expect(screen.queryByText('A')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry progress' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved progress' }));
     await screen.findByText('A');
     await waitFor(() => expect(useAppStore.getState().progressStatus).toBe('ready'));
   });
@@ -142,7 +144,7 @@ describe('prerequisite interactions', () => {
     expect(useAppStore.getState().completedIds).toEqual({});
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
 
-    fireEvent.click(screen.getByText('IT001IU'));
+    fireEvent.click(screen.getByRole('button', { name: 'IT001IU Course IT001IU: Mark complete' }));
     fireEvent.click(screen.getByText('IT002IU'));
     expect(useAppStore.getState().completedIds).toEqual({ IT001IU: null, IT002IU: null });
     expect(useAppStore.getState().plannedIds).toEqual([]);
@@ -156,7 +158,7 @@ describe('prerequisite interactions', () => {
     expect(useAppStore.getState().completedIds).toEqual({});
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
 
-    fireEvent.click(screen.getByText('IT001IU'));
+    fireEvent.click(screen.getByRole('button', { name: 'IT001IU Course IT001IU: Mark complete' }));
     fireEvent.click(screen.getByText('IT002IU'));
     expect(useAppStore.getState().completedIds.IT002IU).toBe('Group 1');
   });

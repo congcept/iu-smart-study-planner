@@ -113,7 +113,7 @@ describe('authentication screens and session routing', () => {
       .mockResolvedValueOnce(student);
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: 'Demo student' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Demo login is unavailable');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Demo sign-in is unavailable');
     expect(useAppStore.getState().progressOwnerId).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Demo student' }));
     expect(await screen.findByText(student.name)).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('authentication screens and session routing', () => {
     await screen.findByRole('heading', { name: 'Sign in' });
     fillCredentials('ALICE@EXAMPLE.TEST');
     submit('Sign in');
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Email or password is incorrect');
     expect(window.location.pathname).toBe('/login');
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
     submit('Sign in');
@@ -170,6 +170,20 @@ describe('authentication screens and session routing', () => {
     expect(api.login).toHaveBeenLastCalledWith({ email: student.email, password: 'password123' });
     expect(useAppStore.getState().completedIds).toEqual({});
     expect(window.location.pathname).toBe('/curriculum');
+  });
+
+  it('offers a recovery step when sign-in cannot connect', async () => {
+    vi.mocked(api.login).mockRejectedValueOnce(
+      Object.assign(new Error('Network Error'), { isAxiosError: true }),
+    );
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Sign in' });
+    fillCredentials();
+    submit('Sign in');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not connect to the planner. Check your connection and try again.',
+    );
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
   });
 
   it('shows duplicate registration errors and signs in after a successful retry', async () => {
@@ -203,8 +217,29 @@ describe('authentication screens and session routing', () => {
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Alice' } });
     fillCredentials(student.email, '😀'.repeat(19));
     submit('Create account');
-    expect(await screen.findByRole('alert')).toHaveTextContent('72 UTF-8 bytes');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Shorten it to 72 bytes or less');
+    expect(screen.getByLabelText('Password')).toHaveFocus();
+    expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Password')).toHaveAttribute(
+      'aria-describedby',
+      'password-help password-error',
+    );
     expect(api.register).not.toHaveBeenCalled();
+  });
+
+  it('points to an invalid email and clears its error when edited', async () => {
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Sign in' });
+    fillCredentials('not-an-email');
+    submit('Sign in');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid email address');
+    expect(screen.getByLabelText('Email')).toHaveFocus();
+    expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Email')).toHaveAttribute('aria-describedby', 'email-error');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: student.email } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'false');
+    expect(api.login).not.toHaveBeenCalled();
   });
 
   it('keeps the account on logout failure and restores guest state only after success', async () => {
@@ -231,9 +266,11 @@ describe('authentication screens and session routing', () => {
       .mockRejectedValueOnce(new Error('Network unavailable'))
       .mockResolvedValueOnce(student);
     render(<App />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not check your session');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not check whether you are signed in',
+    );
     expect(screen.queryByRole('heading', { name: 'Sign in' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText(student.name)).toBeInTheDocument();
     expect(api.getSession).toHaveBeenCalledTimes(2);
   });

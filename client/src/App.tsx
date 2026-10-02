@@ -99,7 +99,7 @@ function AppShell() {
         </nav>
         {apiStatus === 'error' && (
           <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full ml-auto">
-            API Disconnected
+            Cannot connect to the planner. Reload the page to try again.
           </span>
         )}
       </header>
@@ -115,7 +115,7 @@ function AppShell() {
             <p role="alert" className="mb-4 text-red-700">
               {sessionError}
             </p>
-            <Button onClick={() => void refresh()}>Retry</Button>
+            <Button onClick={() => void refresh()}>Try again</Button>
           </div>
         ) : (
           <>

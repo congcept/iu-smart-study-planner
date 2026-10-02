@@ -6,7 +6,7 @@ import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
 import { collectCompletedDependents } from './prerequisites';
-import { GraduationCap, BookOpen, Target, ListChecks, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 const getElectiveGroupLabel = (groupName: string): string => {
   const match = groupName.match(/(\d+)/);
@@ -42,10 +42,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         if (response.success && response.data) {
           setGroups(response.data);
         } else {
-          setError(response.error || 'Failed to fetch curriculum');
+          setError('Could not load the curriculum. Reload the page to try again.');
         }
       } catch {
-        setError('Failed to connect to server');
+        setError('Could not connect to the planner. Check your connection, then reload the page.');
       } finally {
         setLoading(false);
       }
@@ -357,7 +357,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         const fw = frameRef.current.clientWidth;
         const cw = contentRef.current.scrollWidth;
         if (cw === 0) return;
-        setBaseScale((fw - 24) / (cw - 24));
+        setBaseScale(Math.max(1, (fw - 24) / (cw - 24)));
         setPan({ x: 0, y: 0 });
       });
     };
@@ -382,8 +382,8 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     if (cw === 0) return;
 
     const SIDEBAR_WIDTH = 160;
-    const targetWidth = isSidebarOpen ? fw - SIDEBAR_WIDTH : fw + SIDEBAR_WIDTH;
-    setBaseScale((targetWidth - 24) / (cw - 24));
+    const targetWidth = isSidebarOpen ? fw - SIDEBAR_WIDTH : fw;
+    setBaseScale(Math.max(1, (targetWidth - 24) / (cw - 24)));
     setPan({ x: 0, y: 0 });
 
     const timeout = setTimeout(() => {
@@ -391,7 +391,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
       const actualFw = frameRef.current.clientWidth;
       const actualCw = contentRef.current.scrollWidth;
       if (actualCw === 0) return;
-      setBaseScale((actualFw - 24) / (actualCw - 24));
+      setBaseScale(Math.max(1, (actualFw - 24) / (actualCw - 24)));
     }, 220);
     return () => clearTimeout(timeout);
   }, [activeElectiveGroup]);
@@ -416,6 +416,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    if (e.target instanceof HTMLElement && e.target.closest('button, summary')) return;
     setIsDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY };
     panStart.current = { ...pan };
@@ -486,22 +487,31 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     });
   }, [baseScale, clampPan]);
 
-  if (loading || (userId && ['idle', 'loading'].includes(progressStatus))) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
-  if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
+  if (loading || (userId && ['idle', 'loading'].includes(progressStatus))) return (
+    <div role="status" className="p-8 text-center text-gray-500">
+      {loading ? 'Loading the curriculum…' : 'Loading your saved progress…'}
+    </div>
+  );
+  if (error) return <div role="alert" className="p-8 text-center text-red-600">{error}</div>;
 
   if (userId && progressStatus === 'error') return (
     <div className="p-8 text-center">
       <p role="alert" className="mb-3 text-red-700">{progressError || 'Could not load your progress.'}</p>
-      <button className="text-primary-700 underline" onClick={() => void loadProgress()}>Retry progress</button>
+      <p className="mb-3 text-sm text-gray-600">Editing is paused until your saved progress can be loaded.</p>
+      <button className="text-primary-700 underline" onClick={() => void loadProgress()}>Reload saved progress</button>
     </div>
   );
 
   return (
     <div className="space-y-5 overflow-hidden w-full max-w-full">
-      {userId && <p role="status" className="mb-3 text-sm text-gray-600">{pendingCompletionIds.size ? 'Saving progress…' : 'Progress saved'}</p>}
+      {userId ? <p role="status" className="mb-3 text-sm text-gray-600">
+        {pendingCompletionIds.size
+          ? progressError ? 'Checking saved progress…' : 'Saving progress…'
+          : progressError ? 'Showing your latest saved progress. Review it before trying the change again.' : 'Progress saved to your account'}
+      </p> : <p className="text-sm text-gray-600">Demo selections stay in this browser and are not added to an account when you sign in.</p>}
       {progressError && <p role="alert" className="mb-3 text-sm text-red-700">{progressError}</p>}
       {browserProgressBackup && <div className="mb-3 text-sm text-gray-600">
-        Earlier browser selections were kept as a backup.{' '}
+        Earlier selections from this browser are backed up separately from your account progress.{' '}
         <button className="text-primary-700 underline" onClick={() => {
           const url = URL.createObjectURL(new Blob([JSON.stringify(browserProgressBackup, null, 2)], { type: 'application/json' }));
           const link = document.createElement('a');
@@ -509,12 +519,15 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           link.download = 'iu-planner-browser-selections.json';
           link.click();
           URL.revokeObjectURL(url);
-        }}>Download earlier selections</button>
+        }}>Download backup (JSON)</button>
       </div>}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">
         <div className="flex items-center gap-3">
           <span className="text-base font-semibold text-gray-700">Recommendations</span>
           <button
+            role="switch"
+            aria-label="Recommendations"
+            aria-checked={recommendationsEnabled}
             onClick={() => { setRecommendationsEnabled(!recommendationsEnabled); playRecommendationsSound(); }}
             className={`relative w-12 h-6 rounded-lg transition-colors duration-200 ${
               recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
@@ -548,11 +561,26 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="space-y-2 text-sm text-gray-600">
+        <p>{recommendationsEnabled
+          ? `NEXT highlights suggested courses, up to ${creditsPerSemester} credits per semester. Use a course's Plan button to add it to your plan.`
+          : 'Recommendations are hidden. Turn them on to highlight suggested courses and choose a course load.'}</p>
+        <details>
+          <summary className="cursor-pointer font-medium text-gray-700">How to use this planner</summary>
+          <div className="mt-2 max-w-prose space-y-2">
+            <p>Select a course to mark it complete, or use its Plan button to add it to your plan. You can also right-click a course to plan it.</p>
+            <p>DONE means completed; PLANNED means you selected it; NEXT means recommended. LOCKED courses need all prerequisites completed first. You can still plan a locked course.</p>
+            <p>Undoing completion also clears completion from every course that depends on it. Open Prerequisites on a locked course to see what it needs.</p>
+            <p>Open an elective group to choose its courses. A completed elective counts only toward the group where you selected it.</p>
+            <p>Drag empty space to move the map, or swipe on a phone. Scroll to zoom. Reset view restores the map position and zoom; it keeps your course selections.</p>
+          </div>
+        </details>
+      </div>
+
+      <div className="relative">
         <div
           ref={frameRef}
-          className={`relative flex-1 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-          style={{ height: 'calc(100vh - 500px)' }}
+          className={`relative h-[32rem] sm:h-[38rem] rounded-lg border border-gray-200 bg-gray-50 overflow-x-auto overflow-y-hidden select-none touch-pan-x ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -561,11 +589,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           onDoubleClick={handleDoubleClick}
         >
         <div
-          className="absolute top-0 left-0 z-10 origin-top-left pointer-events-none"
+          className="absolute top-0 left-0 z-10 origin-top-left pointer-events-none w-max"
           style={{
             transform: `translateX(${pan.x}px) scale(${scale})`,
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-            width: '99999px',
           }}
         >
           <div className="bg-gray-50/90 backdrop-blur-sm shadow-sm border-b border-gray-200 w-full">
@@ -578,10 +605,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                   key={`header-${group.year}-${group.semester}`}
                   className="w-48 shrink-0"
                 >
-                  <div className="bg-gray-100 rounded-t-lg px-2.5 py-1.5 border-b-2 border-blue-500">
-                    <h3 className="font-bold text-sm text-gray-800">
+                  <div className="bg-gray-100 rounded-t-lg px-2.5 py-1.5">
+                    <h2 className="font-semibold text-sm text-gray-800">
                       Year {group.year} - {semesterLabel}
-                    </h3>
+                    </h2>
                   </div>
                 </div>
               );
@@ -618,8 +645,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                 {group.year === 4 && group.semester === 2 && (
                   <div className={`flex gap-1 mt-1 mb-1 px-1 transition-all duration-150 ${hoveredLockedId !== null ? 'blur-[1px] opacity-25' : ''}`}>
                     <button
+                      aria-pressed={y4s2GpaMode === 'above'}
+                      title="GPA above 70: show the thesis path"
                       onClick={() => { setY4s2GpaMode('above'); playToggleSound(); }}
-                      className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
+                      className={`flex-1 min-h-11 text-xs font-semibold py-1 rounded transition-colors ${
                         y4s2GpaMode === 'above'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -628,8 +657,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                       GPA {'>'} 70
                     </button>
                     <button
+                      aria-pressed={y4s2GpaMode === 'below'}
+                      title="GPA at or below 70: show the alternative courses"
                       onClick={() => { setY4s2GpaMode('below'); playToggleSound(); }}
-                      className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
+                      className={`flex-1 min-h-11 text-xs font-semibold py-1 rounded transition-colors ${
                         y4s2GpaMode === 'below'
                           ? 'bg-orange-600 text-white'
                           : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -640,7 +671,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                   </div>
                 )}
 
-                <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0 rounded-t-lg">
+                <div className="bg-gray-50 rounded-b-lg p-1.5 space-y-1.5 border border-gray-200 border-t-0">
                   {visibleRequiredCourses.map((course) => {
                     const isCompleted = completedIdsSet.has(course.id);
                     const isPlanned = !isCompleted && plannedIdsSet.has(course.id);
@@ -691,11 +722,14 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                     }
 
                     return (
-                      <div
+                      <button
+                        type="button"
+                        aria-expanded={isActive}
+                        aria-label={`Open elective group ${getElectiveGroupLabel(eg.name)}: ${completedCount} of ${eg.selectCount} completed`}
                         key={`${eg.name}-summary`}
-                        className={`rounded-md shadow-sm border-2 p-2 transition-all duration-150 hover:shadow-md hover:scale-[1.02] cursor-pointer ${
+                        className={`w-full min-h-11 rounded-md border p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
                           isActive
-                            ? 'bg-amber-100 border-amber-500 ring-2 ring-amber-300'
+                            ? 'bg-amber-100 border-amber-600'
                             : `bg-white ${borderColor} ${statusRing}`
                         }`}
                         onClick={() => handleElectiveCardClick(eg.name)}
@@ -708,10 +742,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                           {statusIcon}
                         </div>
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-[11px] text-gray-500">{completedCount}/{eg.selectCount}</span>
+                          <span className="text-[11px] text-gray-500">{completedCount}/{eg.selectCount} completed</span>
                           {!isActive && <ChevronRight size={12} className="text-gray-400" />}
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -722,33 +756,38 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
         <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
           <button
+            aria-label="Zoom out"
+            title="Zoom out"
             onClick={handleZoomOut}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+            className="min-w-11 min-h-11 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
           >
             −
           </button>
           <span className="text-xs font-medium text-gray-500 w-10 text-center tabular-nums">{Math.round(zoomMultiplier * 100)}%</span>
           <button
+            aria-label="Zoom in"
+            title="Zoom in"
             onClick={handleZoomIn}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+            className="min-w-11 min-h-11 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
           >
             +
           </button>
           <div className="w-px h-4 bg-gray-300" />
           <button
+            title="Reset the map position and zoom. Course selections stay the same."
             onClick={() => { setPan({ x: 0, y: 0 }); setZoomMultiplier(1); }}
-            className="text-[10px] font-medium text-gray-500 hover:text-gray-700 px-1"
+            className="min-h-11 text-xs font-medium text-gray-500 hover:text-gray-700 px-1"
           >
-            Reset
+            Reset view
           </button>
         </div>
         </div>
 
         <div
-          className="shrink-0 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm transition-[width] duration-200 ease-in-out"
-          style={{ width: activeElectiveGroup ? '160px' : '0px', height: 'calc(100vh - 500px)', borderWidth: activeElectiveGroup ? '1px' : '0' }}
+          className="absolute right-0 top-0 z-30 h-full rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm transition-[width] duration-200 ease-in-out"
+          style={{ width: activeElectiveGroup ? 'min(20rem, 85vw)' : '0px', borderWidth: activeElectiveGroup ? '1px' : '0' }}
         >
-          <div className="w-40 h-full">
+          <div className="w-full h-full">
             {activeElectiveGroup && (() => {
             const activeGroup = filteredElectiveGroups.find((eg) => eg.name === activeElectiveGroup);
             if (!activeGroup) return null;
@@ -772,8 +811,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                     <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums">{completedCount}/{activeGroup.selectCount}</span>
                   </div>
                   <button
+                    aria-label="Close elective group"
+                    title="Close elective group"
                     onClick={() => handleElectiveCardClick(null)}
-                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-500"
+                    className="min-w-11 min-h-11 flex items-center justify-center rounded hover:bg-gray-200 text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700"
                   >
                     <span className="text-sm leading-none">&times;</span>
                   </button>
@@ -812,54 +853,28 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         </div>
       </div>
 
-      {(
-        <div className="mt-10 space-y-6">
-          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-            <div className="flex items-start gap-8">
-              <div className="shrink-0">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <ListChecks size={20} className="text-blue-600" />
-                  <span className="text-lg font-semibold text-gray-700">Courses Progress</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 rounded-xl shrink-0">
-                    <GraduationCap size={24} className="text-blue-600" />
-                    <div className="flex items-baseline gap-1.5 tabular-nums">
-                      <div className="text-xl font-bold">{completedIdKeys.length}</div>
-                      <div className="text-sm text-gray-600">Completed</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 rounded-xl shrink-0">
-                    <BookOpen size={24} className="text-purple-600" />
-                    <div className="flex items-baseline gap-1.5 tabular-nums">
-                      <div className="text-xl font-bold">{remainingCourses}</div>
-                      <div className="text-sm text-gray-600">Remaining</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <Target size={20} className="text-blue-600" />
-                    <span className="text-lg font-semibold">Degree Progress</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-gray-900 tabular-nums">ETA: <span className="font-bold text-amber-600">{eta}</span></span>
-                    <span className="text-3xl font-bold text-blue-600 tabular-nums">{degreeProgress}%</span>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-xl h-8 overflow-hidden">
-                  <div
-                    className="bg-blue-600 h-8 rounded-xl transition-all duration-500 progress-liquid"
-                    style={{ width: `${degreeProgress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
+      <section aria-labelledby="degree-progress-title" className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <div>
+            <h2 id="degree-progress-title" className="text-lg font-semibold text-gray-900">Degree progress</h2>
+            <p className="mt-1 text-sm text-gray-700 tabular-nums">
+              {completedIdKeys.length} of {completedIdKeys.length + remainingCourses} courses completed · {remainingCourses} remaining
+            </p>
           </div>
+          <span className="text-2xl font-semibold text-primary-700 tabular-nums">{degreeProgress}%</span>
         </div>
-      )}
+        <div
+          role="progressbar"
+          aria-label="Degree progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={degreeProgress}
+          className="mt-4 h-2 overflow-hidden rounded-full bg-gray-200"
+        >
+          <div className="h-full bg-primary-600" style={{ width: `${degreeProgress}%` }} />
+        </div>
+        <p className="mt-3 text-sm text-gray-700">Estimated finish: <strong>{eta}</strong>. This estimate uses remaining credits at {creditsPerSemester} credits per semester; prerequisites and course availability may change it.</p>
+      </section>
     </div>
   );
 };

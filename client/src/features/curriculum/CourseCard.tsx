@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import type { Course } from '@/types';
 import { playLockedSound } from '@/lib/sounds';
 
@@ -33,8 +33,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onPrereqsHover,
   onPrereqsLeave,
 }) => {
-  const [hovered, setHovered] = useState(false);
-
   const handleClick = useCallback(() => {
     if (disabled) return;
     if (isLocked) {
@@ -55,87 +53,93 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   }, [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned]);
 
   let borderColor = 'border-gray-300';
-  let opacity = 'opacity-100';
-  let statusIcon = null;
-  let highlightRing = '';
+  let status = 'Available';
 
   if (isCompleted) {
     borderColor = 'border-green-500';
-    statusIcon = <span className="text-green-600 font-bold text-[10px]">DONE</span>;
+    status = 'Done';
   } else if (isPlanned) {
     borderColor = 'border-blue-500 ring-1 ring-blue-200';
-    statusIcon = <span className="text-blue-600 font-bold text-[10px]">PLANNED</span>;
+    status = 'Planned';
   } else if (isRecommended) {
     borderColor = 'border-amber-500 ring-2 ring-amber-200';
-    statusIcon = <span className="text-amber-600 font-bold text-[10px]">NEXT</span>;
+    status = 'Next';
   } else if (isLocked) {
     borderColor = 'border-gray-200';
-    opacity = 'opacity-50';
-    statusIcon = <span className="text-gray-400 font-bold text-[10px]">LOCKED</span>;
+    status = 'Locked';
   }
 
-  if (isHighlighted || (isLocked && hovered)) {
-    opacity = 'opacity-100';
-    borderColor = 'border-violet-500';
-    highlightRing = 'ring-2 ring-violet-400 bg-violet-50 scale-[1.02] shadow-md';
-  }
-
-  if (isBlurred) {
-    opacity = 'opacity-25 blur-[1px]';
-    highlightRing = '';
-  }
+  const planLabel = isCompleted ? 'Move to plan' : isPlanned ? 'Remove plan' : 'Plan';
+  const handlePlan = useCallback(() => {
+    if (disabled) return;
+    if (isCompleted) onCompleteToPlanned(course.id);
+    else onTogglePlanned(course.id);
+  }, [course.id, disabled, isCompleted, onCompleteToPlanned, onTogglePlanned]);
 
   return (
     <div
-      aria-disabled={disabled}
-      onClick={handleClick}
       onContextMenu={handleContextMenu}
       onMouseEnter={() => {
-        setHovered(true);
         if (isLocked && onPrereqsHover) {
           onPrereqsHover(course.prerequisites.map((p) => p.prerequisiteId));
         }
       }}
       onMouseLeave={() => {
-        setHovered(false);
         if (onPrereqsLeave) {
           onPrereqsLeave();
         }
       }}
       className={`
-        bg-white rounded-md shadow-sm border-2 p-2
-        transition-all duration-150 hover:shadow-md
-        ${borderColor} ${opacity} ${highlightRing}
-        ${!isLocked ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-not-allowed'}
+        bg-white rounded-md border p-2 space-y-1.5
+        ${isHighlighted ? 'ring-2 ring-violet-500' : ''}
+        ${isBlurred ? 'opacity-50' : ''}
+        ${borderColor}
       `}
     >
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {(course.category === 'ELECTIVE' || course.category === 'FREE_ELECTIVE' || course.category === 'MAJOR_ELECTIVE') && (
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-amber-500" />
-          )}
-          <span className="text-[10px] font-bold text-gray-700 truncate">{course.code}</span>
-          <span className="text-[10px] text-gray-500 shrink-0">{course.credits} cr</span>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-disabled={isLocked || disabled}
+        onClick={handleClick}
+        aria-label={`${course.code} ${course.name}: ${isLocked ? 'Locked until prerequisites are complete' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
+        aria-pressed={isCompleted}
+        className="block min-h-11 w-full rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700"
+      >
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-xs font-semibold text-gray-700">{course.code}</span>
+          <span className="text-xs text-gray-600">{course.credits} cr</span>
         </div>
-        {statusIcon}
-      </div>
+        <span className="block text-sm font-medium text-gray-900 leading-snug break-words">
+          {course.name}
+        </span>
+        <span className={`block mt-1 text-xs font-semibold ${
+          isCompleted ? 'text-green-700' : isPlanned ? 'text-blue-700' : isRecommended ? 'text-amber-700' : 'text-gray-700'
+        }`}>{status}</span>
+      </button>
 
-      <h4 className="font-medium text-[10px] text-gray-900 leading-snug break-words">
-        {course.name}
-      </h4>
-
-      {course.prerequisites.length > 0 && hovered && isLocked && (
-        <div className="mt-1.5 bg-gray-50 rounded px-2 py-1.5 space-y-0.5">
-          <p className="text-[10px] text-gray-600 font-medium">Requires:</p>
+      {course.prerequisites.length > 0 && isLocked && (
+        <details className="text-xs text-gray-700">
+          <summary className="cursor-pointer rounded py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700">Prerequisites</summary>
+          <div className="mt-1 space-y-1">
           {course.prerequisites.map((prereq) => (
-            <span key={prereq.id} className="block text-[10px] text-gray-500">
+            <span key={prereq.id} className="block text-gray-700">
               {prereq.prerequisite
                 ? `${prereq.prerequisite.code} - ${prereq.prerequisite.name}`
                 : prereq.prerequisiteId}
             </span>
           ))}
-        </div>
+          </div>
+        </details>
       )}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={handlePlan}
+        aria-label={`${planLabel}: ${course.code} ${course.name}`}
+        className="min-h-11 w-full rounded border border-gray-200 px-2 text-xs font-medium text-primary-700 hover:bg-primary-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 disabled:opacity-50"
+      >
+        {planLabel}
+      </button>
     </div>
   );
 };

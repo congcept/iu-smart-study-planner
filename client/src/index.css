@@ -54,36 +54,4 @@
     overflow: hidden;
   }
   
-  .progress-liquid {
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .progress-liquid::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.15) 20%,
-      rgba(255, 255, 255, 0.3) 50%,
-      rgba(255, 255, 255, 0.15) 80%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-    animation: liquidWave 2s ease-in-out infinite;
-  }
-  
-  @keyframes liquidWave {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
 }
