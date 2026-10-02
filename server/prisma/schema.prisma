@@ -89,6 +89,7 @@ model StudentRecord {
   semester    String?   // e.g., "Fall 2023"
   year        Int?
   status      CourseStatus @default(COMPLETED)
+  electiveGroup String? @map("elective_group")
   
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)

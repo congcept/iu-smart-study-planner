@@ -14,6 +14,14 @@ export interface ApiResponse<T = unknown> {
 export type RegisterDTO = z.infer<typeof schemas.RegisterSchema>;
 export type LoginDTO = z.infer<typeof schemas.LoginSchema>;
 export type DemoLoginDTO = z.infer<typeof schemas.DemoLoginSchema>;
+export type CompleteCourseDTO = z.infer<typeof schemas.CompleteCourseSchema>;
+export interface StudentProgressDTO {
+  completedIds: Record<string, string | null>;
+  plannedIds: string[];
+}
+export interface CompleteCourseResponseDTO extends StudentProgressDTO {
+  uncompletedCourseIds: string[];
+}
 export interface DemoLoginStatusDTO {
   enabled: boolean;
 }

@@ -76,7 +76,15 @@ export const UpdateStudentRecordSchema = z.object({
   semester: z.string().optional(),
   year: z.number().int().optional(),
   status: CourseStatusSchema,
+  electiveGroup: z.string().trim().min(1).max(100).nullable().optional(),
 });
+
+export const CompleteCourseSchema = UpdateStudentRecordSchema.pick({
+  courseId: true,
+  electiveGroup: true,
+})
+  .extend({ status: z.enum(['COMPLETED', 'PLANNED', 'DROPPED']).default('COMPLETED') })
+  .strict();
 
 export const ToggleStudentRecordSchema = UpdateStudentRecordSchema.pick({
   courseId: true,
