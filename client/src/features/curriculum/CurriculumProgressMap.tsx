@@ -568,18 +568,14 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
       <div className="space-y-2 text-sm text-gray-600">
         <p>{recommendationsEnabled
-          ? `NEXT highlights suggested courses, up to ${creditsPerSemester} credits per semester. Use a course's Plan button to add it to your plan.`
+          ? `NEXT highlights suggested courses, up to ${creditsPerSemester} credits per semester.`
           : 'Recommendations are hidden. Turn them on to highlight suggested courses and choose a course load.'}</p>
-        <details>
-          <summary className="min-h-11 cursor-pointer py-3 font-medium text-gray-700">How to use this planner</summary>
-          <div className="mt-2 max-w-prose space-y-2">
-            <p>Select a course to mark it complete, or use its Plan button to add it to your plan. You can also right-click a course to plan it.</p>
-            <p>DONE means completed; PLANNED means you selected it; NEXT means recommended. LOCKED courses need all prerequisites completed first. You can still plan a locked course.</p>
-            <p>Undoing completion also clears completion from every course that depends on it. Select a locked course to see its prerequisites.</p>
-            <p>Open an elective group to choose its courses. A completed elective counts only toward the group where you selected it.</p>
-            <p>Drag empty space to move the map, or swipe on a phone. Scroll to zoom. Reset view restores the map position and zoom; it keeps your course selections.</p>
-          </div>
-        </details>
+        <div role="note" aria-label="Planner controls" className="flex flex-wrap gap-x-5 gap-y-1 font-medium">
+          <span className="text-green-700">Click a course · mark complete or undo</span>
+          <span className="text-blue-700">Right-click · add or remove from plan</span>
+          <span className="text-gray-700">Click a locked course · view prerequisites</span>
+        </div>
+        <p className="text-xs text-gray-600">Right-click a completed course to move it to your plan. Removing a completed prerequisite also removes completion from its dependent courses.</p>
       </div>
 
       <div className="relative">

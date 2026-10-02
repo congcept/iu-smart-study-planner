@@ -138,7 +138,7 @@ describe('prerequisite interactions', () => {
   });
   it('allows planning a locked required course without allowing its completion', async () => {
     await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU'])]);
-    fireEvent.click(screen.getByRole('button', { name: 'Plan: IT002IU Course IT002IU' }));
+    fireEvent.contextMenu(screen.getByText('IT002IU'));
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
     fireEvent.click(screen.getByRole('button', { name: 'IT002IU Course IT002IU: Show prerequisites' }));
     expect(screen.getByRole('button', { name: 'IT002IU Course IT002IU: Show prerequisites' })).toHaveAttribute('aria-expanded', 'true');
