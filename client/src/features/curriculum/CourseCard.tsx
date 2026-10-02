@@ -119,7 +119,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
       {course.prerequisites.length > 0 && isLocked && (
         <details className="text-xs text-gray-700">
-          <summary className="cursor-pointer rounded py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700">Prerequisites</summary>
+          <summary className="min-h-11 cursor-pointer rounded py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700">Prerequisites</summary>
           <div className="mt-1 space-y-1">
           {course.prerequisites.map((prereq) => (
             <span key={prereq.id} className="block text-gray-700">

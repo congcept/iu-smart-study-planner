@@ -529,12 +529,17 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
             aria-label="Recommendations"
             aria-checked={recommendationsEnabled}
             onClick={() => { setRecommendationsEnabled(!recommendationsEnabled); playRecommendationsSound(); }}
-            className={`relative w-12 h-6 rounded-lg transition-colors duration-200 ${
-              recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
-            }`}
+            className="relative w-12 h-11 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700"
           >
             <span
-              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-md shadow transition-transform duration-200 ${
+              aria-hidden="true"
+              className={`absolute inset-x-0 top-2.5 h-6 rounded-full transition-colors duration-200 ${
+                recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
+              }`}
+            />
+            <span
+              aria-hidden="true"
+              className={`absolute top-3.5 left-1 w-4 h-4 bg-white rounded-md shadow transition-transform duration-200 ${
                 recommendationsEnabled ? 'translate-x-6' : 'translate-x-0'
               }`}
             />
@@ -566,7 +571,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           ? `NEXT highlights suggested courses, up to ${creditsPerSemester} credits per semester. Use a course's Plan button to add it to your plan.`
           : 'Recommendations are hidden. Turn them on to highlight suggested courses and choose a course load.'}</p>
         <details>
-          <summary className="cursor-pointer font-medium text-gray-700">How to use this planner</summary>
+          <summary className="min-h-11 cursor-pointer py-3 font-medium text-gray-700">How to use this planner</summary>
           <div className="mt-2 max-w-prose space-y-2">
             <p>Select a course to mark it complete, or use its Plan button to add it to your plan. You can also right-click a course to plan it.</p>
             <p>DONE means completed; PLANNED means you selected it; NEXT means recommended. LOCKED courses need all prerequisites completed first. You can still plan a locked course.</p>
