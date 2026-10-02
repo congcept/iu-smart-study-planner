@@ -16,6 +16,8 @@ vi.mock('../sounds', () => ({
 
 const getProgress = vi.mocked(getCurrentStudentProgress);
 const saveProgress = vi.mocked(saveCourseProgress);
+const legacyId = '00000000-0000-4000-8000-000000000001';
+const legacyPlanId = '00000000-0000-4000-8000-000000000002';
 const emptyProgress: StudentProgressDTO = { completedIds: {}, plannedIds: [] };
 
 function deferred<T>() {
@@ -56,6 +58,9 @@ beforeEach(() => {
     progressStatus: 'ready',
     progressError: null,
     browserProgressBackup: null,
+    browserProgressBackupError: null,
+    progressImportStatus: 'idle',
+    progressImportError: null,
     pendingCompletionIds: new Set(),
     completedIds: {},
     plannedIds: [],
@@ -65,13 +70,16 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('authoritative progress hydration', () => {
   it('replaces an account cache with server claims and plans before enabling edits', async () => {
-    localStorage.setItem('completed_courses:alice', JSON.stringify({ stale: 'Group 1' }));
-    localStorage.setItem('planned_courses:alice', JSON.stringify(['stale-plan']));
+    localStorage.setItem('completed_courses:alice', JSON.stringify({ [legacyId]: 'Group 1' }));
+    localStorage.setItem('planned_courses:alice', JSON.stringify([legacyPlanId]));
     const request = deferred<StudentProgressDTO>();
     getProgress.mockReturnValueOnce(request.promise);
     const store = useAppStore.getState();
     store.setProgressOwner('alice');
-    expect(snapshot()).toEqual({ completedIds: { stale: 'Group 1' }, plannedIds: ['stale-plan'] });
+    expect(snapshot()).toEqual({
+      completedIds: { [legacyId]: 'Group 1' },
+      plannedIds: [legacyPlanId],
+    });
     await store.toggleCourseComplete('not-yet');
     expect(saveProgress).not.toHaveBeenCalled();
     const loading = store.loadProgress();
@@ -87,14 +95,14 @@ describe('authoritative progress hydration', () => {
       server.completedIds,
     );
     expect(JSON.parse(localStorage.getItem('planned_courses:alice')!)).toEqual(server.plannedIds);
-    const backup = { completedIds: { stale: 'Group 1' }, plannedIds: ['stale-plan'] };
+    const backup = { completedIds: { [legacyId]: 'Group 1' }, plannedIds: [legacyPlanId] };
     expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
     expect(JSON.parse(localStorage.getItem('browser_progress_backup:alice')!)).toEqual(backup);
     expect(localStorage.getItem('server_progress_cache:alice')).toBe('true');
   });
 
   it('retains an archived browser claim and plan across account switches and later server reloads', async () => {
-    const backup = { completedIds: { legacy: 'Group 3' }, plannedIds: ['legacy-plan'] };
+    const backup = { completedIds: { [legacyId]: 'Group 3' }, plannedIds: [legacyPlanId] };
     localStorage.setItem('completed_courses:alice', JSON.stringify(backup.completedIds));
     localStorage.setItem('planned_courses:alice', JSON.stringify(backup.plannedIds));
     await signIn({ completedIds: { server: null }, plannedIds: [] });

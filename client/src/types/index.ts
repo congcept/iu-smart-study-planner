@@ -137,6 +137,9 @@ export interface AppState {
   progressStatus: 'idle' | 'loading' | 'ready' | 'error';
   progressError: string | null;
   browserProgressBackup: StudentProgressDTO | null;
+  browserProgressBackupError: string | null;
+  progressImportStatus: 'idle' | 'importing' | 'success' | 'error';
+  progressImportError: string | null;
   pendingCompletionIds: Set<string>;
   completedIds: Record<string, string | null>;
   plannedIds: string[];
@@ -150,6 +153,7 @@ export interface AppState {
   setError: (error: string | null) => void;
   setProgressOwner: (userId: string | null) => void;
   loadProgress: () => Promise<void>;
+  importBrowserProgress: () => Promise<void>;
   toggleCourseComplete: (
     courseId: string,
     electiveGroup?: string | null,
