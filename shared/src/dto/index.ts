@@ -11,6 +11,20 @@ export interface ApiResponse<T = unknown> {
 }
 
 // Infer DTOs from schemas
+export type RegisterDTO = z.infer<typeof schemas.RegisterSchema>;
+export type LoginDTO = z.infer<typeof schemas.LoginSchema>;
+export type UserRole = z.infer<typeof schemas.UserRoleSchema>;
+export interface AuthUserDTO {
+  id: string;
+  studentId: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+export interface AuthResponseDTO {
+  user: AuthUserDTO;
+}
+
 export type CreateUserDTO = z.infer<typeof schemas.CreateUserSchema>;
 export type UpdateUserDTO = z.infer<typeof schemas.UpdateUserSchema>;
 export type UpdateStudentRecordDTO = z.infer<typeof schemas.UpdateStudentRecordSchema>;

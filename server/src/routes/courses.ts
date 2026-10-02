@@ -5,6 +5,7 @@ import { CreateCourseSchema, CreatePrerequisiteSchema } from '@iu-study-planner/
 import { prisma } from '../db';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { requireAdmin } from '../middleware/auth';
 
 function isNotFoundError(error: unknown): boolean {
   return error instanceof PrismaClientKnownRequestError && error.code === 'P2025';
@@ -167,7 +168,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create new course
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireAdmin, async (req: Request, res: Response) => {
   try {
     const validatedData = CreateCourseSchema.parse(req.body);
 
@@ -197,7 +198,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Update course
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const validatedData = CreateCourseSchema.partial().parse(req.body);
@@ -235,7 +236,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // Delete course
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -263,7 +264,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Add prerequisite relationship
-router.post('/prerequisites', async (req: Request, res: Response) => {
+router.post('/prerequisites', requireAdmin, async (req: Request, res: Response) => {
   try {
     const validatedData = CreatePrerequisiteSchema.parse(req.body);
 
@@ -322,7 +323,7 @@ router.post('/prerequisites', async (req: Request, res: Response) => {
 });
 
 // Remove prerequisite relationship
-router.delete('/prerequisites/:id', async (req: Request, res: Response) => {
+router.delete('/prerequisites/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 

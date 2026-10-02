@@ -8,6 +8,8 @@ import {
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { StudentRecordError, updateStudentRecord } from '../services/studentRecords';
+import { requireAdmin, requireUserAccess } from '../middleware/auth';
+import { PUBLIC_USER_SELECT } from '../services/authService';
 
 async function findUserByIdentifier(identifier: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
@@ -71,7 +73,8 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const fullUser = await prisma.user.findUnique({
       where: { id: user.id },
-      include: {
+      select: {
+        ...PUBLIC_USER_SELECT,
         studentRecords: {
           include: {
             course: true,
@@ -127,12 +130,13 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create new user
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireAdmin, async (req: Request, res: Response) => {
   try {
     const validatedData = CreateUserSchema.parse(req.body);
 
     const user = await prisma.user.create({
       data: validatedData,
+      select: PUBLIC_USER_SELECT,
     });
 
     return res.status(201).json({
@@ -211,7 +215,7 @@ router.get('/:id/records', async (req: Request, res: Response) => {
 });
 
 // Add or update student record
-router.post('/:id/records', async (req: Request, res: Response) => {
+router.post('/:id/records', requireUserAccess, async (req: Request, res: Response) => {
   try {
     const data = UpdateStudentRecordSchema.parse(req.body);
     const result = await updateStudentRecord(req.params.id, data);
@@ -228,7 +232,7 @@ router.post('/:id/records', async (req: Request, res: Response) => {
 });
 
 // Preserve the legacy toggle's PLANNED response and idempotent removal behavior.
-router.post('/:id/records/toggle', async (req: Request, res: Response) => {
+router.post('/:id/records/toggle', requireUserAccess, async (req: Request, res: Response) => {
   try {
     const data = ToggleStudentRecordSchema.parse(req.body);
     const result = await updateStudentRecord(req.params.id, data, true);
