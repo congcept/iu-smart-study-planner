@@ -2,7 +2,7 @@
 
 This slice adds registration and session APIs. The browser now includes
 [login/register pages and session recovery](auth-screens.md). Server-backed
-browser progress remains the next implementation step.
+browser progress now synchronizes with the current-student API.
 
 | Endpoint                  | Successful response                                       |
 | ------------------------- | --------------------------------------------------------- |
@@ -36,10 +36,11 @@ own records and study plans. Nested semester routes verify that the semester
 belongs to the specified plan. The current database role is checked on every
 authenticated request, so role changes take effect immediately.
 
-Legacy read-only demo routes remain public for compatibility with the current
-demo curriculum screen. They must move behind account access when server-backed
-progress is connected. Password and password-hash fields are excluded from
-user responses now. Legacy passwordless demo students are preserved; they cannot
+Legacy student, study-plan, and personalized recommendation reads require
+owner/admin access, and only admins can list students. Public course data and
+stateless planning previews remain available to the anonymous demo.
+Password and password-hash fields are excluded from user responses.
+Legacy passwordless demo students are preserved; they cannot
 log in. Register a new account to test authentication.
 
 ## Local setup

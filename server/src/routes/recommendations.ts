@@ -5,13 +5,14 @@ import WorkloadBalancer from '../services/workloadBalancer';
 import SemesterPlanner from '../services/semesterPlanner';
 import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+import { requireUserIdAccess } from '../middleware/auth';
 
 const router = Router();
 const workloadBalancer = new WorkloadBalancer();
 const semesterPlanner = new SemesterPlanner();
 
 // Get course recommendations for a user
-router.get('/user/:userId', async (req: Request, res: Response) => {
+router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { semester, maxCredits = '18', maxDifficulty = '3.5' } = req.query;
@@ -43,7 +44,9 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
       },
     });
 
-    const allCoursesTyped = allCourses as (Course & { prerequisites: (Prerequisite & { prerequisite: Course })[] })[];
+    const allCoursesTyped = allCourses as (Course & {
+      prerequisites: (Prerequisite & { prerequisite: Course })[];
+    })[];
 
     // Filter available courses (prerequisites met and not already taken)
     const availableCourses = allCoursesTyped.filter((course) => {
@@ -182,7 +185,15 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
       prerequisites?: FilteredPrereqNode[];
       dependents?: FilteredPrereqNode[];
     };
-    type RawCourseNode = { id: string, code: string, name: string, credits: number, difficultyLevel: number, prerequisites?: { prerequisite: unknown }[], isPrerequisiteFor?: { course: unknown }[] }; // Fixed any use
+    type RawCourseNode = {
+      id: string;
+      code: string;
+      name: string;
+      credits: number;
+      difficultyLevel: number;
+      prerequisites?: { prerequisite: unknown }[];
+      isPrerequisiteFor?: { course: unknown }[];
+    }; // Fixed any use
 
     // Build prerequisite chain
     const buildPrereqChain = (
@@ -201,7 +212,9 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
         difficultyLevel: c.difficultyLevel,
         prerequisites:
           c.prerequisites
-            ?.map((p: { prerequisite: unknown }) => buildPrereqChain(p.prerequisite as RawCourseNode, depth + 1, new Set(visited)))
+            ?.map((p: { prerequisite: unknown }) =>
+              buildPrereqChain(p.prerequisite as RawCourseNode, depth + 1, new Set(visited)),
+            )
             .filter((p): p is FilteredPrereqNode => p !== null) || [],
       };
     };
@@ -222,7 +235,9 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
         difficultyLevel: c.difficultyLevel,
         dependents:
           c.isPrerequisiteFor
-            ?.map((p: { course: unknown }) => buildDependentChain(p.course as RawCourseNode, depth + 1, new Set(visited)))
+            ?.map((p: { course: unknown }) =>
+              buildDependentChain(p.course as RawCourseNode, depth + 1, new Set(visited)),
+            )
             .filter((p): p is FilteredPrereqNode => p !== null) || [],
       };
     };
@@ -253,10 +268,12 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
 // Plan semester based on intensity and completed courses
 router.post('/plan-semester', async (req: Request, res: Response) => {
   try {
-    const { intensityMode, completedCourseIds } = z.object({
-      intensityMode: z.enum(['low', 'normal', 'high', 'max']),
-      completedCourseIds: z.array(z.string()).optional(),
-    }).parse(req.body);
+    const { intensityMode, completedCourseIds } = z
+      .object({
+        intensityMode: z.enum(['low', 'normal', 'high', 'max']),
+        completedCourseIds: z.array(z.string()).optional(),
+      })
+      .parse(req.body);
 
     const completedSet = new Set(completedCourseIds ?? []);
 
