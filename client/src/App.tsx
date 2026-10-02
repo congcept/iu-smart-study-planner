@@ -119,11 +119,6 @@ function AppShell() {
           </div>
         ) : (
           <>
-            {user && (
-              <p className="mb-3 text-sm text-gray-600">
-                Your progress currently stays in this browser.
-              </p>
-            )}
             <Routes>
               <Route
                 path="/"

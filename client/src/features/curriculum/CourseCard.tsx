@@ -8,6 +8,7 @@ interface CourseCardProps {
   isPlanned: boolean;
   isLocked: boolean;
   isRecommended: boolean;
+  disabled?: boolean;
   isHighlighted?: boolean;
   isBlurred?: boolean;
   onToggleComplete: (courseId: string) => void;
@@ -23,6 +24,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   isPlanned,
   isLocked,
   isRecommended,
+  disabled = false,
   isHighlighted = false,
   isBlurred = false,
   onToggleComplete,
@@ -34,21 +36,23 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   const [hovered, setHovered] = useState(false);
 
   const handleClick = useCallback(() => {
+    if (disabled) return;
     if (isLocked) {
       playLockedSound();
     } else {
       onToggleComplete(course.id);
     }
-  }, [course.id, isLocked, onToggleComplete]);
+  }, [course.id, disabled, isLocked, onToggleComplete]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    if (disabled) return;
     if (isCompleted) {
       onCompleteToPlanned(course.id);
     } else {
       onTogglePlanned(course.id);
     }
-  }, [course.id, isCompleted, onTogglePlanned, onCompleteToPlanned]);
+  }, [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned]);
 
   let borderColor = 'border-gray-300';
   let opacity = 'opacity-100';
@@ -83,6 +87,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
   return (
     <div
+      aria-disabled={disabled}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       onMouseEnter={() => {

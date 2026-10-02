@@ -1,9 +1,14 @@
 import { create } from 'zustand';
+import { isAxiosError } from 'axios';
+import type { ApiResponse, CompleteCourseDTO, StudentProgressDTO } from '@iu-study-planner/shared';
 import type { AppState } from '../types';
+import { getCurrentStudentProgress, saveCourseProgress } from './api';
 import { playCompleteSound, playUncompleteSound, playPlanSound, playUnplanSound } from './sounds';
 
 const STORAGE_KEY = 'completed_courses';
 const PLAN_KEY = 'planned_courses';
+let ownerVersion = 0;
+let loadVersion = 0;
 
 type StoredCompletion = Record<string, string | null>;
 
@@ -16,7 +21,9 @@ const loadCompletedIds = (userId: string | null = null): StoredCompletion => {
     const parsed = JSON.parse(stored);
     if (Array.isArray(parsed)) {
       const result: StoredCompletion = {};
-      parsed.forEach((id: string) => { result[id] = null; });
+      parsed.forEach((id: string) => {
+        result[id] = null;
+      });
       return result;
     }
     return parsed;
@@ -42,6 +49,92 @@ const savePlannedIds = (ids: string[], userId: string | null) => {
   localStorage.setItem(storageKey(PLAN_KEY, userId), JSON.stringify(ids));
 };
 
+function cacheProgress(progress: StudentProgressDTO, userId: string | null) {
+  try {
+    saveCompletedIds(progress.completedIds, userId);
+    savePlannedIds(progress.plannedIds, userId);
+  } catch {
+    // A full browser cache must not turn a confirmed server save into a failed operation.
+  }
+}
+
+function progressErrorMessage(error: unknown) {
+  if (isAxiosError<ApiResponse>(error)) {
+    if (error.response?.status === 401) return 'Your session expired. Sign out and sign in again.';
+    return (
+      error.response?.data?.error || 'Could not save progress. Check your connection and try again.'
+    );
+  }
+  return error instanceof Error ? error.message : 'Could not save progress. Please try again.';
+}
+
+async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []) {
+  const state = useAppStore.getState();
+  if (
+    state.pendingCompletionIds.size ||
+    (state.progressOwnerId && state.progressStatus !== 'ready')
+  )
+    return;
+  const userId = state.progressOwnerId;
+  const version = ownerVersion;
+  const before = { completedIds: state.completedIds, plannedIds: state.plannedIds };
+  const completedIds = { ...state.completedIds };
+  const plannedIds = state.plannedIds.filter((id) => id !== data.courseId);
+  if (data.status === 'COMPLETED') {
+    completedIds[data.courseId] = data.electiveGroup ?? null;
+    playCompleteSound();
+  } else {
+    delete completedIds[data.courseId];
+    for (const id of cascadeIds) delete completedIds[id];
+    if (data.status === 'PLANNED') plannedIds.push(data.courseId);
+    if (state.completedIds[data.courseId] !== undefined) playUncompleteSound();
+    else if (data.status === 'PLANNED') playPlanSound();
+    else playUnplanSound();
+  }
+  const optimistic = { completedIds, plannedIds };
+  useAppStore.setState({
+    ...optimistic,
+    progressError: null,
+    completionVersion: state.completionVersion + 1,
+    pendingCompletionIds: userId ? new Set([data.courseId, ...cascadeIds]) : new Set(),
+  });
+  if (!userId) {
+    cacheProgress(optimistic, null);
+    return;
+  }
+  const isCurrent = () =>
+    ownerVersion === version && useAppStore.getState().progressOwnerId === userId;
+  const reconcile = (progress: StudentProgressDTO) => {
+    cacheProgress(progress, userId);
+    useAppStore.setState((current) => ({
+      completedIds: progress.completedIds,
+      plannedIds: progress.plannedIds,
+      completionVersion: current.completionVersion + 1,
+    }));
+  };
+  try {
+    const confirmed = await saveCourseProgress(data);
+    if (!isCurrent()) return;
+    reconcile(confirmed);
+    useAppStore.setState({ pendingCompletionIds: new Set(), progressStatus: 'ready' });
+  } catch (error) {
+    if (!isCurrent()) return;
+    reconcile(before);
+    useAppStore.setState({ progressError: progressErrorMessage(error) });
+    // A lost response may follow a committed write. Recover before another edit.
+    try {
+      const confirmed = await getCurrentStudentProgress();
+      if (!isCurrent()) return;
+      reconcile(confirmed);
+      useAppStore.setState({ progressStatus: 'ready' });
+    } catch {
+      if (isCurrent()) useAppStore.setState({ progressStatus: 'error' });
+    } finally {
+      if (isCurrent()) useAppStore.setState({ pendingCompletionIds: new Set() });
+    }
+  }
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   courses: [],
@@ -52,6 +145,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
   completionVersion: 0,
   progressOwnerId: null,
+  progressStatus: 'ready',
+  progressError: null,
+  browserProgressBackup: null,
   pendingCompletionIds: new Set(),
   completedIds: loadCompletedIds(),
   plannedIds: loadPlannedIds(),
@@ -64,11 +160,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   setProgressOwner: (userId) => {
+    if (get().progressOwnerId === userId) return;
+    ownerVersion++;
+    loadVersion++;
     set((state) =>
       state.progressOwnerId === userId
         ? state
         : {
             progressOwnerId: userId,
+            progressStatus: userId ? 'idle' : 'ready',
+            progressError: null,
+            browserProgressBackup: null,
+            pendingCompletionIds: new Set(),
             completedIds: loadCompletedIds(userId),
             plannedIds: loadPlannedIds(userId),
             completionVersion: state.completionVersion + 1,
@@ -76,53 +179,64 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
   },
 
-  toggleCourseComplete: (courseId, electiveGroup = null) => {
-    set((state) => {
-      const wasCompleted = state.completedIds[courseId] !== undefined;
-      const record = { ...state.completedIds };
-      if (wasCompleted) {
-        delete record[courseId];
-        playUncompleteSound();
-      } else {
-        record[courseId] = electiveGroup;
-        playCompleteSound();
+  loadProgress: async () => {
+    const userId = get().progressOwnerId;
+    if (!userId || get().pendingCompletionIds.size) return;
+    const version = ownerVersion;
+    const request = ++loadVersion;
+    const previous = { completedIds: get().completedIds, plannedIds: get().plannedIds };
+    const isCurrent = () => ownerVersion === version && loadVersion === request;
+    set({ progressStatus: 'loading', progressError: null });
+    try {
+      const progress = await getCurrentStudentProgress();
+      if (!isCurrent()) return;
+      let browserProgressBackup: StudentProgressDTO | null = null;
+      try {
+        const backupKey = `browser_progress_backup:${userId}`;
+        const markerKey = `server_progress_cache:${userId}`;
+        if (
+          !localStorage.getItem(markerKey) &&
+          (Object.keys(previous.completedIds).length || previous.plannedIds.length)
+        ) {
+          localStorage.setItem(backupKey, JSON.stringify(previous));
+        }
+        const savedBackup = localStorage.getItem(backupKey);
+        browserProgressBackup = savedBackup
+          ? (JSON.parse(savedBackup) as StudentProgressDTO)
+          : null;
+        localStorage.setItem(markerKey, 'true');
+      } catch {
+        // Server progress remains usable when browser storage is unavailable.
       }
-      saveCompletedIds(record, state.progressOwnerId);
-      return { completedIds: record, completionVersion: state.completionVersion + 1 };
+      cacheProgress(progress, userId);
+      set((state) => ({
+        ...progress,
+        browserProgressBackup,
+        progressStatus: 'ready',
+        completionVersion: state.completionVersion + 1,
+      }));
+    } catch (error) {
+      if (isCurrent()) set({ progressStatus: 'error', progressError: progressErrorMessage(error) });
+    }
+  },
+  toggleCourseComplete: async (courseId, electiveGroup = null, cascadeIds = []) => {
+    await mutateProgress(
+      {
+        courseId,
+        electiveGroup,
+        status: get().completedIds[courseId] !== undefined ? 'DROPPED' : 'COMPLETED',
+      },
+      cascadeIds,
+    );
+  },
+  toggleCoursePlanned: async (courseId) => {
+    await mutateProgress({
+      courseId,
+      status: get().plannedIds.includes(courseId) ? 'DROPPED' : 'PLANNED',
     });
   },
-
-  toggleCoursePlanned: (courseId) => {
-    set((state) => {
-      const wasPlanned = state.plannedIds.includes(courseId);
-      const ids = new Set(state.plannedIds);
-      if (wasPlanned) {
-        ids.delete(courseId);
-        playUnplanSound();
-      } else {
-        ids.add(courseId);
-        playPlanSound();
-      }
-      const arr = Array.from(ids);
-      savePlannedIds(arr, state.progressOwnerId);
-      return { plannedIds: arr };
-    });
-  },
-
-  completeToPlanned: (courseId) => {
-    set((state) => {
-      const completedIds = { ...state.completedIds };
-      delete completedIds[courseId];
-      saveCompletedIds(completedIds, state.progressOwnerId);
-      playUncompleteSound();
-
-      const plannedIds = new Set(state.plannedIds);
-      plannedIds.add(courseId);
-      const plannedArr = Array.from(plannedIds);
-      savePlannedIds(plannedArr, state.progressOwnerId);
-
-      return { completedIds, plannedIds: plannedArr, completionVersion: state.completionVersion + 1 };
-    });
+  completeToPlanned: async (courseId, cascadeIds = []) => {
+    await mutateProgress({ courseId, status: 'PLANNED' }, cascadeIds);
   },
 
   completedCourseIds: () => {

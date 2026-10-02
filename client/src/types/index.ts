@@ -1,3 +1,5 @@
+import type { StudentProgressDTO } from '@iu-study-planner/shared';
+
 // Course Types
 export interface Course {
   id: string;
@@ -132,6 +134,10 @@ export interface AppState {
   error: string | null;
   completionVersion: number;
   progressOwnerId: string | null;
+  progressStatus: 'idle' | 'loading' | 'ready' | 'error';
+  progressError: string | null;
+  browserProgressBackup: StudentProgressDTO | null;
+  pendingCompletionIds: Set<string>;
   completedIds: Record<string, string | null>;
   plannedIds: string[];
 
@@ -143,9 +149,14 @@ export interface AppState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setProgressOwner: (userId: string | null) => void;
-  toggleCourseComplete: (courseId: string, electiveGroup?: string | null) => void;
-  toggleCoursePlanned: (courseId: string) => void;
-  completeToPlanned: (courseId: string) => void;
+  loadProgress: () => Promise<void>;
+  toggleCourseComplete: (
+    courseId: string,
+    electiveGroup?: string | null,
+    cascadeIds?: string[],
+  ) => Promise<void>;
+  toggleCoursePlanned: (courseId: string) => Promise<void>;
+  completeToPlanned: (courseId: string, cascadeIds?: string[]) => Promise<void>;
 
   // Computed
   completedCourseIds: () => string[];

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCurriculum, getUserProgress } from '@/lib/api';
+import { getCurriculum } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
-import type { YearSemesterGroup, Course, IntensityMode, StudentRecord } from '@/types';
+import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
 import { collectCompletedDependents } from './prerequisites';
@@ -35,45 +35,6 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
   const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
 
-  const [progress, setProgress] = useState<{
-    completed: StudentRecord[];
-    inProgress: StudentRecord[];
-    planned: StudentRecord[];
-    available: Course[];
-    progress: {
-      totalCourses: number;
-      completedCourses: number;
-      totalCredits: number;
-      completedCredits: number;
-      percentage: number;
-    };
-  } | null>(null);
-
-  useEffect(() => {
-    const fetchProgress = async () => {
-      try {
-        if (userId) {
-          const response = await getUserProgress(userId);
-          if (response.success && response.data) setProgress(response.data);
-          return;
-        }
-        const usersResponse = await fetch('/api/users');
-        const usersJson = await usersResponse.json();
-        if (usersJson.success && usersJson.data && usersJson.data.length > 0) {
-          const userId = usersJson.data[0].id;
-          const progressResponse = await fetch(`/api/users/${userId}/progress`);
-          const progressJson = await progressResponse.json();
-          if (progressJson.success && progressJson.data) {
-            setProgress(progressJson.data);
-          }
-        }
-      } catch {
-        // Progress fetch failure is non-critical
-      }
-    };
-    fetchProgress();
-  }, [userId]);
-
   useEffect(() => {
     const fetchCurriculum = async () => {
       try {
@@ -93,7 +54,13 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     fetchCurriculum();
   }, []);
 
-  const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned } = useAppStore();
+  const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned, loadProgress,
+    progressStatus, progressError, pendingCompletionIds, browserProgressBackup } = useAppStore();
+  const progressReady = !userId || progressStatus === 'ready';
+
+  useEffect(() => {
+    if (userId) void loadProgress();
+  }, [userId, loadProgress]);
   const completedRecord = useAppStore((state) => state.completedIds);
   const plannedIds = useAppStore((state) => state.plannedIds);
   const completedIdKeys = useMemo(() => Object.keys(completedRecord), [completedRecord]);
@@ -197,38 +164,20 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
   const handleToggleComplete = useCallback(
     (courseId: string, electiveGroup?: string | null) => {
-      const wasCompleted = completedRecord[courseId] !== undefined;
-      if (wasCompleted) {
-        const cascadeIds = getCascadedUncompleteIds(courseId, completedRecord);
-        for (const id of cascadeIds) {
-          toggleCourseComplete(id);
-        }
-      }
-      if (plannedIdsSet.has(courseId)) {
-        toggleCoursePlanned(courseId);
-      }
-      toggleCourseComplete(courseId, electiveGroup);
+      const cascadeIds = completedRecord[courseId] !== undefined
+        ? getCascadedUncompleteIds(courseId, completedRecord) : [];
+      void toggleCourseComplete(courseId, electiveGroup, cascadeIds);
     },
-    [toggleCourseComplete, toggleCoursePlanned, plannedIdsSet, completedRecord, getCascadedUncompleteIds],
+    [toggleCourseComplete, completedRecord, getCascadedUncompleteIds],
   );
 
-  const handleTogglePlanned = useCallback(
-    (courseId: string) => {
-      toggleCoursePlanned(courseId);
-    },
-    [toggleCoursePlanned],
-  );
+  const handleTogglePlanned = useCallback((courseId: string) => {
+    void toggleCoursePlanned(courseId);
+  }, [toggleCoursePlanned]);
 
-  const handleCompleteToPlanned = useCallback(
-    (courseId: string) => {
-      const cascadeIds = getCascadedUncompleteIds(courseId, completedRecord);
-      for (const id of cascadeIds) {
-        toggleCourseComplete(id);
-      }
-      completeToPlanned(courseId);
-    },
-    [completeToPlanned, completedRecord, getCascadedUncompleteIds, toggleCourseComplete],
-  );
+  const handleCompleteToPlanned = useCallback((courseId: string) => {
+    void completeToPlanned(courseId, getCascadedUncompleteIds(courseId, completedRecord));
+  }, [completeToPlanned, completedRecord, getCascadedUncompleteIds]);
 
   const handlePrereqsLeave = useCallback(() => {
     setHighlightedPrereqIds(new Set());
@@ -416,7 +365,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     fitToFrame();
     window.addEventListener('resize', fitToFrame);
     return () => window.removeEventListener('resize', fitToFrame);
-  }, [groups.length]);
+  }, [groups.length, progressReady]);
 
   const wasSidebarOpen = useRef(false);
 
@@ -537,11 +486,31 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     });
   }, [baseScale, clampPan]);
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
+  if (loading || (userId && ['idle', 'loading'].includes(progressStatus))) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
+
+  if (userId && progressStatus === 'error') return (
+    <div className="p-8 text-center">
+      <p role="alert" className="mb-3 text-red-700">{progressError || 'Could not load your progress.'}</p>
+      <button className="text-primary-700 underline" onClick={() => void loadProgress()}>Retry progress</button>
+    </div>
+  );
 
   return (
     <div className="space-y-5 overflow-hidden w-full max-w-full">
+      {userId && <p role="status" className="mb-3 text-sm text-gray-600">{pendingCompletionIds.size ? 'Saving progress…' : 'Progress saved'}</p>}
+      {progressError && <p role="alert" className="mb-3 text-sm text-red-700">{progressError}</p>}
+      {browserProgressBackup && <div className="mb-3 text-sm text-gray-600">
+        Earlier browser selections were kept as a backup.{' '}
+        <button className="text-primary-700 underline" onClick={() => {
+          const url = URL.createObjectURL(new Blob([JSON.stringify(browserProgressBackup, null, 2)], { type: 'application/json' }));
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'iu-planner-browser-selections.json';
+          link.click();
+          URL.revokeObjectURL(url);
+        }}>Download earlier selections</button>
+      </div>}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">
         <div className="flex items-center gap-3">
           <span className="text-base font-semibold text-gray-700">Recommendations</span>
@@ -680,6 +649,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                     return (
                       <CourseCard
+                        disabled={pendingCompletionIds.size > 0}
                         key={course.id}
                         course={course}
                         isCompleted={isCompleted}
@@ -817,6 +787,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                     return (
                       <CourseCard
+                        disabled={pendingCompletionIds.size > 0}
                         key={`${activeGroup.name}-${course.id}`}
                         course={course}
                         isCompleted={isCompleted}
@@ -841,7 +812,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         </div>
       </div>
 
-      {progress && (
+      {(
         <div className="mt-10 space-y-6">
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-start gap-8">

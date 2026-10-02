@@ -22,16 +22,19 @@ from localStorage. Initial session lookup waits before showing routes. A missing
 session leads to sign-in; server/network failures show a retry action. Failed
 sign-out keeps the account visible so the student can retry.
 
-Completed courses, elective claims, and planned courses currently remain in the
-browser. Their storage keys are scoped by the authenticated database user ID.
+Signed-in completed courses, elective claims, and planned courses now persist
+through the current-student API. Server hydration overrides the account's browser
+cache. Anonymous demo selections remain browser-local. Cache keys are scoped by the authenticated database user ID.
 Signing out restores the separate demo selections. Signing in as another account
 does not inherit the previous account's selections. Existing demo progress is
 preserved without copying it into a new account.
 
-Signed-in curriculum progress reads use the current account ID instead of the
-first demo student. Persisting browser changes to the server and restricting the
-legacy public progress reads are the next slice. No new database migration or
-dependency installation is needed for these screens.
+Signed-in curriculum progress uses `/api/users/me/progress`, and clicks use
+`/api/users/me/complete`. The map does not fetch a list of students or use the
+first demo student's records. Old browser-only account selections are preserved
+as a downloadable backup; bulk import and restricting legacy public reads remain
+the next slice. No new database migration or dependency installation is needed
+for browser synchronization.
 
 Vite explicitly bundles the CommonJS output of the linked shared workspace for
 development and production, allowing the forms to use the same validation schemas

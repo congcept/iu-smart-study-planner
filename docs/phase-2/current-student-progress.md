@@ -28,10 +28,17 @@ then `npm run db:generate --workspace=server`. Docker's separate backend Prisma
 client also needs regeneration and a backend restart after schema changes.
 The local database was migrated without a seed reset.
 
-This increment prepares server persistence. Browser clicks still use local
-storage. Connecting the store to these endpoints, rollback/reconciliation, the
-bulk progress import endpoint, and hardening legacy public demo reads remain
-the next small steps.
+Browser clicks now use these endpoints. Signed-in progress hydrates before editing;
+optimistic writes reconcile the server's full snapshot. Failed writes roll back and
+reload authoritative state, including when a committed write's response was lost.
+If recovery fails, editing stays blocked until retry succeeds. Account switches
+invalidate late reads/writes, including switching away and back to the same account.
+
+Anonymous demo selections remain browser-local. On first signed-in hydration,
+pre-sync account cache is archived under `browser_progress_backup:<userId>` and
+offered as a JSON download. A marker distinguishes confirmed server cache from
+old browser-only selections. Guest selections are never copied into an account.
+Bulk import of archived selections and hardening legacy public reads remain next.
 
 Tests run against real PostgreSQL and cover session ownership, elective claims,
 plans, mandatory prerequisites, transitive cascades, idempotence, metadata
