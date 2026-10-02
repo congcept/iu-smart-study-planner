@@ -10,11 +10,11 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: iu_study_planner
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,15 +35,16 @@ services:
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       JWT_EXPIRES_IN: 7d
     ports:
-      - "3001:3001"
+      - '3001:3001'
     working_dir: /app/server
     volumes:
       - ./:/app
       - /app/node_modules
+      - /app/shared/dist
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npx prisma migrate dev --skip-seed && npm run dev"
+    command: sh -c "npm --prefix /app run build:shared && npx prisma migrate dev --skip-seed && npm run dev"
     networks:
       - isp-network
 
@@ -56,14 +57,15 @@ services:
     environment:
       VITE_API_URL: http://localhost:3001/api
     ports:
-      - "5173:5173"
+      - '5173:5173'
     working_dir: /app/client
     volumes:
       - ./:/app
       - /app/node_modules
+      - /app/shared/dist
     depends_on:
       - backend
-    command: npm run dev
+    command: sh -c "npm --prefix /app run build:shared && npm run dev -- --host"
     networks:
       - isp-network
 
