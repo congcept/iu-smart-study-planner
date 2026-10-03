@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import { getStudentGrades } from '@/lib/gradesApi';
+import { GradeEntry } from './GradeEntry';
 
 export function GradeDashboard({ userId }: { userId: string }) {
   const [result, setResult] = useState<{ ownerId: string; grades: StudentGradesDTO } | null>(null);
@@ -32,6 +33,15 @@ export function GradeDashboard({ userId }: { userId: string }) {
       activeGeneration.current++;
     };
   }, [load]);
+  const acceptSaved = useCallback(
+    (saved: StudentGradesDTO) => {
+      generation.current++;
+      setResult({ ownerId: userId, grades: saved });
+      setError(null);
+      setLoading(false);
+    },
+    [userId],
+  );
   const grades = result?.ownerId === userId ? result.grades : null;
   const currentError = error?.ownerId === userId ? error.message : null;
   const highest = new Map(
@@ -103,6 +113,7 @@ export function GradeDashboard({ userId }: { userId: string }) {
                 </p>
               )}
             </section>
+            <GradeEntry userId={userId} onSaved={acceptSaved} />
             <section aria-labelledby="grade-history-title">
               <h3 id="grade-history-title" className="text-lg font-semibold text-gray-900">
                 Grade history

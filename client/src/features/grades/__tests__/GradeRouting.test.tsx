@@ -6,6 +6,7 @@ import App from '@/App';
 import * as api from '@/lib/api';
 import { getStudentGrades } from '@/lib/gradesApi';
 vi.mock('@/lib/api');
+vi.mock('../GradeEntry', () => ({ GradeEntry: () => null }));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 vi.mock('@/features/curriculum/CurriculumProgressMap', () => ({
   CurriculumProgressMap: () => <p>Curriculum route</p>,

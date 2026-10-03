@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeDashboard } from '../GradeDashboard';
+vi.mock('../GradeEntry', () => ({ GradeEntry: () => null }));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 const getGrades = vi.mocked(getStudentGrades);
 const empty: StudentGradesDTO = {
