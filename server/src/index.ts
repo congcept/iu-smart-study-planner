@@ -6,6 +6,7 @@ import { prisma } from './db';
 
 // Import routes
 import courseRoutes from './routes/courses';
+import curriculumRoutes from './routes/curricula';
 import userRoutes from './routes/users';
 import studyPlanRoutes from './routes/studyPlans';
 import recommendationRoutes from './routes/recommendations';
@@ -49,6 +50,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRatingRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/curricula', curriculumRoutes);
 app.use('/api/users/me/grades', gradeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/study-plans', studyPlanRoutes);
