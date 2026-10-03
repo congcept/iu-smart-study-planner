@@ -13,6 +13,8 @@ model Course {
   name              String
   credits           Int
   difficultyLevel   Int           @map("difficulty_level") @db.SmallInt
+  avgRating         Float?        @map("avg_rating")
+  ratingCount       Int           @default(0) @map("rating_count")
   description       String?
   category          CourseCategory @default(REQUIRED)
   semesterOffered   Semester[]    @default([FALL, SPRING])
@@ -28,6 +30,7 @@ model Course {
   // Student records
   studentRecords    StudentRecord[]
   gradeAttempts     GradeAttempt[]
+  ratings           CourseRating[]
   
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
@@ -72,6 +75,7 @@ model User {
   // Relations
   studentRecords  StudentRecord[]
   gradeAttempts   GradeAttempt[]
+  ratings         CourseRating[]
   studyPlans      StudyPlan[]
   
   createdAt       DateTime        @default(now()) @map("created_at")
@@ -121,6 +125,22 @@ model GradeAttempt {
   @@unique([userId, requestId])
   @@index([courseId])
   @@map("grade_attempts")
+}
+
+model CourseRating {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  courseId    String   @map("course_id")
+  rating      Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@map("course_ratings")
 }
 
 model StudyPlan {
