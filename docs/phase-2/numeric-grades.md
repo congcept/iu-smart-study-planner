@@ -47,7 +47,7 @@ Thirty-eight PostgreSQL API tests cover strict inputs, account isolation, role/s
 access, request-origin protection, retries, GPA/coverage and preservation. The running
 Docker API also passed a simulated40→90 retake and70 in a second course: weighted GPA
 81.42857142857143, three immutable attempts, and identical progress before/after.
-Grade entry and automatic GPA-path activation remain separate UI increments.
+Automatic GPA-path activation remains a separate increment.
 
 ## Grades dashboard
 
@@ -59,3 +59,23 @@ history. The narrow-screen table scrolls inside a keyboard-focusable named regio
 
 Seventeen client adapter, dashboard and routing tests cover these behaviors. Desktop
 1440px and mobile 390px browser checks confirmed a contained table and no page overflow.
+
+## Grade entry
+
+The Grades page records actual 0–100 course scores and optional semester/year metadata.
+The current catalog is the seeded CS course list; curriculum-aware selection remains
+part of the deferred multi-curriculum work. Each save keeps a request in account-scoped
+sessionStorage before POST. This tab can reconcile it after navigation or refresh.
+A lost response triggers a history read: an identical saved request confirms success;
+absence offers the same immutable retry key, while failed reads keep editing blocked.
+A read showing absence cannot prove an earlier request has stopped, so ambiguous
+requests cannot be discarded. Definitive validation/auth/not-found rejections unlock
+the form. Closing the browser tab discards sessionStorage; recovery across devices or
+closed tabs is not implemented. No completion or legacy grade metadata changes.
+
+Eighteen client tests cover zero/decimals, input boundaries, full dashboard reconciliation,
+double submits, lost responses, stable retries, blocked recovery, refresh, stale owners,
+corrupt/unavailable storage and catalog failures. Build, typecheck, zero-warning lint and
+209 server/143 client tests passed. A live simulated 95-point Calculus retake produced
+84.28571428571429 GPA, retained all previous attempts, and displayed the optional term.
+Desktop/mobile checks found no horizontal page overflow and 44px form controls.
