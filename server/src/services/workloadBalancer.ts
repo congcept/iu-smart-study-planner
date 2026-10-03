@@ -1,5 +1,7 @@
-import { Course, StudentRecord, Prerequisite } from '@prisma/client';
+import { Course, Prerequisite } from '@prisma/client';
 import type { CourseDifficultyDTO } from '@iu-study-planner/shared';
+import config from '../config';
+import { calculateNumericGradeFit, type NumericGradeHistoryEntry } from './numericGradeFit';
 
 type RatedCourse = Course & CourseDifficultyDTO;
 
@@ -20,7 +22,7 @@ interface RecommendationInput {
   availableCourses: CourseWithRelations[];
   maxCredits: number;
   maxDifficulty: number;
-  userHistory: (StudentRecord & { course: RatedCourse })[];
+  numericHistory: NumericGradeHistoryEntry[];
 }
 
 class WorkloadBalancer {
@@ -108,7 +110,7 @@ class WorkloadBalancer {
    * Calculate course recommendations with workload balancing
    */
   calculateRecommendations(input: RecommendationInput): RatedCourse[] {
-    const { availableCourses, maxCredits, maxDifficulty, userHistory } = input;
+    const { availableCourses, maxCredits, maxDifficulty, numericHistory } = input;
 
     // Sort by priority factors
     const scoredCourses = availableCourses.map((course) => {
@@ -122,24 +124,10 @@ class WorkloadBalancer {
       const unlocksCount = course.isPrerequisiteFor?.length || 0;
       priorityScore += unlocksCount * 2;
 
-      // Consider user's past performance on similar difficulty levels
-      const similarDifficultyCourses = userHistory.filter(
-        (r) =>
-          r.gradePoints !== null &&
-          Math.abs(r.course.ratingDifficulty - course.ratingDifficulty) <= 0.5,
-      );
-      if (similarDifficultyCourses.length > 0) {
-        const avgPerformance =
-          similarDifficultyCourses.reduce((sum, r) => sum + (r.gradePoints || 0), 0) /
-          similarDifficultyCourses.length;
-
-        // If user struggles with this difficulty, lower priority slightly
-        if (avgPerformance < 2.5) {
-          priorityScore -= 2;
-        } else if (avgPerformance > 3.5) {
-          priorityScore += 1;
-        }
-      }
+      priorityScore += calculateNumericGradeFit(course, numericHistory, {
+        weight: config.recommendationGradeFitWeight,
+        difficultyTolerance: config.recommendationGradeDifficultyTolerance,
+      });
 
       // Penalize very high difficulty courses slightly
       if (course.ratingDifficulty >= 4) {

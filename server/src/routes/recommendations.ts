@@ -7,6 +7,7 @@ import SemesterPlanner from '../services/semesterPlanner';
 import { prisma } from '../db';
 import { requireUserIdAccess } from '../middleware/auth';
 import { decorateCourseDifficulties } from '../services/courseRatings';
+import { buildNumericGradeHistory } from '../services/numericGradeFit';
 
 const router = Router();
 const workloadBalancer = new WorkloadBalancer();
@@ -24,21 +25,25 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
       })
       .parse(req.query);
 
-    const { userRecords, allCourses } = await prisma.$transaction(
+    const { userRecords, allCourses, numericHistory } = await prisma.$transaction(
       async (tx) => {
         const userRecords = await tx.studentRecord.findMany({ where: { userId } });
         const rows = await tx.course.findMany({
           include: { prerequisites: { include: { prerequisite: true } }, isPrerequisiteFor: true },
         });
-        return { userRecords, allCourses: await decorateCourseDifficulties(tx, rows) };
+        const attempts = await tx.gradeAttempt.findMany({
+          where: { userId },
+          select: { courseId: true, score: true },
+        });
+        const allCourses = await decorateCourseDifficulties(tx, rows);
+        return {
+          userRecords,
+          allCourses,
+          numericHistory: buildNumericGradeHistory(allCourses, attempts),
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
-    const courseById = new Map(allCourses.map((course) => [course.id, course]));
-    const userRecordsTyped = userRecords.map((record) => ({
-      ...record,
-      course: courseById.get(record.courseId)!,
-    }));
     const completedCourseIds = new Set(
       userRecords.filter((r) => r.status === CourseStatus.COMPLETED).map((r) => r.courseId),
     );
@@ -68,7 +73,7 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
       availableCourses: filteredCourses,
       maxCredits,
       maxDifficulty,
-      userHistory: userRecordsTyped,
+      numericHistory,
     });
 
     return res.json({

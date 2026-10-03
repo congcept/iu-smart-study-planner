@@ -13,6 +13,8 @@ interface Config {
   demoLoginEnabled: boolean;
   ratingWritesPerHour: number;
   semesterDifficultyPenaltyWeight: number;
+  recommendationGradeFitWeight: number;
+  recommendationGradeDifficultyTolerance: number;
 }
 
 const duration = /^([1-9]\d*)(s|m|h|d)$/.exec(process.env.JWT_EXPIRES_IN || '7d');
@@ -49,7 +51,27 @@ if (
 )
   throw new Error('SEMESTER_DIFFICULTY_PENALTY_WEIGHT must be between 0 and 50');
 
+const recommendationGradeFitWeight = Number(process.env.RECOMMENDATION_GRADE_FIT_WEIGHT || '2');
+if (
+  !Number.isFinite(recommendationGradeFitWeight) ||
+  recommendationGradeFitWeight < 0 ||
+  recommendationGradeFitWeight > 20
+)
+  throw new Error('RECOMMENDATION_GRADE_FIT_WEIGHT must be between 0 and 20');
+
+const recommendationGradeDifficultyTolerance = Number(
+  process.env.RECOMMENDATION_GRADE_DIFFICULTY_TOLERANCE || '0.5',
+);
+if (
+  !Number.isFinite(recommendationGradeDifficultyTolerance) ||
+  recommendationGradeDifficultyTolerance < 0 ||
+  recommendationGradeDifficultyTolerance > 4
+)
+  throw new Error('RECOMMENDATION_GRADE_DIFFICULTY_TOLERANCE must be between 0 and 4');
+
 const config: Config = {
+  recommendationGradeFitWeight,
+  recommendationGradeDifficultyTolerance,
   ratingWritesPerHour,
   semesterDifficultyPenaltyWeight,
   port: parseInt(process.env.PORT || '3001', 10),
