@@ -10,6 +10,7 @@ import { RegisterPage } from '@/features/auth/RegisterPage';
 import { authErrorMessage } from '@/features/auth/errors';
 import { healthCheck } from './lib/api';
 import { CurriculumProgressMap } from './features/curriculum/CurriculumProgressMap';
+import { AccountCurriculum } from './features/curriculum/AccountCurriculum';
 import { GradeDashboard } from './features/grades/GradeDashboard';
 import { RatingDashboard } from './features/ratings/RatingDashboard';
 import { PlannerDashboard } from './features/planner/PlannerDashboard';
@@ -133,7 +134,7 @@ function AppShell() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route element={<AuthGuard />}>
-                <Route path="/curriculum" element={<CurriculumProgressMap userId={user?.id} />} />
+                <Route path="/curriculum" element={user ? <AccountCurriculum key={user.id} userId={user.id} /> : null} />
                 <Route path="/grades" element={user ? <GradeDashboard key={user.id} userId={user.id} /> : null} />
                 <Route path="/ratings" element={user ? <RatingDashboard key={user.id} userId={user.id} /> : null} />
                 <Route path="/planner" element={user ? <PlannerDashboard key={user.id} userId={user.id} /> : null} />

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+export { CurriculumDetailSchema } from './curriculumDetail';
 export { CurriculumSemesterPreviewSchema } from './curriculumSemesterPreview';
 
 export const PaginationQuerySchema = z.object({
