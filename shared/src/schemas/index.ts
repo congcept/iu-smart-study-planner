@@ -230,6 +230,40 @@ export const ToggleStudentRecordSchema = UpdateStudentRecordSchema.pick({
   status: true,
 });
 
+export const ScopedStudentProgressSchema = z
+  .object({
+    scope: AccountWriteScopeSchema,
+    progress: z
+      .object({
+        completedIds: z
+          .record(z.string().uuid(), z.string().nullable())
+          .refine(
+            (records) =>
+              new Set(Object.keys(records).map((id) => id.toLowerCase())).size ===
+              Object.keys(records).length,
+            'Completed course identities must be unique',
+          )
+          .transform((records) =>
+            Object.fromEntries(
+              Object.entries(records).map(([id, claim]) => [id.toLowerCase(), claim]),
+            ),
+          ),
+        plannedIds: z
+          .array(z.string().uuid())
+          .refine(
+            (ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length,
+            'Planned course identities must be unique',
+          )
+          .transform((ids) => ids.map((id) => id.toLowerCase())),
+      })
+      .strict()
+      .refine(
+        (data) => data.plannedIds.every((id) => !Object.hasOwn(data.completedIds, id)),
+        'A saved course cannot be completed and planned',
+      ),
+  })
+  .strict();
+
 // Courses
 export const CreateCourseSchema = z.object({
   code: z.string().min(1),

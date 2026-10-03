@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
-import type { StudentProgressDTO } from '@iu-study-planner/shared';
+import type { ScopedStudentProgressDTO, StudentProgressDTO } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+import { StudentRecordError } from './studentRecordError';
 
 async function readProgressSnapshot(
   userId: string,
@@ -39,4 +40,27 @@ export function readStudentProgress(
   return prisma.$transaction((snapshot) => readProgressSnapshot(userId, snapshot), {
     isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
   });
+}
+
+/** The owner/context and active selections share one snapshot, including context changes. */
+export function readScopedStudentProgress(
+  userId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<ScopedStudentProgressDTO> {
+  const read = async (db: Prisma.TransactionClient): Promise<ScopedStudentProgressDTO> => {
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, curriculumId: true },
+    });
+    if (!user) throw new StudentRecordError('User not found', 404);
+    return {
+      scope: { userId: user.id, curriculumId: user.curriculumId },
+      progress: await readProgressSnapshot(user.id, db),
+    };
+  };
+  return tx
+    ? read(tx)
+    : prisma.$transaction(read, {
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+      });
 }
