@@ -169,7 +169,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 468 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 478 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -185,32 +185,31 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-03
 
-Development remains active; work needing unavailable input is skipped and recorded. Planner,
-curriculum foundation and CS source verifier are pushed and merged through PR #46. An additive
-CurriculumRequirement table now represents uncoded free-elective credits with kind, exact name,
-optional placement, source order and provenance. It never creates a fake global Course. Unique
-source order is scoped to a curriculum; positive credits, sane placement and nonnegative order
-are enforced in SQL. Deleting a context removes requirements while preserving global student
-evidence. No reference rows are backfilled and no contextual reader is activated in this slice.
+Development remains active; work needing unavailable input is skipped and recorded. Increments
+through PR #47 are pushed/merged: protected Planner, additive curriculum foundation, strict CS
+source verifier/manifest and explicit uncoded requirement storage. A read-only CS backfill
+preflight is implemented and verified with this checkpoint. It reads catalog/prerequisites in
+one RepeatableRead snapshot, matches exact source codes/names/credits to existing global IDs,
+blocks missing/ambiguous/conflicting identities and external/duplicate prerequisite references,
+and returns no partial preview on incompatibility. Dependencies of courses outside CS are not
+unioned into this context. Legacy edge flags remain provenance; every edge is mandatory policy.
+The CLI performs only reads; it does not create context rows or assign students.
 
-The requirement migration preserved all 13 existing data-table fingerprints on populated local
-PostgreSQL; the complete history also passed in a fresh disposable database. Eleven new storage
-cases plus build/typecheck/zero-warning lint pass with 468 server / 310 client tests. Requirement
-storage and final verification ran inline after the agent thread limit; do not represent these
-as an independent review. Earlier foundation/Planner reviews remain scoped to their increments.
-The CS verifier/manifest now express the invariant that a validated backfill must preserve the
-free-elective requirement, rather than claiming storage is still absent. Its source provenance
-and readiness-false reconciliation gates remain unchanged.
+Live local preflight passes: all 56 identities match, all 71 appearances/one requirement survive,
+and 21 legacy prerequisite edges have valid source endpoints. Compatibility is not signed-source
+or graduation-total verification. Ten pure cases plus build/typecheck/zero-warning lint pass with
+478 server / 310 client tests. This increment and requirement storage were reviewed inline after
+the subagent thread limit; earlier independent reviews remain limited to their original scope.
+Both additive migrations passed populated/fresh installation checks with existing fingerprints
+unchanged; the app remains running and no source data, seed or reset was used.
 
-Next: implement an explicit idempotent legacy CS backfill with atomic validation against existing
-global codes/names/credits, every source occurrence/group/requirement, and existing prerequisite
-edges. Keep unknown totals null and preserve legacy prerequisite provenance. Do not overwrite
-conflicting existing context rows, assign students automatically, change global identities,
-merge prerequisite sets or activate a new major. Keep reported 130/131 path totals visible;
-source reconciliation and contextual completion/import/cascade/recommendation/planner readers
-and priors must precede IT/DS selection. School resources, allocation, admin dashboard,
-deployment and thesis remain outstanding. Unrelated staged files and interface drafts remain
-local and excluded. The app is running; no reset or seed was performed.
+Next: implement atomic/idempotent legacy CS context backfill from exact source bytes and matching
+global IDs, preserving all occurrences, free-elective requirements and existing edge provenance.
+Reject conflicting existing contexts without overwriting; do not assign users or activate readers.
+Keep unknown totals null and reported 130/131 path totals explicit. Source reconciliation and
+contextual completion/import/cascade/recommendation/planner readers and priors must precede IT/DS
+selection. Admin resources/allocation/dashboard, deployment and thesis remain outstanding.
+Unrelated staged files and interface drafts remain local and excluded from these commits.
 
 Changes since the previous checkpoint:
 
@@ -482,7 +481,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 468 server tests and 310 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 478 server tests and 310 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
