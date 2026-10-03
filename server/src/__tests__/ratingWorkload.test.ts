@@ -8,6 +8,7 @@ import router from '../routes/recommendations';
 import WorkloadBalancer from '../services/workloadBalancer';
 import { decorateCourseDifficulties, readCourseRatings } from '../services/courseRatings';
 import { AUTH_COOKIE_NAME, issueToken } from '../services/authService';
+import { buildNumericGradeHistory } from '../services/numericGradeFit';
 
 const app = express();
 app.use(express.json());
@@ -124,7 +125,7 @@ describe('rating-based workload and recommendations', () => {
           availableCourses: [hard, easy],
           maxCredits: 3,
           maxDifficulty: 5,
-          userHistory: [],
+          numericHistory: [],
         })
         .map((course) => course.id),
     ).toEqual([easy.id]);
@@ -140,7 +141,7 @@ describe('rating-based workload and recommendations', () => {
         availableCourses: courses,
         maxCredits: 18,
         maxDifficulty: 2.1,
-        userHistory: [],
+        numericHistory: [],
       }),
     ).toHaveLength(3);
   });
@@ -154,7 +155,7 @@ describe('rating-based workload and recommendations', () => {
       'Very high average difficulty. Consider balancing workload',
     );
   });
-  it('matches nearby floating estimates for known legacy performance, excluding missing grades', async () => {
+  it('matches numeric evidence by category and nearby estimates without converting legacy grades', async () => {
     const courses = await projected();
     const record = await prisma.studentRecord.create({
       data: { userId, courseId: ids[3], status: 'COMPLETED', gradePoints: 2 },
@@ -162,19 +163,25 @@ describe('rating-based workload and recommendations', () => {
     const similar = { ...courses[0], ratingDifficulty: 2.2 };
     const different = { ...courses[1], ratingDifficulty: 3.2 };
     const historyCourse = { ...courses[3], ratingDifficulty: 2 };
-    const input = { availableCourses: [similar, different], maxCredits: 3, maxDifficulty: 5 };
+    const input = { availableCourses: [different, similar], maxCredits: 3, maxDifficulty: 5 };
     expect(
       balancer.calculateRecommendations({
         ...input,
-        userHistory: [{ ...record, course: historyCourse }],
+        numericHistory: buildNumericGradeHistory(
+          [historyCourse],
+          [{ courseId: record.courseId, score: 90 }],
+        ),
+      })[0].id,
+    ).toBe(similar.id);
+    expect(
+      balancer.calculateRecommendations({
+        ...input,
+        numericHistory: buildNumericGradeHistory([historyCourse], []),
       })[0].id,
     ).toBe(different.id);
     expect(
-      balancer.calculateRecommendations({
-        ...input,
-        userHistory: [{ ...record, gradePoints: null, course: historyCourse }],
-      })[0].id,
-    ).toBe(similar.id);
+      (await prisma.studentRecord.findUniqueOrThrow({ where: { id: record.id } })).gradePoints,
+    ).toBe(2);
   });
   it('keeps empty workload defined without inventing course evidence', async () => {
     expect(balancer.analyzeSemesterWorkload([])).toMatchObject({
