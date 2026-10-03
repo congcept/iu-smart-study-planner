@@ -110,3 +110,18 @@ isolation. Full gates pass307 server/178 client tests. A real simulated vote cha
 4→3, retained count1 and refreshed the estimate; desktop/mobile checks passed at390px
 without page overflow. UI review/documentation used a disclosed inline fallback after
 subagent account usage limits. Curriculum means and scoring integration remain pending.
+
+## Workload and personalized course selection
+
+Workload averages, risk scores, difficulty warnings, ranking penalties and selection
+limits now consume ratingDifficulty. Personal recommendation reads project the catalog
+and account records in one repeatable-read snapshot, retaining counts in returned
+courses. Recommendation limits are validated; malformed/nonfinite/out-of-range values
+return400. Difficulty-related legacy performance matching uses a half-point band for
+continuous estimates and excludes missing grades. Numeric highest-score grade fit is
+still pending; no0–100 to4-point conversion was invented.
+
+Thirteen cases verify real API projections and cold starts, hand-computed workload
+values, inverted seed/estimate rankings, difficulty constraints, warnings, nearby
+estimates and invalid limits. Full gates pass320 server/178 client tests. Semester
+planning, client scoring, saved-plan cached difficulty and curriculum priors follow.
