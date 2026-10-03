@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 721 server tests and 470 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 738 server tests and 482 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #68 are pushed/merged. The legacy GPA response-scope guard is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #69 are pushed/merged. The scoped grade-write increment is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -347,7 +347,29 @@ cases plus all map/GPA regressions pass. Build/types/zero-warning lint and 721 s
 client tests pass on the exact isolated snapshot. No visual layout or server policy changed;
 review was inline after the account usage limit. See docs/phase-2/legacy-gpa-scope-guard.md.
 
-Next: add atomic expected-owner/context preconditions to completion, grade and rating writes,
+New numeric grade requests retain a strict expected owner and UUID/null curriculum from the
+confirmed course picker. Cookie-owner mismatch rejects before retry lookup; new writes compare
+current curriculum inside the existing Serializable transaction before membership checks/save.
+These fields never assign a curriculum or enter immutable GradeAttempt rows. Exact committed
+retries recover before the curriculum precondition so changed contexts cannot duplicate history.
+The optional API field keeps older clients compatible; the current form sends it for every new
+attempt. Absent legacy journals and unresolved stale-context requests stay locked for recovery,
+with no automatic key or scope replacement. Scoped replies require the matching owner. Course
+choices refresh when recovery detects a context change. Safe resolution of an absent legacy
+journal remains a later explicit recovery-workflow task, before assignment is enabled.
+
+Seventeen new PostgreSQL cases, four API-adapter cases and eight form cases pass alongside all
+prior regressions: build/types/zero-warning lint, 738 server / 482 client tests on the exact
+isolated source. Browser review covers a real simulated 81-point save, then a context change
+before the second save; only one attempt is added and legacy metadata/history stay unchanged.
+Review is inline because previously requested subagents hit the account usage limit. Details:
+`docs/phase-2/grade-write-scope.md`.
+
+The running backend recovered from stale generated DTOs by rebuilding its isolated shared
+output and triggering its existing source watcher; frontend/backend health reads return 200.
+No PostgreSQL reset, reseed or container recreation was needed.
+
+Next: add atomic expected-owner/context preconditions to completion/import and rating writes,
 then adopt context-aware completion mutation/cache handling before enabling editing. Keep completion
 editing gated until progress/cache hydration/types and pending mutations/claims are isolated
 by owner and context. The old GPA hook is retained only within the confirmed-null legacy map.
@@ -629,7 +651,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 721 server tests and 470 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 738 server tests and 482 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

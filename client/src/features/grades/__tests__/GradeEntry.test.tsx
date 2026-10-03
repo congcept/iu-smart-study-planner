@@ -15,8 +15,11 @@ const catalog = vi.mocked(getStudentGradeCourses);
 const append = vi.mocked(appendStudentGrade);
 const read = vi.mocked(getStudentGrades);
 const courseId = '00000000-0000-4000-8000-000000000001';
+const userId = '11111111-1111-4111-8111-111111111111';
+const otherUserId = '22222222-2222-4222-8222-222222222223';
 const requestId = '00000000-0000-4000-8000-000000000002';
 const empty: StudentGradesDTO = {
+  scope: { userId, curriculumId: null, isGpaPath: true },
   attempts: [],
   summary: {
     gpa100: null,
@@ -27,7 +30,12 @@ const empty: StudentGradesDTO = {
   },
   completedCoursesWithoutNumericGrades: [],
 };
-const payload: AppendGradeAttemptDTO = { courseId, requestId, score: 0 };
+const payload: AppendGradeAttemptDTO = {
+  courseId,
+  requestId,
+  score: 0,
+  expectedScope: { userId, curriculumId: null },
+};
 const saved = (data = payload): StudentGradesDTO => ({
   ...empty,
   summary: {
@@ -50,7 +58,7 @@ const saved = (data = payload): StudentGradesDTO => ({
 });
 const onSaved = vi.fn();
 const storage = new Map<string, string>();
-const key = 'pending_grade_attempt:one';
+const key = `pending_grade_attempt:${userId}`;
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
@@ -59,7 +67,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 async function mount() {
-  const view = render(<GradeEntry userId="one" onSaved={onSaved} />);
+  const view = render(<GradeEntry userId={userId} onSaved={onSaved} />);
   await waitFor(() => expect(screen.queryByText('Loading courses…')).not.toBeInTheDocument());
   return view;
 }
@@ -92,7 +100,7 @@ afterEach(() => {
 describe('numeric grade entry', () => {
   const assignedChoices = {
     scope: {
-      userId: 'one',
+      userId,
       curriculumId: '22222222-2222-4222-8222-222222222222',
       isGpaPath: false,
     },
@@ -101,11 +109,108 @@ describe('numeric grade entry', () => {
   it('requests confirmed account choices and explains the assigned reference scope', async () => {
     catalog.mockResolvedValue(assignedChoices);
     await mount();
-    expect(catalog).toHaveBeenCalledWith('one');
+    expect(catalog).toHaveBeenCalledWith(userId);
     expect(
       screen.getByText(/Course choices follow your current reference curriculum/),
     ).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /MA001IU/ })).toBeInTheDocument();
+  });
+
+  it('retains the confirmed owner and assigned curriculum in the durable score request', async () => {
+    catalog.mockResolvedValue(assignedChoices);
+    await mount();
+    fill('81');
+    submit();
+    await screen.findByText('Score saved. Course completion is unchanged.');
+    expect(append.mock.calls[0][0].expectedScope).toEqual({
+      userId,
+      curriculumId: assignedChoices.scope.curriculumId,
+    });
+  });
+
+  it('uses fresh curriculum preconditions after refresh even when the chosen course stays the same', async () => {
+    await mount();
+    fill('81');
+    catalog.mockResolvedValue(assignedChoices);
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByText(/Course choices follow your current reference curriculum/);
+    submit();
+    await waitFor(() => expect(append).toHaveBeenCalled());
+    expect(append.mock.calls[0][0].expectedScope).toEqual({
+      userId,
+      curriculumId: assignedChoices.scope.curriculumId,
+    });
+  });
+
+  it('blocks an absent stale-context attempt and keeps its original key and scope', async () => {
+    storage.set(key, JSON.stringify(payload));
+    read.mockResolvedValue({ ...empty, scope: assignedChoices.scope });
+    await mount();
+    await screen.findByText(/Your curriculum changed. The pending attempt is kept for recovery/);
+    expect(storage.get(key)).toBe(JSON.stringify(payload));
+    expect(screen.queryByRole('button', { name: 'Retry this attempt' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
+    expect(append).not.toHaveBeenCalled();
+    read.mockResolvedValue({ ...saved(payload), scope: assignedChoices.scope });
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved grades' }));
+    await screen.findByText('Score saved. Course completion is unchanged.');
+    expect(storage.has(key)).toBe(false);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('recovers a scoped lost response in a newer curriculum without posting again', async () => {
+    append.mockImplementation(async (data) => {
+      read.mockResolvedValue({ ...saved(data), scope: assignedChoices.scope });
+      throw new Error('lost');
+    });
+    await mount();
+    fill('81');
+    submit();
+    await screen.findByText('Score saved. Course completion is unchanged.');
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0][0].expectedScope).toEqual({ userId, curriculumId: null });
+    expect(storage.has(key)).toBe(false);
+  });
+
+  it('withholds retry for an older absent request without a confirmed scope', async () => {
+    const legacy = { courseId, requestId, score: payload.score };
+    storage.set(key, JSON.stringify(legacy));
+    await mount();
+    await screen.findByText(/older pending request has no confirmed curriculum/);
+    expect(storage.get(key)).toBe(JSON.stringify(legacy));
+    expect(screen.queryByRole('button', { name: 'Retry this attempt' })).not.toBeInTheDocument();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('still recovers an older committed request without adding scope to its saved payload', async () => {
+    const legacy = { courseId, requestId, score: payload.score };
+    storage.set(key, JSON.stringify(legacy));
+    read.mockResolvedValue(saved(legacy));
+    await mount();
+    await screen.findByText('Score saved. Course completion is unchanged.');
+    expect(storage.has(key)).toBe(false);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('keeps a pending scoped request when recovery has no confirmed response owner', async () => {
+    storage.set(key, JSON.stringify(payload));
+    const legacyGrades = { ...saved(payload) };
+    delete legacyGrades.scope;
+    read.mockResolvedValue(legacyGrades);
+    await mount();
+    await screen.findByText(/Could not confirm whether the score was saved/);
+    expect(storage.get(key)).toBe(JSON.stringify(payload));
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('blocks a journal whose expected owner differs from the mounted account', async () => {
+    const wrong = { ...payload, expectedScope: { userId: otherUserId, curriculumId: null } };
+    storage.set(key, JSON.stringify(wrong));
+    await mount();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Browser recovery data/);
+    expect(storage.get(key)).toBe(JSON.stringify(wrong));
+    expect(read).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
   });
   it('disables new grade entry for an empty context', async () => {
     catalog.mockResolvedValue({ ...assignedChoices, courses: [] });
@@ -181,7 +286,7 @@ describe('numeric grade entry', () => {
     storage.set(key, JSON.stringify(payload));
     read.mockResolvedValue({
       ...saved(payload),
-      scope: { ...assignedChoices.scope, userId: 'two' },
+      scope: { ...assignedChoices.scope, userId: otherUserId },
     });
     await mount();
     await screen.findByText(/Could not confirm whether the score was saved/);
@@ -191,7 +296,7 @@ describe('numeric grade entry', () => {
     expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
   });
   it('updates dashboard history from the returned snapshot without an extra load', async () => {
-    render(<GradeDashboard userId="one" />);
+    render(<GradeDashboard userId={userId} />);
     await waitFor(() => expect(screen.getByLabelText('Course')).toBeEnabled());
     fill('85');
     submit();
@@ -304,7 +409,7 @@ describe('numeric grade entry', () => {
     fill('88');
     submit();
     const old = append.mock.calls[0][0];
-    rerender(<GradeEntry userId="two" onSaved={onSaved} />);
+    rerender(<GradeEntry userId={otherUserId} onSaved={onSaved} />);
     await act(async () => response.resolve(saved(old)));
     expect(onSaved).not.toHaveBeenCalled();
     expect(JSON.parse(storage.get(key)!)).toEqual(old);

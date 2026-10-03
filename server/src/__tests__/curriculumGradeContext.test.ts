@@ -450,6 +450,127 @@ describe('account-context grades (PostgreSQL)', () => {
     expect(await history()).toHaveLength(1);
   });
 
+  const scopedAppend = (
+    curriculumId: string | null,
+    userId = users[0],
+    requestId = randomUUID(),
+    score = 80,
+    cookieIndex = 0,
+  ) =>
+    request(app).post(path).set('Cookie', cookie(cookieIndex)).send({
+      courseId: courses.A,
+      requestId,
+      score,
+      expectedScope: { userId, curriculumId },
+    });
+
+  it('saves with a matching explicit context and leaves legacy progress unchanged', async () => {
+    const before = await prisma.studentRecord.findMany({
+      where: { userId: users[0] },
+      orderBy: { id: 'asc' },
+    });
+    expect((await scopedAppend(contexts[0])).status).toBe(200);
+    expect(await history()).toHaveLength(1);
+    expect(
+      await prisma.studentRecord.findMany({ where: { userId: users[0] }, orderBy: { id: 'asc' } }),
+    ).toEqual(before);
+  });
+
+  it('accepts explicit null only for an unassigned owner', async () => {
+    expect((await scopedAppend(null, users[2], randomUUID(), 80, 2)).status).toBe(200);
+    expect(await prisma.gradeAttempt.count({ where: { userId: users[2] } })).toBe(1);
+  });
+
+  it.each(['null-to-assigned', 'assigned-to-null', 'assigned-to-other'])(
+    'rejects a new stale context write (%s) even for a course common to both contexts',
+    async (change) => {
+      const expected = change === 'null-to-assigned' ? null : contexts[0];
+      const current = change === 'assigned-to-null' ? null : contexts[1];
+      await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: current } });
+      const before = await prisma.studentRecord.findMany({
+        where: { userId: users[0] },
+        orderBy: { id: 'asc' },
+      });
+      const response = await scopedAppend(expected);
+      expect(response.status).toBe(409);
+      expect(response.body.error).toMatch(/curriculum changed/);
+      expect(await history()).toEqual([]);
+      expect(
+        await prisma.studentRecord.findMany({
+          where: { userId: users[0] },
+          orderBy: { id: 'asc' },
+        }),
+      ).toEqual(before);
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: users[0] } })).curriculumId).toBe(
+        current,
+      );
+    },
+  );
+
+  it('cannot redirect a write to the claimed owner when the cookie account changed', async () => {
+    const response = await scopedAppend(contexts[0], users[0], randomUUID(), 80, 1);
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatch(/account changed/);
+    expect(await prisma.gradeAttempt.count({ where: { userId: { in: users } } })).toBe(0);
+  });
+
+  it('normalizes equivalent uppercase scope UUIDs', async () => {
+    expect((await scopedAppend(contexts[0].toUpperCase(), users[0].toUpperCase())).status).toBe(
+      200,
+    );
+    expect(await history()).toHaveLength(1);
+  });
+
+  it('recovers the exact committed request before testing changed curriculum preconditions', async () => {
+    const requestId = randomUUID();
+    expect((await scopedAppend(contexts[0], users[0], requestId)).status).toBe(200);
+    const before = await history();
+    await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: contexts[1] } });
+    const retry = await scopedAppend(contexts[0], users[0], requestId);
+    expect(retry.status).toBe(200);
+    expect(retry.body.data.scope.curriculumId).toBe(contexts[1]);
+    expect((await scopedAppend(contexts[0], users[0], requestId, 81)).status).toBe(409);
+    expect(await history()).toEqual(before);
+  });
+
+  it('checks cookie ownership even when that cookie already has the same request key', async () => {
+    const requestId = randomUUID();
+    expect((await scopedAppend(contexts[1], users[1], requestId, 80, 1)).status).toBe(200);
+    const before = await prisma.gradeAttempt.findMany({ where: { userId: users[1] } });
+    expect((await scopedAppend(contexts[0], users[0], requestId, 80, 1)).status).toBe(409);
+    expect(await prisma.gradeAttempt.findMany({ where: { userId: users[1] } })).toEqual(before);
+    expect(await history()).toEqual([]);
+  });
+
+  it('deduplicates concurrent scoped retries without storing client scope claims', async () => {
+    const requestId = randomUUID();
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, () => scopedAppend(contexts[0], users[0], requestId)),
+    );
+    expect(responses.every(({ status }) => status === 200)).toBe(true);
+    expect(await history()).toHaveLength(1);
+    expect((await history())[0]).not.toHaveProperty('expectedScope');
+  });
+
+  it.each([
+    null,
+    {},
+    { userId: users[0] },
+    { curriculumId: contexts[0] },
+    { userId: 'invalid', curriculumId: contexts[0] },
+    { userId: users[0], curriculumId: 'CS' },
+    { userId: users[0], curriculumId: contexts[0], role: 'ADMIN' },
+  ])('rejects malformed scope preconditions %j without new history', async (expectedScope) => {
+    const response = await request(app).post(path).set('Cookie', cookie()).send({
+      courseId: courses.A,
+      requestId: randomUUID(),
+      score: 80,
+      expectedScope,
+    });
+    expect(response.status).toBe(400);
+    expect(await history()).toEqual([]);
+  });
+
   it('preserves legacy metadata and unknown graduation totals while recording numeric grades', async () => {
     const before = await prisma.studentRecord.findMany({
       where: { userId: users[0] },

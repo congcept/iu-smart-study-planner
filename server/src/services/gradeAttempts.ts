@@ -7,6 +7,7 @@ export interface AppendGradeAttemptInput {
   score: number;
   semester?: Semester | null;
   year?: number | null;
+  expectedScope?: { userId: string; curriculumId: string | null };
 }
 
 export class GradeAttemptError extends Error {
@@ -30,6 +31,11 @@ export async function appendGradeAttempt(
   userId: string,
   input: AppendGradeAttemptInput,
 ): Promise<GradeAttempt> {
+  if (input.expectedScope && input.expectedScope.userId.toLowerCase() !== userId.toLowerCase())
+    throw new GradeAttemptError(
+      'The signed-in account changed. Reload your session before saving a score',
+      409,
+    );
   if (!Number.isFinite(input.score) || input.score < 0 || input.score > 100) {
     throw new GradeAttemptError('Score must be a finite number between 0 and 100', 400);
   }
@@ -61,6 +67,14 @@ export async function appendGradeAttempt(
               select: { curriculumId: true },
             });
             if (!user) throw new GradeAttemptError('User not found', 404);
+            if (
+              input.expectedScope &&
+              input.expectedScope.curriculumId?.toLowerCase() !== user.curriculumId?.toLowerCase()
+            )
+              throw new GradeAttemptError(
+                'Your curriculum changed. Reload grade-entry courses before saving a score',
+                409,
+              );
             const course = await tx.course.findUnique({
               where: { id: input.courseId },
               select: { id: true },

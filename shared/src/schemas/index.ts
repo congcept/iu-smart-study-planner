@@ -82,6 +82,21 @@ export const StudentGradeCoursesSchema = z
 
 export const RateCourseSchema = z.object({ rating: z.number().int().min(1).max(5) }).strict();
 
+// A precondition, never an instruction to change the authenticated account/context.
+export const AccountWriteScopeSchema = z
+  .object({
+    userId: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase()),
+    curriculumId: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase())
+      .nullable(),
+  })
+  .strict();
+
 export const CourseRatingQuerySchema = z
   .object({
     curriculumId: z
@@ -105,6 +120,7 @@ export const AppendGradeAttemptSchema = z
     score: z.number().finite().min(0).max(100),
     semester: SemesterSchema.optional(),
     year: z.number().int().min(2000).max(2100).optional(),
+    expectedScope: AccountWriteScopeSchema.optional(),
   })
   .strict();
 

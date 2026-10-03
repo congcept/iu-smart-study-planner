@@ -41,9 +41,10 @@ export async function getStudentGradeCourses(
 }
 
 export async function appendStudentGrade(data: AppendGradeAttemptDTO): Promise<StudentGradesDTO> {
-  const response = await apiClient.post<ApiResponse<StudentGradesDTO>>(
-    '/users/me/grades',
-    AppendGradeAttemptSchema.parse(data),
-  );
-  return readGrades(response.data);
+  const payload = AppendGradeAttemptSchema.parse(data);
+  const response = await apiClient.post<ApiResponse<StudentGradesDTO>>('/users/me/grades', payload);
+  const grades = readGrades(response.data);
+  if (payload.expectedScope && grades.scope?.userId !== payload.expectedScope.userId)
+    throw new Error('Could not verify the saved grade owner');
+  return grades;
 }
