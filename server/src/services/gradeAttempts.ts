@@ -48,39 +48,61 @@ export async function appendGradeAttempt(
     year: input.year ?? null,
   };
   const where = { userId_requestId: { userId, requestId: input.requestId } };
-  // Check retries before course lookup so a reused key always reports the original attempt.
-  let attempt = await prisma.gradeAttempt.findUnique({ where });
-  if (!attempt) {
-    const course = await prisma.course.findUnique({
-      where: { id: input.courseId },
-      select: { id: true },
-    });
-    if (!course) throw new GradeAttemptError('Course not found', 404);
+  for (let retry = 0; retry < 5; retry++) {
     try {
-      // Empty update keeps immutable history and allows native atomic upsert when supported.
-      attempt = await prisma.gradeAttempt.upsert({ where, create: payload, update: {} });
+      return await prisma.$transaction(
+        async (tx) => {
+          // Recover immutable retries before checking current membership. A context
+          // change must not turn an already committed attempt into a new write.
+          let attempt = await tx.gradeAttempt.findUnique({ where });
+          if (!attempt) {
+            const user = await tx.user.findUnique({
+              where: { id: userId },
+              select: { curriculumId: true },
+            });
+            if (!user) throw new GradeAttemptError('User not found', 404);
+            const course = await tx.course.findUnique({
+              where: { id: input.courseId },
+              select: { id: true },
+            });
+            if (!course) throw new GradeAttemptError('Course not found', 404);
+            if (user.curriculumId) {
+              const member = await tx.curriculumCourse.findUnique({
+                where: {
+                  curriculumId_courseId: {
+                    curriculumId: user.curriculumId,
+                    courseId: input.courseId,
+                  },
+                },
+                select: { placements: { take: 1, select: { id: true } } },
+              });
+              if (!member || member.placements.length === 0)
+                throw new GradeAttemptError('Course is not placed in the assigned curriculum', 409);
+            }
+            attempt = await tx.gradeAttempt.upsert({ where, create: payload, update: {} });
+          }
+          if (
+            attempt.courseId !== payload.courseId ||
+            attempt.score !== payload.score ||
+            attempt.semester !== payload.semester ||
+            attempt.year !== payload.year
+          ) {
+            throw new GradeAttemptError(
+              'This request ID was already used for a different grade attempt',
+              409,
+            );
+          }
+          return attempt;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        // Concurrent retries can race when Prisma performs a read then insert.
-        attempt = await prisma.gradeAttempt.findUnique({ where });
-        if (!attempt) throw error;
-      } else if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-        throw new GradeAttemptError('Course not found', 404);
-      } else {
-        throw error;
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (['P2034', 'P2002'].includes(error.code)) continue;
+        if (error.code === 'P2003') throw new GradeAttemptError('Course or owner not found', 404);
       }
+      throw error;
     }
   }
-  if (
-    attempt.courseId !== payload.courseId ||
-    attempt.score !== payload.score ||
-    attempt.semester !== payload.semester ||
-    attempt.year !== payload.year
-  ) {
-    throw new GradeAttemptError(
-      'This request ID was already used for a different grade attempt',
-      409,
-    );
-  }
-  return attempt;
+  throw new GradeAttemptError('Grade history changed concurrently; retry this request', 409);
 }
