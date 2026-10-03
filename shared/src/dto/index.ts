@@ -16,6 +16,27 @@ export type LoginDTO = z.infer<typeof schemas.LoginSchema>;
 export type DemoLoginDTO = z.infer<typeof schemas.DemoLoginSchema>;
 export type CompleteCourseDTO = z.infer<typeof schemas.CompleteCourseSchema>;
 export type UpsertProgressDTO = z.infer<typeof schemas.UpsertProgressSchema>;
+export type AppendGradeAttemptDTO = z.infer<typeof schemas.AppendGradeAttemptSchema>;
+export interface GradeAttemptDTO {
+  id: string;
+  requestId: string;
+  courseId: string;
+  score: number;
+  semester: Semester | null;
+  year: number | null;
+  createdAt: string;
+  course: { id: string; code: string; name: string; credits: number };
+}
+export interface StudentGradesDTO {
+  attempts: GradeAttemptDTO[];
+  summary: {
+    gpa100: number | null;
+    gradedCredits: number;
+    gradedCourseCount: number;
+    courseScores: { courseId: string; score: number; credits: number }[];
+  };
+  completedCoursesWithoutNumericGrades: string[];
+}
 export interface StudentProgressDTO {
   completedIds: Record<string, string | null>;
   plannedIds: string[];

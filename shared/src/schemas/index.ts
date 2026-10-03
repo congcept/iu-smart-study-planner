@@ -23,6 +23,22 @@ export const CategorySchema = z.enum([
 ]);
 export const SemesterSchema = z.enum(['FALL', 'SPRING', 'SUMMER']);
 
+export const AppendGradeAttemptSchema = z
+  .object({
+    courseId: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase()),
+    requestId: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase()),
+    score: z.number().finite().min(0).max(100),
+    semester: SemesterSchema.optional(),
+    year: z.number().int().min(2000).max(2100).optional(),
+  })
+  .strict();
+
 // Users
 export const UserRoleSchema = z.enum(['STUDENT', 'ADMIN']);
 
