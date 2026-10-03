@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import request from 'supertest';
+import { CurriculumDetailSchema } from '@iu-study-planner/shared';
 import type {
   ApiResponse,
   CurriculumDetailDTO,
@@ -134,6 +135,14 @@ describe('isolated curriculum context reads (PostgreSQL)', () => {
     expect(response.status).toBe(200);
     return (response.body as ApiResponse<CurriculumDetailDTO>).data!;
   }
+
+  it.each([0, 1, 2])(
+    'validates real reference response %s at the shared client boundary',
+    async (index) => {
+      const saved = await detail(index);
+      expect(CurriculumDetailSchema.parse(saved)).toEqual(saved);
+    },
+  );
 
   it('lists only reference metadata in code order with unknown totals preserved', async () => {
     const response = await request(app).get('/api/curricula');

@@ -28,6 +28,7 @@ const student: AuthUserDTO = {
   name: 'Alice Student',
   email: 'alice@example.test',
   role: 'STUDENT',
+  curriculumId: null,
 };
 const httpError = (status: number, error: string) =>
   Object.assign(new Error(error), {
@@ -229,13 +230,14 @@ describe('authentication screens and session routing', () => {
   it('offers retry for a server failure instead of treating it as an expired session', async () => {
     vi.mocked(api.getSession)
       .mockRejectedValueOnce(new Error('Network unavailable'))
-      .mockResolvedValueOnce(student);
+      .mockResolvedValue(student);
     render(<App />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not check your session');
     expect(screen.queryByRole('heading', { name: 'Sign in' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText(student.name)).toBeInTheDocument();
-    expect(api.getSession).toHaveBeenCalledTimes(2);
+    expect(await screen.findByTestId('curriculum')).toHaveTextContent(student.id);
+    expect(api.getSession).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the public demo available when signed out', async () => {

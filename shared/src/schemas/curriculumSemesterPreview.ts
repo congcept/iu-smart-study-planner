@@ -18,7 +18,7 @@ const placement = z
     sourceLabel: z.string().nullable(),
   })
   .strict();
-const course = z
+export const CurriculumCourseSchema = z
   .object({
     id: uuid,
     code: z.string().min(1),
@@ -62,7 +62,7 @@ export const CurriculumSemesterPreviewSchema = z
         })
         .strict(),
     ),
-    courses: z.array(course),
+    courses: z.array(CurriculumCourseSchema),
     ignoredPlannedIds: z.array(uuid),
     unscheduled: z.array(
       z
