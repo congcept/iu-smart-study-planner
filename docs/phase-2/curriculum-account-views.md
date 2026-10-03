@@ -2,7 +2,9 @@
 
 Owner/admin profile and record reads now resolve the requested account's stored context
 in a repeatable-read snapshot. UUID-shaped identifiers retain primary-key precedence,
-including uppercase UUID aliases. Public-user selection excludes password fields.
+and readers normalize UUIDs after access checks. Current owner routes require the canonical
+identifier because their guard is still case-sensitive. Public-user selection excludes
+password fields.
 
 For assigned accounts, `GET /api/users/:id` returns current member records in
 `studentRecords` and nonmember records in `historicalRecords`. The active course metadata

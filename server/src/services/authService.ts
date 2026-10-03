@@ -14,6 +14,7 @@ export const AUTH_USER_SELECT = {
   name: true,
   email: true,
   role: true,
+  curriculumId: true,
 } as const;
 export const PUBLIC_USER_SELECT = {
   ...AUTH_USER_SELECT,

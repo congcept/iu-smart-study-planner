@@ -35,7 +35,14 @@ describe('development demo cookie sessions (PostgreSQL)', () => {
       const agent = request.agent(app);
       const login = await agent.post('/api/auth/demo').send({ role });
       expect(login.status).toBe(200);
-      expect(login.body.data.user).toEqual(DEMO_ACCOUNTS[role]);
+      const stored = await prisma.user.findUniqueOrThrow({
+        where: { id: DEMO_ACCOUNTS[role].id },
+        select: { curriculumId: true },
+      });
+      expect(login.body.data.user).toEqual({
+        ...DEMO_ACCOUNTS[role],
+        curriculumId: stored.curriculumId,
+      });
       expect(login.body.data).not.toHaveProperty('token');
       expect(login.headers['set-cookie'][0]).toContain('HttpOnly');
       expect(login.headers['set-cookie'][0]).toContain('SameSite=Lax');

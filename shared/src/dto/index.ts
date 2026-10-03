@@ -101,6 +101,8 @@ export interface AuthUserDTO {
   name: string;
   email: string;
   role: UserRole;
+  /** Server replies always include this; older cached sessions may omit it. */
+  curriculumId?: string | null;
 }
 export interface AuthResponseDTO {
   user: AuthUserDTO;
