@@ -77,7 +77,7 @@ npm run dev                                # Build shared, then run shared/clien
 
 - GPA > 70: shows only Thesis (IT058IU), hides other Y4S2 courses — target = 41 remaining courses
 - GPA <= 70: shows all Y4S2 courses except Thesis — target = 43 remaining courses
-- Toggle lives under the Y4S2 column header, affects only that column
+- Signed-in numeric GPA uses the server grade-summary path; the displayed rounded GPA never determines eligibility. Manual controls remain under Y4S2 only for guests or a confirmed null GPA. Loading/error blocks course edits and shows retry; focus/visibility refresh updates the path after grade edits.
 
 ### Degree Progress
 
@@ -154,7 +154,7 @@ Branches, pushes, and PR creation/merge are authorized in this conversation.
 | Student progress               | Authenticated `/users/me/progress` and `/users/me/complete`; elective claim column; mandatory prerequisite validation; transaction cascade; browser hydration, optimistic saves, reconciliation, rollback/recovery, account isolation, cache backups; owner/admin guards for legacy student, study-plan and personalized recommendation reads; additive archived-selection import API with atomic prerequisite/cycle validation; validated account-scoped browser import action, confirmed-state reconciliation and backup-preserving recovery; inline archived course/claim review, explicit import/Later controls and prerequisite/context blockers; profile/progress completed credits consistently exclude physical training | Multi-curriculum context for import claims                                                                                                                |
 | Study plans                    | Legacy semester create/update rejects duplicate and unknown course IDs atomically before saving; UUID normalization, strict fields and authoritative credits and snapshot-consistent Bayesian difficulty totals on course-list saves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Activate planner UI and recommendations                                                                                                                   |
 | CS/IT/DS source gate           | User-supplied official CSE page reviewed; signed 2024/2025 curriculum links identified; existing CS JSON retained as attribute/layout reference                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Reconcile signed PDFs with conflicting HTML; validate and seed IT/DS; implement multi-curriculum schema/API/selector                                      |
-| Grades and GPA                 | Existing grade metadata preserved by completion updates; tested numeric 0–100 GPA calculator, highest score per course, credit weighting and physical-training exclusion; additive immutable numeric GradeAttempt history with account-scoped retry keys; authenticated numeric grade history/append APIs with consistent summaries and explicit coverage gaps; protected Grades dashboard with retake history, loading/retry states and account isolation; numeric grade entry with account-scoped tab recovery, immutable retry keys and full-snapshot reconciliation; server GPA path in grade summaries with decimal-exact >70 policy                                                                                                                                                          | Server-driven GPA path rendering                                                                                                                                    |
+| Grades and GPA                 | Existing grade metadata preserved by completion updates; tested numeric 0–100 GPA calculator, highest score per course, credit weighting and physical-training exclusion; additive immutable numeric GradeAttempt history with account-scoped retry keys; authenticated numeric grade history/append APIs with consistent summaries and explicit coverage gaps; protected Grades dashboard with retake history, loading/retry states and account isolation; numeric grade entry with account-scoped tab recovery, immutable retry keys and full-snapshot reconciliation; server GPA path in grade summaries with decimal-exact >70 policy; signed-in curriculum path/target/recommendations follow the server with account isolation, refresh, retry and explicit-null manual fallback                                                                                                                                                          | Numeric grade fit and workload/recommendation screens                                                                                                                                    |
 | Ratings and recommendations    | Seed difficulty prior retained; pure Bayesian shrinkage helper with prior strength 5, zero-rating mean behavior and confidence count; additive global CourseRating rows with unique account/course votes, 1–5 checks and atomic cached averages/counts, including concurrent writes and FK deletion; public consistent rating summaries with global prior resolution and Bayesian estimates; completion-gated cookie-authenticated upserts and durable configurable hourly quota, idempotent unchanged retries; private current-account vote reads; batched, snapshot-consistent difficulty/count projections in course lists, detail and curriculum rows; visible difficulty/count badges with honest zero-vote copy; protected Ratings route with completed-course 1–5 entry, saved personal votes, account isolation, session-tab recovery and locked same-vote retries; Bayesian estimates consumed by workload averages, risk, validation, personalized course selection and configurable semester ranking and explicit unscheduled-course reporting without misleading graduation estimates; duplicated planner `RULES` removed, all database prerequisite flags enforced across earlier semesters                                                                                                                                                                                                                   | Curriculum-specific prior resolution and multi-objective scoring |
 | School admin                   | Real ADMIN role and demo session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Resources, demand, scarcity allocation, multi-objective scoring, dashboard — required                                                                     |
 | Verification/deployment/thesis | Real PostgreSQL and client regression suites; shared-first root builds/typechecks/tests; concurrent local startup; Docker shared builds with isolated compiled output; local Docker smoke checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Deployment gate and thesis chapters                                                                                                                       |
@@ -169,7 +169,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 367 server tests and 195 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 367 server tests and 234 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -185,9 +185,9 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-03
 
-Development resumed at the user's request. Completed increments through PR #39 are
-pushed and merged into GitHub `main`. Server GPA-path policy now passes full quality
-gates with 367 server / 195 client tests; client path rendering follows separately. The local
+Development resumed at the user's request. Completed increments through PR #40 are
+pushed and merged into GitHub `main`. The client GPA-path increment passes full quality
+gates with 367 server / 234 client tests and is ready for its separate PR. The local
 Docker app is running; rebuilding backend shared types restored its signed-in session.
 Pre-existing staged files and unfinished UI edits outside these increments remain local
 and must not be included in a future commit without reviewing their ownership/scope.
@@ -214,9 +214,11 @@ Resume with small, separately verified increments in this order:
    alternative, null without eligible scores. Decimal weighted totals prevent binary
    arithmetic from misclassifying exact 70; highest retakes and PT exclusions remain.
    The earlier draft is superseded. GET/POST API summaries share this cookie-account policy.
-2. Connect the curriculum Y4S2 path to that server result with account isolation, loading/
-   error recovery and manual choice only when no numeric GPA exists. Verify both paths,
-   exact 70, a value just above 70, retakes and switching accounts. The UI is still manual.
+2. Curriculum Y4S2 rendering is implemented: the server path selects Thesis/alternative,
+   recommendation budgets and the 41/43-course target. Guests and confirmed-null numeric
+   GPA retain manual choice; loading/error exposes no editable courses. 39 new client
+   cases cover validation, stale accounts/handlers, retry and focus refresh without losing
+   progress. Desktop/mobile browser checks confirm the 84.29 Thesis path and no page overflow.
 3. Integrate numeric course/category grade fit into recommendations, then activate the
    existing workload and recommendation screens against their verified APIs. Keep score
    weights in server configuration and preserve the current UI until its pending edits
@@ -229,8 +231,8 @@ Resume with small, separately verified increments in this order:
    scoring and scarcity allocation with a real dashboard. Deployment and thesis writing
    follow their gates; neither is complete.
 
-The full Grades and Ratings roadmap phases are not complete: GPA-driven rendering,
-numeric grade fit, curriculum priors and multi-objective scoring remain outstanding.
+The full Grades and Ratings roadmap phases are not complete: numeric grade fit,
+planner screen activation, curriculum priors and multi-objective scoring remain outstanding.
 Later UI finish reviews used a disclosed inline fallback after subagents hit
 an account usage limit; they must not be represented as independent agent reviews.
 
@@ -453,7 +455,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 367 server tests and 195 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 367 server tests and 234 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

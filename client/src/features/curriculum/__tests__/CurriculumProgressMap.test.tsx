@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCurriculum, getCurrentStudentProgress, saveCourseProgress } from '@/lib/api';
 import type { CompleteCourseResponseDTO } from '@iu-study-planner/shared';
+import { getStudentGrades } from '@/lib/gradesApi';
 import { useAppStore } from '@/lib/store';
 import type { Course } from '@/types';
 import { CurriculumProgressMap } from '../CurriculumProgressMap';
@@ -12,6 +13,7 @@ vi.mock('@/lib/api', () => ({
   getCurrentStudentProgress: vi.fn(),
   saveCourseProgress: vi.fn(),
 }));
+vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 vi.mock('@/lib/sounds', () => ({
   playCompleteSound: vi.fn(),
   playUncompleteSound: vi.fn(),
@@ -56,6 +58,11 @@ async function showCurriculum(courses: Course[], userId?: string) {
 }
 
 beforeEach(() => {
+  vi.mocked(getStudentGrades).mockResolvedValue({
+    attempts: [],
+    completedCoursesWithoutNumericGrades: [],
+    summary: { gpa100: null, gpaPath: null, gradedCredits: 0, gradedCourseCount: 0, courseScores: [] },
+  });
   const storage = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => storage.get(key) ?? null,
