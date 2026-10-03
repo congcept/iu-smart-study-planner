@@ -169,7 +169,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 427 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 437 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -185,27 +185,33 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-03
 
-Development remains active at the user's request; work requiring unavailable input is skipped
-and recorded. Completed increments through PR #43 are pushed and merged into GitHub `main`.
-The protected `/planner` increment is verified and ready for PR: it reads saved selections
-from the server, calculates rating-informed workload, and exposes read-only personalized
-suggestions with the authoritative GPA path. Loading, empty, retry, reload and account/selection
-isolation are covered. Unknown saved course IDs block analysis instead of silently disappearing.
-No suggestion writes progress. Seventy-six new client cases bring verification to 427 server /
-310 client tests; build, typecheck and zero-warning lint pass. Three existing semester tests now
-compare floating difficulty averages with 12-decimal tolerance while retaining exact credits,
-order and metadata assertions. Desktop/mobile browser checks confirm calculation, reload and
-no page overflow. Independent finish review requested narrow contrast corrections; these use
-existing tokens and semantic badges. The detector's spinner border warning is a false positive.
+Development remains active; work requiring unavailable input is skipped and recorded.
+Completed increments through PR #44 are pushed and merged into GitHub `main`. The protected
+Planner page is shipped with saved-selection hydration, rating-based workload calculation,
+read-only suggestions, exact server GPA path, retries/reload and account/selection isolation.
+The independent finish reviewer scored all listed contrast fixes resolved; desktop/mobile
+captures verify the tested success state without horizontal overflow.
 
-Next: an additive curriculum foundation, then a separately verified CS backfill and contextual
-readers. Preserve repeated elective placements: one membership alone cannot round-trip the
-current CS reference. Keep existing Course placement columns and global prerequisites until
-all readers resolve a coherent curriculum context. Free-elective placeholders are requirements,
-not blank-code courses. Current JSON totals differ between the two GPA paths (130 vs 131);
-do not label legacy data as signed 2025 or invent a verified total. IT/DS sources remain gated.
-Pre-existing staged files and unfinished interface edits stay local and excluded from these
-commits. The Docker app remains running; no data was reset.
+The next additive curriculum foundation is implemented and verified for PR: Curriculum
+metadata/provenance, unique CurriculumCourse membership, separate repeated CurriculumPlacement
+occurrences, and context-specific CurriculumPrerequisite edges with both endpoint memberships
+enforced by composite foreign keys. User.curriculumId is nullable and clears on curriculum
+deletion. Unknown totals stay null. Existing Course placement fields, prerequisites, data and
+readers remain active; no backfill, major selector, IT/DS seed or redundant-index removal is
+included. All nine legacy table fingerprints are unchanged after migration on the populated
+local database; the full migration history also passes on a disposable fresh database.
+Ten new real PostgreSQL tests cover storage constraints and safe cascades. Build/typecheck/
+zero-warning lint and 437 server / 310 client tests pass for the exact snapshot.
+
+Next: a read-only checked-in CS reference verifier/source manifest, then represent the free
+three-credit elective requirement and implement idempotent CS backfill separately. Preserve
+all 71 coded occurrences of 56 global course identities, repeated group claims and exact source
+order. DB-only placement backfill is lossy because the seed stores the first slot and last
+repeated group. The current JSON totals differ between GPA paths (130 vs 131); preserve that
+finding without inventing a verified graduation total or relabeling legacy data as signed 2025.
+Verified contextual readers and priors must precede IT/DS activation. Unrelated staged files
+and unfinished interface edits remain local and excluded. The local app is running; no reset
+or seed was performed.
 
 Changes since the previous checkpoint:
 
@@ -262,16 +268,16 @@ an account usage limit; they must not be represented as independent agent review
 
 These are settled. Do not relitigate without new evidence.
 
-| ID     | Decision                                                                                         | Rationale                                                                                                                                                                                                                                         |
-| ------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **D1** | `Course` is **global**; placement lives in a `CurriculumCourse` join table                       | `MA001IU` appears in nearly every program. Global rows avoid ~60% duplication, and one rating average serves all programs. Year/semester placement is _per-curriculum_ (Calculus is Y1S1 for CS, Y2S1 for Business) so it cannot live on `Course` |
-| **D2** | `CurriculumGraph.tsx` is **deleted**; drop `@xyflow/react`, `dagre`, `@types/dagre`              | 272 lines of dead code duplicating the column layout. Only source of `@xyflow/react` and `dagre` imports in the repo. `react-router-dom` stays and becomes the real nav backbone                                                                  |
-| **D3** | Auth token in an **httpOnly cookie**, not localStorage                                           | Not readable by JS, so XSS cannot exfiltrate it. Makes `credentials: true` (already in `server/src/index.ts`) load-bearing. Requires `cookie-parser` + CSRF mitigation (`SameSite=Lax` or double-submit)                                          |
-| **D4** | `Course.difficultyLevel` is **retained** as the Bayesian prior `m`                               | Never deleted. The seed heuristic (`seed.ts:40`) becomes the cold-start prior, not dead data                                                                                                                                                      |
-| **D5** | Remove the `RULES` array in the recommendation phase; prerequisite data must live only in the DB | The duplicated semester-planner array has been removed. Every database prerequisite is mandatory under the confirmed policy, regardless of legacy strict/corequisite flags                                                                        |
-| **D6** | Server is **authoritative** for completion + cascade                                             | Client BFS is optimistic UX only. A client must not be able to complete a course whose strict prerequisites are unmet                                                                                                                             |
-| **D7** | `PlannedSemester.courses` stays `Json`                                                           | Escaped by `@@unique([studyPlanId, semester, year])`; no query needs to index into it. Do not migrate to a join table                                                                                                                             |
-| **D8** | Phase 4 (School Admin) is **required**, not stretch                                              | Confirmed with supervisor. It is the multi-stakeholder contribution that distinguishes the thesis                                                                                                                                                 |
+| ID     | Decision                                                                                                                        | Rationale                                                                                                                                                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D1** | `Course` is **global**; curriculum membership uses `CurriculumCourse`, repeated placements use child `CurriculumPlacement` rows | `MA001IU` appears in nearly every program. Global rows avoid ~60% duplication, and one rating average serves all programs. Year/semester placement is _per-curriculum_ (Calculus is Y1S1 for CS, Y2S1 for Business) so it cannot live on `Course` |
+| **D2** | `CurriculumGraph.tsx` is **deleted**; drop `@xyflow/react`, `dagre`, `@types/dagre`                                             | 272 lines of dead code duplicating the column layout. Only source of `@xyflow/react` and `dagre` imports in the repo. `react-router-dom` stays and becomes the real nav backbone                                                                  |
+| **D3** | Auth token in an **httpOnly cookie**, not localStorage                                                                          | Not readable by JS, so XSS cannot exfiltrate it. Makes `credentials: true` (already in `server/src/index.ts`) load-bearing. Requires `cookie-parser` + CSRF mitigation (`SameSite=Lax` or double-submit)                                          |
+| **D4** | `Course.difficultyLevel` is **retained** as the Bayesian prior `m`                                                              | Never deleted. The seed heuristic (`seed.ts:40`) becomes the cold-start prior, not dead data                                                                                                                                                      |
+| **D5** | Remove the `RULES` array in the recommendation phase; prerequisite data must live only in the DB                                | The duplicated semester-planner array has been removed. Every database prerequisite is mandatory under the confirmed policy, regardless of legacy strict/corequisite flags                                                                        |
+| **D6** | Server is **authoritative** for completion + cascade                                                                            | Client BFS is optimistic UX only. A client must not be able to complete a course whose strict prerequisites are unmet                                                                                                                             |
+| **D7** | `PlannedSemester.courses` stays `Json`                                                                                          | Escaped by `@@unique([studyPlanId, semester, year])`; no query needs to index into it. Do not migrate to a join table                                                                                                                             |
+| **D8** | Phase 4 (School Admin) is **required**, not stretch                                                                             | Confirmed with supervisor. It is the multi-stakeholder contribution that distinguishes the thesis                                                                                                                                                 |
 
 ## Target Schema (post-Phase-1)
 
@@ -477,7 +483,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 427 server tests and 310 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 437 server tests and 310 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
