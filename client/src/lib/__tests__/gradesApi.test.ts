@@ -113,6 +113,44 @@ describe('grade API adapter', () => {
     await expect(appendStudentGrade({ ...input, score: 101 })).rejects.toThrow();
     expect(post).not.toHaveBeenCalled();
   });
+
+  it('posts normalized scope preconditions without rebinding a durable retry key', async () => {
+    const expectedScope = {
+      userId: scope.userId.toUpperCase(),
+      curriculumId: scope.curriculumId.toUpperCase(),
+    };
+    post.mockResolvedValue({ data: { success: true, data: { ...data, scope } } });
+    await appendStudentGrade({ ...input, expectedScope });
+    expect(post).toHaveBeenCalledWith('/users/me/grades', {
+      ...input,
+      courseId: input.courseId.toLowerCase(),
+      requestId: input.requestId.toLowerCase(),
+      expectedScope: { userId: scope.userId, curriculumId: scope.curriculumId },
+    });
+  });
+
+  it.each([undefined, { ...scope, userId: '33333333-3333-4333-8333-333333333333' }])(
+    'rejects missing or wrong saved owner for a scoped write %j',
+    async (responseScope) => {
+      post.mockResolvedValue({ data: { success: true, data: { ...data, scope: responseScope } } });
+      await expect(
+        appendStudentGrade({
+          ...input,
+          expectedScope: { userId: scope.userId, curriculumId: scope.curriculumId },
+        }),
+      ).rejects.toThrow(/owner/);
+    },
+  );
+
+  it('permits recovery summaries in a newer curriculum for the same scoped owner', async () => {
+    post.mockResolvedValue({ data: { success: true, data: { ...data, scope } } });
+    expect(
+      await appendStudentGrade({
+        ...input,
+        expectedScope: { userId: scope.userId, curriculumId: null },
+      }),
+    ).toEqual({ ...data, scope });
+  });
   it('rejects failed envelopes', async () => {
     get.mockResolvedValue({ data: { success: false, error: 'Session unavailable' } });
     await expect(getStudentGrades()).rejects.toThrow('Session unavailable');

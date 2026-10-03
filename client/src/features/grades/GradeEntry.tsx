@@ -22,10 +22,10 @@ function GradeEntrySession({ userId, onSaved }: Props) {
   const [journal] = useState(() => {
     try {
       const raw = sessionStorage.getItem(requestKey(userId));
-      return {
-        pending: raw ? AppendGradeAttemptSchema.parse(JSON.parse(raw)) : null,
-        error: false,
-      };
+      const pending = raw ? AppendGradeAttemptSchema.parse(JSON.parse(raw)) : null;
+      if (pending?.expectedScope && pending.expectedScope.userId !== userId.toLowerCase())
+        throw new Error('Wrong pending grade owner');
+      return { pending, error: false };
     } catch {
       return { pending: null, error: true };
     }
@@ -53,7 +53,11 @@ function GradeEntrySession({ userId, onSaved }: Props) {
 
   const finish = useCallback(
     (grades: StudentGradesDTO) => {
-      if (grades.scope && grades.scope.userId !== userId) throw new Error('Wrong grade owner');
+      if (
+        (grades.scope && grades.scope.userId !== userId.toLowerCase()) ||
+        (pending.current?.expectedScope && !grades.scope)
+      )
+        throw new Error('Wrong grade owner');
       sessionStorage.removeItem(requestKey(userId));
       pending.current = null;
       busy.current = false;
@@ -63,48 +67,6 @@ function GradeEntrySession({ userId, onSaved }: Props) {
       onSaved(grades);
     },
     [onSaved, userId],
-  );
-
-  const recover = useCallback(
-    async (payload: AppendGradeAttemptDTO, token: number) => {
-      busy.current = true;
-      setPhase('checking');
-      setMessage('Checking whether your score was saved…');
-      try {
-        const grades = await getStudentGrades();
-        if (token !== generation.current) return;
-        if (grades.scope && grades.scope.userId !== userId) throw new Error('Wrong grade owner');
-        const saved = grades.attempts.find((attempt) => attempt.requestId === payload.requestId);
-        if (saved) {
-          if (
-            saved.courseId !== payload.courseId ||
-            saved.score !== payload.score ||
-            saved.semester !== (payload.semester ?? null) ||
-            saved.year !== (payload.year ?? null)
-          ) {
-            setPhase('blocked');
-            setMessage(
-              'This saved request has different details. Keep the request for review; another score cannot be submitted yet.',
-            );
-          } else finish(grades);
-        } else {
-          onSaved(grades);
-          setPhase('retry');
-          setMessage(
-            'The score is not in your saved history. Retry this same attempt to confirm it before recording another score.',
-          );
-        }
-      } catch {
-        if (token !== generation.current) return;
-        setPhase('blocked');
-        setMessage(
-          'Could not confirm whether the score was saved. Reload saved grades before recording another attempt.',
-        );
-      } finally {
-        if (token === generation.current) busy.current = false;
-      }
-    },
-    [finish, onSaved, userId],
   );
 
   const loadCourses = useCallback(async () => {
@@ -127,6 +89,65 @@ function GradeEntrySession({ userId, onSaved }: Props) {
         setCatalogStatus('error');
     }
   }, [userId]);
+
+  const recover = useCallback(
+    async (payload: AppendGradeAttemptDTO, token: number) => {
+      busy.current = true;
+      setPhase('checking');
+      setMessage('Checking whether your score was saved…');
+      try {
+        const grades = await getStudentGrades();
+        if (token !== generation.current) return;
+        if (
+          (grades.scope && grades.scope.userId !== userId.toLowerCase()) ||
+          (payload.expectedScope && !grades.scope)
+        )
+          throw new Error('Wrong grade owner');
+        const saved = grades.attempts.find((attempt) => attempt.requestId === payload.requestId);
+        if (saved) {
+          if (
+            saved.courseId !== payload.courseId ||
+            saved.score !== payload.score ||
+            saved.semester !== (payload.semester ?? null) ||
+            saved.year !== (payload.year ?? null)
+          ) {
+            setPhase('blocked');
+            setMessage(
+              'This saved request has different details. Keep the request for review; another score cannot be submitted yet.',
+            );
+          } else finish(grades);
+        } else {
+          onSaved(grades);
+          if (!payload.expectedScope) {
+            setPhase('blocked');
+            setMessage(
+              'This older pending request has no confirmed curriculum. It is kept for recovery; reload saved grades to check whether it was recorded.',
+            );
+          } else if (grades.scope?.curriculumId !== payload.expectedScope.curriculumId) {
+            void loadCourses();
+            setPhase('blocked');
+            setMessage(
+              'Your curriculum changed. The pending attempt is kept for recovery. Reload saved grades to check it before recording another score.',
+            );
+          } else {
+            setPhase('retry');
+            setMessage(
+              'The score is not in your saved history. Retry this same attempt to confirm it before recording another score.',
+            );
+          }
+        }
+      } catch {
+        if (token !== generation.current) return;
+        setPhase('blocked');
+        setMessage(
+          'Could not confirm whether the score was saved. Reload saved grades before recording another attempt.',
+        );
+      } finally {
+        if (token === generation.current) busy.current = false;
+      }
+    },
+    [finish, loadCourses, onSaved, userId],
+  );
 
   useEffect(() => {
     const activeGeneration = generation;
@@ -204,6 +225,7 @@ function GradeEntrySession({ userId, onSaved }: Props) {
     const parsed = AppendGradeAttemptSchema.safeParse({
       courseId,
       requestId: crypto.randomUUID(),
+      expectedScope: { userId, curriculumId },
       score: score.trim() === '' ? Number.NaN : Number(score),
       ...(semester ? { semester } : {}),
       ...(year.trim() ? { year: Number(year) } : {}),
