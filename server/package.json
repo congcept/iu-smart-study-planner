@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon src/index.ts",
+    "dev": "nodemon --watch src --watch ../shared/dist --ext ts,js,json --delay 500ms src/index.ts",
     "lint": "eslint . --ext ts",
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
