@@ -153,7 +153,7 @@ Branches, pushes, and PR creation/merge are authorized in this conversation.
 | Auth and demo roles            | Cookie register/login/logout/me; ownership/admin guards; session recovery even when browser storage is denied; development-only demo student/admin buttons; header role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | School-admin dashboard and production deployment                                                                                           |
 | Student progress               | Authenticated `/users/me/progress` and `/users/me/complete`; elective claim column; mandatory prerequisite validation; transaction cascade; browser hydration, optimistic saves, reconciliation, rollback/recovery, account isolation, cache backups; owner/admin guards for legacy student, study-plan and personalized recommendation reads; additive archived-selection import API with atomic prerequisite/cycle validation; validated account-scoped browser import action, confirmed-state reconciliation and backup-preserving recovery; inline archived course/claim review, explicit import/Later controls and prerequisite/context blockers; profile/progress completed credits consistently exclude physical training                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Multi-curriculum context for import claims                                                                                                 |
 | Study plans                    | Legacy semester create/update rejects duplicate and unknown course IDs atomically before saving; UUID normalization, strict fields and authoritative credits and snapshot-consistent Bayesian difficulty totals on course-list saves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Validated semester planning and curriculum context                                                                                         |
-| CS/IT/DS source gate           | User-supplied official CSE page reviewed; signed 2024/2025 curriculum links identified; existing CS JSON retained as attribute/layout reference; additive context membership/placement/prerequisite foundation and nullable user assignment; strict read-only CS verifier with portable source manifest preserving 71 placements/56 identities and explicit free-elective requirement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Represent free electives; idempotent CS backfill and contextual readers/priors; reconcile signed PDFs, validate IT/DS, then major selector |
+| CS/IT/DS source gate           | User-supplied official CSE page reviewed; signed 2024/2025 curriculum links identified; existing CS JSON retained as attribute/layout reference; additive context membership/placement/prerequisite foundation and nullable user assignment; strict read-only CS verifier with portable source manifest preserving 71 placements/56 identities and explicit free-elective requirement and additive requirement storage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Represent free electives; idempotent CS backfill and contextual readers/priors; reconcile signed PDFs, validate IT/DS, then major selector |
 | Grades and GPA                 | Existing grade metadata preserved by completion updates; tested numeric 0–100 GPA calculator, highest score per course, credit weighting and physical-training exclusion; additive immutable numeric GradeAttempt history with account-scoped retry keys; authenticated numeric grade history/append APIs with consistent summaries and explicit coverage gaps; protected Grades dashboard with retake history, loading/retry states and account isolation; numeric grade entry with account-scoped tab recovery, immutable retry keys and full-snapshot reconciliation; server GPA path in grade summaries with decimal-exact >70 policy; signed-in curriculum path/target/recommendations follow the server with account isolation, refresh, retry and explicit-null manual fallback                                                                                                                                                                                                                                                                                                                                                                                                                   | Curriculum context and subject-specific metadata                                                                                           |
 | Ratings and recommendations    | Seed difficulty prior retained; pure Bayesian shrinkage helper with prior strength 5, zero-rating mean behavior and confidence count; additive global CourseRating rows with unique account/course votes, 1–5 checks and atomic cached averages/counts, including concurrent writes and FK deletion; public consistent rating summaries with global prior resolution and Bayesian estimates; completion-gated cookie-authenticated upserts and durable configurable hourly quota, idempotent unchanged retries; private current-account vote reads; batched, snapshot-consistent difficulty/count projections in course lists, detail and curriculum rows; visible difficulty/count badges with honest zero-vote copy; protected Ratings route with completed-course 1–5 entry, saved personal votes, account isolation, session-tab recovery and locked same-vote retries; Bayesian estimates consumed by workload averages, risk, validation, personalized course selection and configurable semester ranking and explicit unscheduled-course reporting without misleading graduation estimates; duplicated planner `RULES` removed, all database prerequisite flags enforced across earlier semesters | Curriculum-specific prior resolution and multi-objective scoring                                                                           |
 | School admin                   | Real ADMIN role and demo session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Resources, demand, scarcity allocation, multi-objective scoring, dashboard — required                                                      |
@@ -169,7 +169,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 457 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 468 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -185,34 +185,32 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-03
 
-Development remains active; work needing unavailable input is skipped and recorded.
-Planner activation and the additive curriculum foundation are pushed and merged through
-PR #45. The strict read-only CS reference verifier is implemented, verified and included with
-this checkpoint: source rows/attributes/credit units/groups are validated without database
-writes, new source guesses or reader activation. All 72 source rows survive normalization:
-71 coded placements, 56 identities, 15 repeated appearances, three groups and the separate
-three-credit Free elective requirement. CLI and portable manifest preserve exact raw-byte
-SHA256 and LEGACY_HTML_REFERENCE provenance, with readiness false and explicit source gates.
-Default and compiled CLI paths work; malformed/empty/missing files fail with path-specific
-errors and no partial report. Twenty pure cases and full build/typecheck/zero-warning lint pass
-with 457 server / 310 client tests. Final verifier source review ran inline after the agent
-thread limit prevented another reviewer; code and tests were completed by separate agents.
+Development remains active; work needing unavailable input is skipped and recorded. Planner,
+curriculum foundation and CS source verifier are pushed and merged through PR #46. An additive
+CurriculumRequirement table now represents uncoded free-elective credits with kind, exact name,
+optional placement, source order and provenance. It never creates a fake global Course. Unique
+source order is scoped to a curriculum; positive credits, sane placement and nonnegative order
+are enforced in SQL. Deleting a context removes requirements while preserving global student
+evidence. No reference rows are backfilled and no contextual reader is activated in this slice.
 
-The populated additive migration preserved all nine legacy data-table fingerprints; full
-migration history also passed on a fresh disposable database. Context membership/prerequisite
-foreign keys and repeated placements are covered by ten PostgreSQL storage cases. The Planner
-success state passed desktop/mobile review; the independent reviewer scored listed contrast
-fixes resolved. Workload remains an estimate; suggestions are read-only and use the server GPA
-path. Existing curriculum readers and Course placement/prerequisite columns remain active.
+The requirement migration preserved all 13 existing data-table fingerprints on populated local
+PostgreSQL; the complete history also passed in a fresh disposable database. Eleven new storage
+cases plus build/typecheck/zero-warning lint pass with 468 server / 310 client tests. Requirement
+storage and final verification ran inline after the agent thread limit; do not represent these
+as an independent review. Earlier foundation/Planner reviews remain scoped to their increments.
+The CS verifier/manifest now express the invariant that a validated backfill must preserve the
+free-elective requirement, rather than claiming storage is still absent. Its source provenance
+and readiness-false reconciliation gates remain unchanged.
 
-Next: add storage for the explicit free-elective requirement, then implement an idempotent
-legacy CS backfill with atomic validation against existing global course identities and credits.
-Use verified source occurrences rather than lossy first-slot/last-group DB fields. Preserve
-legacy prerequisite provenance and reported 130/131 path totals; do not relabel them as signed
-2025, infer subject metadata or silently alter credits. Source reconciliation/contextual readers
-and curriculum-specific priors must precede IT/DS activation and the major selector. Resources,
-allocation, admin dashboard, deployment and thesis remain outstanding. Unrelated staged files
-and unfinished interface edits remain local and excluded. The local app is still running.
+Next: implement an explicit idempotent legacy CS backfill with atomic validation against existing
+global codes/names/credits, every source occurrence/group/requirement, and existing prerequisite
+edges. Keep unknown totals null and preserve legacy prerequisite provenance. Do not overwrite
+conflicting existing context rows, assign students automatically, change global identities,
+merge prerequisite sets or activate a new major. Keep reported 130/131 path totals visible;
+source reconciliation and contextual completion/import/cascade/recommendation/planner readers
+and priors must precede IT/DS selection. School resources, allocation, admin dashboard,
+deployment and thesis remain outstanding. Unrelated staged files and interface drafts remain
+local and excluded. The app is running; no reset or seed was performed.
 
 Changes since the previous checkpoint:
 
@@ -484,7 +482,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 457 server tests and 310 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 468 server tests and 310 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

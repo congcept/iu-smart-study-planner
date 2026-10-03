@@ -48,7 +48,7 @@ async function main(): Promise<void> {
       'Cohort and signed official curriculum are not verified.',
       'Curriculum-context prerequisites are not verified.',
       'Graduation totals and GPA-path rules require source reconciliation; catalog option credits are not graduation credits.',
-      'Free-elective requirement database representation is pending.',
+      'Free-elective requirements must be explicitly preserved by a validated curriculum backfill.',
     ],
     creditUnits: 'Legacy lectureHours/labHours represent credit units, not verified contact hours.',
     ...verified,
