@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { CreateCourseSchema, CreatePrerequisiteSchema } from '@iu-study-planner/shared';
@@ -6,6 +7,7 @@ import { prisma } from '../db';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { requireAdmin } from '../middleware/auth';
+import { decorateCourseDifficulties } from '../services/courseRatings';
 
 function isNotFoundError(error: unknown): boolean {
   return error instanceof PrismaClientKnownRequestError && error.code === 'P2025';
@@ -16,35 +18,42 @@ const router = Router();
 // Get all courses with their prerequisites
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const courses = await prisma.course.findMany({
-      include: {
-        prerequisites: {
+    const courses = await prisma.$transaction(
+      async (tx) => {
+        const rows = await tx.course.findMany({
           include: {
-            prerequisite: {
-              select: {
-                id: true,
-                code: true,
-                name: true,
+            prerequisites: {
+              include: {
+                prerequisite: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            isPrerequisiteFor: {
+              include: {
+                course: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
-        },
-        isPrerequisiteFor: {
-          include: {
-            course: {
-              select: {
-                id: true,
-                code: true,
-                name: true,
-              },
-            },
+          orderBy: {
+            code: 'asc',
           },
-        },
+        });
+
+        return decorateCourseDifficulties(tx, rows);
       },
-      orderBy: {
-        code: 'asc',
-      },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
 
     return res.json({
       success: true,
@@ -64,26 +73,48 @@ router.get('/', async (_req: Request, res: Response) => {
 router.get('/curriculum', async (_req: Request, res: Response) => {
   try {
     const scrapedPath = join(__dirname, '../../../scraped-courses.json');
-    const scrapedData: { year: number; semester: number; courses: { id: string; name: string; credits: number; lectureHours: number; labHours: number; year: number; semester: number; isElective: boolean; electiveGroup?: string; selectCount?: number }[] }[] = JSON.parse(readFileSync(scrapedPath, 'utf8'));
+    const scrapedData: {
+      year: number;
+      semester: number;
+      courses: {
+        id: string;
+        name: string;
+        credits: number;
+        lectureHours: number;
+        labHours: number;
+        year: number;
+        semester: number;
+        isElective: boolean;
+        electiveGroup?: string;
+        selectCount?: number;
+      }[];
+    }[] = JSON.parse(readFileSync(scrapedPath, 'utf8'));
 
-    const dbCourses = await prisma.course.findMany({
-      include: {
-        prerequisites: {
+    const dbCourses = await prisma.$transaction(
+      async (tx) => {
+        const rows = await tx.course.findMany({
           include: {
-            prerequisite: {
-              select: { id: true, code: true, name: true },
+            prerequisites: {
+              include: {
+                prerequisite: {
+                  select: { id: true, code: true, name: true },
+                },
+              },
+            },
+            isPrerequisiteFor: {
+              include: {
+                course: {
+                  select: { id: true, code: true, name: true },
+                },
+              },
             },
           },
-        },
-        isPrerequisiteFor: {
-          include: {
-            course: {
-              select: { id: true, code: true, name: true },
-            },
-          },
-        },
+        });
+
+        return decorateCourseDifficulties(tx, rows);
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
 
     const dbCourseMap = new Map(dbCourses.map((c) => [c.code, c]));
 
@@ -98,6 +129,11 @@ router.get('/curriculum', async (_req: Request, res: Response) => {
           name: sc.name,
           credits: sc.credits,
           difficultyLevel: dbCourse?.difficultyLevel ?? 1,
+          avgRating: dbCourse?.avgRating,
+          ratingCount: dbCourse?.ratingCount,
+          ratingDifficulty: dbCourse?.ratingDifficulty,
+          ratingPriorMean: dbCourse?.ratingPriorMean,
+          ratingPriorSource: dbCourse?.ratingPriorSource,
           description: dbCourse?.description || undefined,
           category: dbCourse?.category ?? 'REQUIRED',
           semesterOffered: dbCourse?.semesterOffered ?? [],
@@ -131,21 +167,28 @@ router.get('/curriculum', async (_req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const course = await prisma.course.findUnique({
-      where: { id },
-      include: {
-        prerequisites: {
+    const course = await prisma.$transaction(
+      async (tx) => {
+        const row = await tx.course.findUnique({
+          where: { id },
           include: {
-            prerequisite: true,
+            prerequisites: {
+              include: {
+                prerequisite: true,
+              },
+            },
+            isPrerequisiteFor: {
+              include: {
+                course: true,
+              },
+            },
           },
-        },
-        isPrerequisiteFor: {
-          include: {
-            course: true,
-          },
-        },
+        });
+
+        return row ? (await decorateCourseDifficulties(tx, [row]))[0] : null;
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
 
     if (!course) {
       return res.status(404).json({
