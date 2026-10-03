@@ -1,0 +1,95 @@
+{
+  "source": {
+    "path": "scraped-courses.json",
+    "sha256": "39a28b2474f66d04f8ab52a4a88f3e9e4278085d3f6b5d4b62430ca90f5b4422",
+    "programUrl": "https://hcmiu.edu.vn/chuong-trinh-dao-tao/dao-tao-dai-hoc/khoa-cong-nghe-thong-tin/",
+    "code": "CS-REFERENCE",
+    "provenance": "LEGACY_HTML_REFERENCE"
+  },
+  "readiness": false,
+  "blockers": [
+    "Cohort and signed official curriculum are not verified.",
+    "Curriculum-context prerequisites are not verified.",
+    "Graduation totals and GPA-path rules require source reconciliation; catalog option credits are not graduation credits.",
+    "Free-elective requirement database representation is pending."
+  ],
+  "creditUnits": "Legacy lectureHours/labHours represent credit units, not verified contact hours.",
+  "counts": {
+    "sourceRows": 72,
+    "codedPlacements": 71,
+    "uniqueCourses": 56,
+    "repeatedPlacements": 15,
+    "freeElectiveRequirements": 1,
+    "electiveGroups": 3
+  },
+  "requirements": [
+    {
+      "academicYear": 3,
+      "academicSemester": 2,
+      "sourceOrder": 48,
+      "lectureCredits": 3,
+      "labCredits": 0,
+      "kind": "FREE_ELECTIVE",
+      "name": "Free elective",
+      "credits": 3
+    }
+  ],
+  "groupRequirements": [
+    {
+      "academicYear": 2,
+      "academicSemester": 2,
+      "sourceOrder": 23,
+      "electiveGroup": "Elective group 01 (Year 2, Semester 2)",
+      "selectCount": 1,
+      "courseCodes": [
+        "IT094IU",
+        "IT056IU",
+        "IT024IU",
+        "IT157IU",
+        "IT134IU",
+        "IT133IU",
+        "IT044IU",
+        "IT164IU",
+        "IT165IU",
+        "IT166IU",
+        "IT167IU",
+        "IT150IU",
+        "IT156IU",
+        "IT138IU"
+      ]
+    },
+    {
+      "academicYear": 3,
+      "academicSemester": 1,
+      "sourceOrder": 41,
+      "electiveGroup": "Elective group 02 (Year 3, Semester 1)",
+      "selectCount": 2,
+      "courseCodes": ["IT160IU", "IT130IU", "IT114IU"]
+    },
+    {
+      "academicYear": 4,
+      "academicSemester": 2,
+      "sourceOrder": 56,
+      "electiveGroup": "Elective group 03 (Year 4, Semester 2)",
+      "selectCount": 2,
+      "courseCodes": [
+        "IT160IU",
+        "IT130IU",
+        "IT114IU",
+        "IT096IU",
+        "IT094IU",
+        "IT056IU",
+        "IT024IU",
+        "IT157IU",
+        "IT134IU",
+        "IT133IU",
+        "IT044IU",
+        "IT164IU",
+        "IT165IU",
+        "IT166IU",
+        "IT167IU",
+        "IT150IU"
+      ]
+    }
+  ]
+}

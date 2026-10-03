@@ -14,7 +14,8 @@
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "verify:cs-reference": "ts-node src/scripts/verifyCsReference.ts"
   },
   "keywords": [
     "study-planner",
