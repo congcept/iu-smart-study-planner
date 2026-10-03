@@ -195,3 +195,11 @@ it('does not mask a genuinely above-threshold decimal with an epsilon tolerance'
   );
   expect(summary.gpaPath).toBe('THESIS');
 });
+
+
+it('retains a real above-threshold contribution across the finite numeric score range', () => {
+  const summary = calculateGradeSummary([{ id: 'a', code: 'A', credits: 5 }, { id: 'b', code: 'B', credits: 2 }], [{ courseId: 'a', score: 98 }, { courseId: 'b', score: Number.MIN_VALUE }]);
+  // JSON display precision rounds this to70; eligibility is compared before conversion.
+  expect(summary.gpa100).toBe(70);
+  expect(summary.gpaPath).toBe('THESIS');
+});

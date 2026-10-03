@@ -14,7 +14,7 @@ export interface NumericGradeAttempt {
 
 export type GradeSummary = StudentGradesDTO['summary'];
 
-const Decimal = Prisma.Decimal.clone({ precision: 40 });
+const Decimal = Prisma.Decimal.clone({ precision: 400 });
 const EXCLUDED_CODES = new Set(['PT001IU', 'PT002IU']);
 
 /** Numeric scores stay on their original 0–100 scale; no letter-grade conversion. */

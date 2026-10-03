@@ -169,7 +169,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 366 server tests and 195 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 367 server tests and 195 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -187,7 +187,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 Development resumed at the user's request. Completed increments through PR #39 are
 pushed and merged into GitHub `main`. Server GPA-path policy now passes full quality
-gates with 366 server / 195 client tests; client path rendering follows separately. The local
+gates with 367 server / 195 client tests; client path rendering follows separately. The local
 Docker app is running; rebuilding backend shared types restored its signed-in session.
 Pre-existing staged files and unfinished UI edits outside these increments remain local
 and must not be included in a future commit without reviewing their ownership/scope.
@@ -453,7 +453,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 366 server tests and 195 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 367 server tests and 195 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
