@@ -185,3 +185,21 @@ Seven additional real PostgreSQL cases check the hand-computed mean, workload ag
 authorized reads and failed-save preservation. Existing semester validation expectations
 now use the shared zero-vote prior. Build, types, lint and all 352 server/178 client tests
 pass. Curriculum priors, client recommendations and multi-objective scoring remain pending.
+
+
+## Curriculum recommendation highlights
+
+The map now calls a pure tested selector: earliest curriculum placement first, then
+lower Bayesian difficulty within the same semester, then stable course code/ID order.
+Zero-vote shared estimates participate normally. Missing/invalid legacy projections
+stay unknown and follow known estimates in the same slot; individual seeds are never
+substituted. Mandatory prerequisites must already be completed. Both GPA paths filter
+before credits, and duplicate elective placements consume a global course's credits once.
+
+Seventeen new client cases plus existing map regressions cover estimate ranking,
+placement, unknown/invalid metadata, prerequisites, duplicates, credit fitting and GPA
+paths. Build, types, lint and all 352 server/195 client tests pass. The running signed-in
+map was checked at desktop and 390px: Low mode selected nine credits; mobile had no
+page overflow. Layout and controls were preserved. Finish/documentation review used an
+explicit inline fallback because subagents could not start under the account usage limit.
+Curriculum-specific priors and multi-objective scoring remain pending.
