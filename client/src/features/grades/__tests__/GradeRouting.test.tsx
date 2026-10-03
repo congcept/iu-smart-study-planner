@@ -6,6 +6,9 @@ import App from '@/App';
 import * as api from '@/lib/api';
 import { getStudentGrades } from '@/lib/gradesApi';
 vi.mock('@/lib/api');
+vi.mock('@/features/ratings/RatingDashboard', () => ({
+  RatingDashboard: () => <h2>Course ratings</h2>,
+}));
 vi.mock('../GradeEntry', () => ({ GradeEntry: () => null }));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 vi.mock('@/features/curriculum/CurriculumProgressMap', () => ({
@@ -69,5 +72,24 @@ describe('protected grades routing', () => {
     fireEvent.click(await screen.findByRole('link', { name: 'Grades' }));
     expect(await screen.findByRole('heading', { name: 'Grades' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/grades');
+  });
+});
+
+describe('protected ratings routing', () => {
+  it('redirects an anonymous ratings visit to sign in', async () => {
+    window.history.replaceState({}, '', '/ratings');
+    vi.mocked(api.getSession).mockRejectedValue({ isAxiosError: true, response: { status: 401 } });
+    render(<App />);
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
+    expect(screen.queryByRole('link', { name: 'Ratings' })).not.toBeInTheDocument();
+  });
+  it.each(['STUDENT', 'ADMIN'] as const)('opens ratings for %s from navigation', async (role) => {
+    window.history.replaceState({}, '', '/curriculum');
+    vi.mocked(api.getSession).mockResolvedValue({ ...user, role });
+    render(<App />);
+    fireEvent.click(await screen.findByRole('link', { name: 'Ratings' }));
+    expect(await screen.findByRole('heading', { name: 'Course ratings' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/ratings');
   });
 });
