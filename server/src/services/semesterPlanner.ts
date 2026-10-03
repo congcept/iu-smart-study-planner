@@ -1,11 +1,18 @@
 import { Course, Prerequisite } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type {
+  CourseDifficultyDTO,
+  SemesterPlanningDTO,
+  SemesterPlanSlotDTO,
+} from '@iu-study-planner/shared';
+import policyConfig from '../config';
 
-type CourseWithPrereqs = Course & {
-  prerequisites: (Prerequisite & { prerequisite?: Course })[];
-  isPrerequisiteFor?: { course: { id: string } }[];
-};
+type CourseWithPrereqs = Course &
+  CourseDifficultyDTO & {
+    prerequisites: (Prerequisite & { prerequisite?: Course })[];
+    isPrerequisiteFor?: { course: { id: string } }[];
+  };
 
 interface IntensityConfig {
   maxCreditsPerSemester: number;
@@ -19,23 +26,6 @@ const INTENSITY_CONFIGS: Record<string, IntensityConfig> = {
   high: { maxCreditsPerSemester: 21, maxSemesters: 10, preferredMinCredits: 15 },
   max: { maxCreditsPerSemester: 24, maxSemesters: 8, preferredMinCredits: 21 },
 };
-
-interface SemesterSlot {
-  year: number;
-  semester: number;
-  recommendedCourseIds: string[];
-  totalCredits: number;
-}
-
-interface PlanResult {
-  semesters: SemesterSlot[];
-  nextRecommendedIds: string[];
-  stats: {
-    totalRemainingCredits: number;
-    semestersToCompletion: number;
-    estimatedGraduationSemester: string;
-  };
-}
 
 class SemesterPlanner {
   private scrapedSemesters: {
@@ -77,13 +67,13 @@ class SemesterPlanner {
     allCourses: CourseWithPrereqs[],
     completedCourseIds: Set<string>,
     intensityMode: string,
-  ): PlanResult {
+  ): SemesterPlanningDTO {
     const config = INTENSITY_CONFIGS[intensityMode] ?? INTENSITY_CONFIGS.normal;
 
     const remainingCourses = allCourses.filter((c) => !completedCourseIds.has(c.id));
     const totalRemainingCredits = remainingCourses.reduce((sum, c) => sum + c.credits, 0);
 
-    const semesters: SemesterSlot[] = [];
+    const semesters: SemesterPlanSlotDTO[] = [];
     const plannedIds = new Set<string>();
 
     for (
@@ -122,6 +112,7 @@ class SemesterPlanner {
 
         const unlockCount = course.isPrerequisiteFor?.length ?? 0;
         score += unlockCount * 10;
+        score -= (course.ratingDifficulty - 1) * policyConfig.semesterDifficultyPenaltyWeight;
 
         return { course, score };
       });

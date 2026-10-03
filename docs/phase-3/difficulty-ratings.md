@@ -86,7 +86,7 @@ GET /api/users/me/ratings returns only the cookie account’s courseId/rating pa
 including historical votes after uncompletion. Query parameters cannot select another
 account, and an admin reads only their own votes. Public aggregates still contain no
 identities. Six real PostgreSQL tests cover authentication and isolation. Full gates
-pass307 server/153 client tests. This supports displaying saved votes in the upcoming form.
+pass 307 server/153 client tests. This supports displaying saved votes in the upcoming form.
 
 ## Student rating entry
 
@@ -106,7 +106,7 @@ semantics; immutable request history is specific to grades, not ratings.
 
 Twenty-five new client cases cover adapter validation, routing, completion filtering,
 empty/error states, saves, duplicate clicks, locked retries, storage, quota and account
-isolation. Full gates pass307 server/178 client tests. A real simulated vote changed
+isolation. Full gates pass 307 server/178 client tests. A real simulated vote changed
 4→3, retained count1 and refreshed the estimate; desktop/mobile checks passed at390px
 without page overflow. UI review/documentation used a disclosed inline fallback after
 subagent account usage limits. Curriculum means and scoring integration remain pending.
@@ -123,7 +123,7 @@ still pending; no0–100 to4-point conversion was invented.
 
 Thirteen cases verify real API projections and cold starts, hand-computed workload
 values, inverted seed/estimate rankings, difficulty constraints, warnings, nearby
-estimates and invalid limits. Full gates pass320 server/178 client tests. Semester
+estimates and invalid limits. Full gates pass 320 server/178 client tests. Semester
 planning, client scoring, saved-plan cached difficulty and curriculum priors follow.
 
 ## Database-authoritative semester prerequisites
@@ -135,6 +135,21 @@ only unlocks its dependents in a later slot. No code name invents a missing rela
 
 Eleven real PostgreSQL cases cover all flags, transitive chains, multiple parents, live
 relationship changes, absent dependencies, cycles, self-dependency and completed-course
-exclusion. Full gates pass331 server/178 client tests. The existing planning horizon
+exclusion. Full gates pass 331 server/178 client tests. The existing planning horizon
 and graduation heuristic remain; incomplete schedules need explicit reporting, and
 semester rating scoring follows separately.
+
+
+## Semester rating ranking
+
+Semester candidates now use the same snapshot-consistent Bayesian projection as the
+course and workload APIs. Lower estimated difficulty breaks otherwise equal placement,
+category and unlock scores. The server-configured penalty defaults to 10, accepts 0–50,
+and can be disabled with 0. Every prerequisite still requires an earlier semester.
+
+Shared planning DTOs describe the actual slot `recommendedCourseIds` payload, replacing
+the unused client declaration that incorrectly promised course objects in each slot.
+Five real PostgreSQL cases cover inverted seed/estimate ranking, zero-vote estimates,
+mandatory prerequisites, disabling the weight and API metadata. Build, types, lint and
+all 336 server/178 client tests pass. Graduation estimates remain heuristic; incomplete
+schedule reporting is the next increment. Curriculum-specific priors remain pending.

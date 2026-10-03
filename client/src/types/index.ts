@@ -1,3 +1,4 @@
+import type { SemesterPlanningDTO, SemesterPlanSlotDTO } from '@iu-study-planner/shared';
 import type { CourseDifficultyDTO, StudentProgressDTO } from '@iu-study-planner/shared';
 
 // Course Types
@@ -177,20 +178,7 @@ export interface YearSemesterGroup {
 
 export type IntensityMode = 'low' | 'normal' | 'high' | 'max';
 
-export interface SemesterPlan {
-  semester: number;
-  year: number;
-  courses: Course[];
-  totalCredits: number;
-}
-
-export interface PlannedSemestersResponse {
-  nextRecommendedIds: string[];
+export type SemesterPlan = SemesterPlanSlotDTO;
+export interface PlannedSemestersResponse extends SemesterPlanningDTO {
   nextRecommendedCourses: Course[];
-  semesters: SemesterPlan[];
-  stats: {
-    totalRemainingCredits: number;
-    semestersToCompletion: number;
-    estimatedGraduationSemester: string;
-  };
 }
