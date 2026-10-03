@@ -79,3 +79,11 @@ scores mean greater difficulty. Rows without valid projection metadata render no
 Completion, prerequisite hover and sidebar scale behavior are unchanged. Desktop/mobile
 browser inspection passed; ten client cases cover counts, cold starts and missing/invalid
 metadata. Full gates pass301 server/153 client tests. Rating entry is next.
+
+## Private saved votes
+
+GET /api/users/me/ratings returns only the cookie account’s courseId/rating pairs,
+including historical votes after uncompletion. Query parameters cannot select another
+account, and an admin reads only their own votes. Public aggregates still contain no
+identities. Six real PostgreSQL tests cover authentication and isolation. Full gates
+pass307 server/153 client tests. This supports displaying saved votes in the upcoming form.

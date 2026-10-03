@@ -29,6 +29,21 @@ const degreeCredits = (course: { code: string; credits: number }) =>
 const router = Router();
 
 // Place session-scoped routes before legacy identifier routes.
+router.get('/me/ratings', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const ratings = await prisma.courseRating.findMany({
+      where: { userId: req.userId },
+      select: { courseId: true, rating: true },
+      orderBy: { courseId: 'asc' },
+    });
+    return res.json({ success: true, data: ratings });
+  } catch (error) {
+    return handleRecordError(error, res);
+  }
+});
+
 router.get('/me/progress', requireAuth, async (req, res) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
