@@ -50,10 +50,12 @@ export interface GradeAttemptDTO {
   createdAt: string;
   course: { id: string; code: string; name: string; credits: number };
 }
+export type GpaPath = 'THESIS' | 'ALTERNATIVE';
 export interface StudentGradesDTO {
   attempts: GradeAttemptDTO[];
   summary: {
     gpa100: number | null;
+    gpaPath: GpaPath | null;
     gradedCredits: number;
     gradedCourseCount: number;
     courseScores: { courseId: string; score: number; credits: number }[];

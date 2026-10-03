@@ -16,7 +16,13 @@ const courseId = '00000000-0000-4000-8000-000000000001';
 const requestId = '00000000-0000-4000-8000-000000000002';
 const empty: StudentGradesDTO = {
   attempts: [],
-  summary: { gpa100: null, gradedCourseCount: 0, gradedCredits: 0, courseScores: [] },
+  summary: {
+    gpa100: null,
+    gpaPath: null,
+    gradedCourseCount: 0,
+    gradedCredits: 0,
+    courseScores: [],
+  },
   completedCoursesWithoutNumericGrades: [],
 };
 const payload: AppendGradeAttemptDTO = { courseId, requestId, score: 0 };
@@ -24,6 +30,7 @@ const saved = (data = payload): StudentGradesDTO => ({
   ...empty,
   summary: {
     gpa100: data.score,
+    gpaPath: data.score > 70 ? 'THESIS' : 'ALTERNATIVE',
     gradedCourseCount: 1,
     gradedCredits: 4,
     courseScores: [{ courseId, score: data.score, credits: 4 }],

@@ -1,3 +1,6 @@
+import { Prisma } from '@prisma/client';
+import type { StudentGradesDTO } from '@iu-study-planner/shared';
+
 export interface GradeCourse {
   id: string;
   code: string;
@@ -9,13 +12,9 @@ export interface NumericGradeAttempt {
   score: number | null;
 }
 
-export interface GradeSummary {
-  gpa100: number | null;
-  gradedCredits: number;
-  gradedCourseCount: number;
-  courseScores: { courseId: string; score: number; credits: number }[];
-}
+export type GradeSummary = StudentGradesDTO['summary'];
 
+const Decimal = Prisma.Decimal.clone({ precision: 400 });
 const EXCLUDED_CODES = new Set(['PT001IU', 'PT002IU']);
 
 /** Numeric scores stay on their original 0–100 scale; no letter-grade conversion. */
@@ -54,13 +53,21 @@ export function calculateGradeSummary(
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([courseId, score]) => ({ courseId, score, credits: coursesById.get(courseId)!.credits }));
   const gradedCredits = courseScores.reduce((sum, course) => sum + course.credits, 0);
+  // Compare decimal scores exactly at 70; binary floating-point sums can put an
+  // exact boundary such as (0.16 + 93.28 * 3) / 4 just above 70.
   const weightedScores = courseScores.reduce(
-    (sum, course) => sum + course.score * course.credits,
-    0,
+    (sum, course) => sum.plus(new Decimal(course.score.toString()).times(course.credits)),
+    new Decimal(0),
   );
+  const gpa100 = gradedCredits > 0 ? weightedScores.dividedBy(gradedCredits).toNumber() : null;
   return {
-    // Keep precision here. Display rounding must not change eligibility at the GPA threshold.
-    gpa100: gradedCredits > 0 ? weightedScores / gradedCredits : null,
+    gpa100,
+    gpaPath:
+      gpa100 === null
+        ? null
+        : weightedScores.greaterThan(new Decimal(70).times(gradedCredits))
+          ? 'THESIS'
+          : 'ALTERNATIVE',
     gradedCredits,
     gradedCourseCount: courseScores.length,
     courseScores,

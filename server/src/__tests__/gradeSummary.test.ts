@@ -30,6 +30,7 @@ describe('numeric grade summary', () => {
     const summary = calculateGradeSummary(courses, attempts);
     expect(summary).toEqual({
       gpa100: 570 / 7,
+      gpaPath: 'THESIS',
       gradedCredits: 7,
       gradedCourseCount: 2,
       courseScores: [
@@ -79,6 +80,7 @@ describe('numeric grade summary', () => {
   ])('reports no GPA when there are no graded eligible credits %#', ({ attempts }) => {
     expect(calculateGradeSummary(courses, attempts)).toEqual({
       gpa100: null,
+      gpaPath: null,
       gradedCredits: 0,
       gradedCourseCount: 0,
       courseScores: [],
@@ -131,4 +133,73 @@ describe('numeric grade summary', () => {
     expect(attempts[0].score).toBe(80);
     expect(inputCourses[0].credits).toBe(3);
   });
+});
+
+describe('server GPA path policy', () => {
+  it.each([
+    [0, 'ALTERNATIVE'],
+    [69.999, 'ALTERNATIVE'],
+    [70, 'ALTERNATIVE'],
+    [70.004, 'THESIS'],
+    [100, 'THESIS'],
+  ])('uses the unrounded score %s for path %s', (score, path) => {
+    expect(calculateGradeSummary(courses, [{ courseId: 'a', score: Number(score) }]).gpaPath).toBe(
+      path,
+    );
+  });
+  it('retains the higher retake path even when the most recent attempt is lower', () => {
+    expect(
+      calculateGradeSummary(courses, [
+        { courseId: 'a', score: 50 },
+        { courseId: 'a', score: 80 },
+        { courseId: 'a', score: 20 },
+      ]).gpaPath,
+    ).toBe('THESIS');
+  });
+  it('uses credit-weighted GPA instead of the unweighted course average for eligibility', () => {
+    const summary = calculateGradeSummary(courses, [
+      { courseId: 'a', score: 100 },
+      { courseId: 'b', score: 45 },
+    ]);
+    expect((100 + 45) / 2).toBeGreaterThan(70);
+    expect(summary.gpa100).toBeLessThan(70);
+    expect(summary.gpaPath).toBe('ALTERNATIVE');
+  });
+  it('leaves the path undecided for physical-training-only scores', () => {
+    expect(
+      calculateGradeSummary(courses, [
+        { courseId: 'pt1', score: 100 },
+        { courseId: 'pt2', score: 100 },
+      ]).gpaPath,
+    ).toBeNull();
+  });
+});
+
+it('compares an exactly-70 decimal weighted result without binary rounding drift', () => {
+  const decimalCourses = [
+    { id: 'a', code: 'A', credits: 1 },
+    { id: 'b', code: 'B', credits: 3 },
+  ];
+  expect((0.16 + 93.28 * 3) / 4).toBeGreaterThan(70);
+  const summary = calculateGradeSummary(decimalCourses, [
+    { courseId: 'a', score: 0.16 },
+    { courseId: 'b', score: 93.28 },
+  ]);
+  expect(summary.gpa100).toBe(70);
+  expect(summary.gpaPath).toBe('ALTERNATIVE');
+});
+it('does not mask a genuinely above-threshold decimal with an epsilon tolerance', () => {
+  const summary = calculateGradeSummary(
+    [{ id: 'a', code: 'A', credits: 1 }],
+    [{ courseId: 'a', score: 70.00000000000001 }],
+  );
+  expect(summary.gpaPath).toBe('THESIS');
+});
+
+
+it('retains a real above-threshold contribution across the finite numeric score range', () => {
+  const summary = calculateGradeSummary([{ id: 'a', code: 'A', credits: 5 }, { id: 'b', code: 'B', credits: 2 }], [{ courseId: 'a', score: 98 }, { courseId: 'b', score: Number.MIN_VALUE }]);
+  // JSON display precision rounds this to70; eligibility is compared before conversion.
+  expect(summary.gpa100).toBe(70);
+  expect(summary.gpaPath).toBe('THESIS');
 });

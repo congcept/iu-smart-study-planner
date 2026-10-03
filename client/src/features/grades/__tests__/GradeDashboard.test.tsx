@@ -9,7 +9,13 @@ vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 const getGrades = vi.mocked(getStudentGrades);
 const empty: StudentGradesDTO = {
   attempts: [],
-  summary: { gpa100: null, gradedCredits: 0, gradedCourseCount: 0, courseScores: [] },
+  summary: {
+    gpa100: null,
+    gpaPath: null,
+    gradedCredits: 0,
+    gradedCourseCount: 0,
+    courseScores: [],
+  },
   completedCoursesWithoutNumericGrades: [],
 };
 const scored: StudentGradesDTO = {
@@ -37,6 +43,7 @@ const scored: StudentGradesDTO = {
   ],
   summary: {
     gpa100: 90,
+    gpaPath: 'THESIS',
     gradedCredits: 4,
     gradedCourseCount: 1,
     courseScores: [{ courseId: 'math', score: 90, credits: 4 }],
@@ -86,7 +93,13 @@ describe('numeric grade dashboard', () => {
   it('renders a real zero score as zero instead of an empty summary', async () => {
     getGrades.mockResolvedValue({
       ...empty,
-      summary: { ...empty.summary, gpa100: 0, gradedCredits: 4, gradedCourseCount: 1 },
+      summary: {
+        ...empty.summary,
+        gpa100: 0,
+        gpaPath: 'ALTERNATIVE',
+        gradedCredits: 4,
+        gradedCourseCount: 1,
+      },
     });
     render(<GradeDashboard userId="one" />);
     expect(await screen.findByText('0.00')).toBeInTheDocument();
