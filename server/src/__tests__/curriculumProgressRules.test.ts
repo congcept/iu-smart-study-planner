@@ -117,6 +117,8 @@ describe('account-context completion and import (PostgreSQL)', () => {
     });
   });
   beforeEach(async () => {
+    for (const [index, id] of users.entries())
+      await prisma.user.update({ where: { id }, data: { curriculumId: contexts[index] ?? null } });
     await prisma.studentRecord.deleteMany({ where: { userId: { in: users } } });
     await prisma.gradeAttempt.deleteMany({ where: { userId: { in: users } } });
     await prisma.courseRating.deleteMany({ where: { userId: { in: users } } });
@@ -323,5 +325,185 @@ describe('account-context completion and import (PostgreSQL)', () => {
     expect((await complete('D', 'COMPLETED', null, 2)).status).toBe(200);
     expect((await complete('B', 'COMPLETED', null, 2)).status).toBe(200);
     expect((await complete('E', 'COMPLETED', 'Legacy claim', 2)).status).toBe(200);
+  });
+
+  const scoped = (
+    endpoint: 'complete' | 'progress',
+    expectedScope: unknown,
+    index = 0,
+    status = 'COMPLETED',
+  ) =>
+    request(app)
+      .post(`/api/users/me/${endpoint}`)
+      .set('Cookie', cookie(index))
+      .send({
+        ...(endpoint === 'complete'
+          ? { courseId: courses.A, status }
+          : { completedIds: { [courses.A]: null }, plannedIds: [courses.F] }),
+        expectedScope,
+      });
+
+  it.each(['complete', 'progress'] as const)(
+    'accepts matching assigned scope for %s without storing the claim on progress records',
+    async (endpoint) => {
+      const response = await scoped(endpoint, { userId: users[0], curriculumId: contexts[0] });
+      expect(response.status).toBe(200);
+      expect(response.body.data.completedIds[courses.A]).toBeNull();
+      expect(await saved('A')).toMatchObject({ userId: users[0], status: 'COMPLETED' });
+      expect(await saved('A')).not.toHaveProperty('expectedScope');
+    },
+  );
+
+  it.each(['complete', 'progress'] as const)(
+    'accepts a matching explicit null scope for %s',
+    async (endpoint) => {
+      expect((await scoped(endpoint, { userId: users[2], curriculumId: null }, 2)).status).toBe(
+        200,
+      );
+      expect(await saved('A', 2)).toMatchObject({ status: 'COMPLETED' });
+    },
+  );
+
+  it.each(['complete', 'progress'] as const)(
+    'rejects all stale curriculum transitions for %s even when the course is shared',
+    async (endpoint) => {
+      for (const [expected, current] of [
+        [null, contexts[0]],
+        [contexts[0], null],
+        [contexts[0], contexts[1]],
+      ]) {
+        await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: current } });
+        const response = await scoped(endpoint, { userId: users[0], curriculumId: expected });
+        expect(response.status).toBe(409);
+        expect(response.body.error).toMatch(/account or curriculum changed/);
+        expect(await records()).toEqual([]);
+        expect(
+          (await prisma.user.findUniqueOrThrow({ where: { id: users[0] } })).curriculumId,
+        ).toBe(current);
+      }
+    },
+  );
+
+  it.each(['complete', 'progress'] as const)(
+    'rejects a changed cookie account for %s instead of writing either owner',
+    async (endpoint) => {
+      expect(
+        (await scoped(endpoint, { userId: users[0], curriculumId: contexts[0] }, 1)).status,
+      ).toBe(409);
+      expect(await records()).toEqual([]);
+      expect(await records(1)).toEqual([]);
+    },
+  );
+
+  it.each(['complete', 'progress'] as const)(
+    'normalizes uppercase expected identity for %s',
+    async (endpoint) => {
+      expect(
+        (
+          await scoped(endpoint, {
+            userId: users[0].toUpperCase(),
+            curriculumId: contexts[0].toUpperCase(),
+          })
+        ).status,
+      ).toBe(200);
+    },
+  );
+
+  it.each(['COMPLETED', 'PLANNED', 'DROPPED'])(
+    'checks scope before a %s transition or its transitive cascade',
+    async (status) => {
+      for (const key of ['A', 'B', 'C', 'D']) await seedCompletion(key);
+      const before = await records();
+      const grade = await prisma.gradeAttempt.create({
+        data: { userId: users[0], courseId: courses.B, requestId: randomUUID(), score: 91 },
+      });
+      const rating = await prisma.courseRating.create({
+        data: { userId: users[0], courseId: courses.B, rating: 4 },
+      });
+      expect(
+        (await scoped('complete', { userId: users[0], curriculumId: contexts[1] }, 0, status))
+          .status,
+      ).toBe(409);
+      expect(await records()).toEqual(before);
+      expect(await prisma.gradeAttempt.findUniqueOrThrow({ where: { id: grade.id } })).toEqual(
+        grade,
+      );
+      expect(await prisma.courseRating.findUniqueOrThrow({ where: { id: rating.id } })).toEqual(
+        rating,
+      );
+    },
+  );
+
+  it('keeps valid mandatory context cascades with a matching precondition', async () => {
+    for (const key of ['A', 'B', 'C', 'D']) await seedCompletion(key);
+    const history = await saved('D');
+    const response = await scoped(
+      'complete',
+      { userId: users[0], curriculumId: contexts[0] },
+      0,
+      'DROPPED',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body.data.uncompletedCourseIds.sort()).toEqual([courses.B, courses.C].sort());
+    expect(await saved('D')).toEqual(history);
+  });
+
+  it('keeps a no-op import and its historical metadata intact when scope matches', async () => {
+    const original = await prisma.studentRecord.create({
+      data: {
+        userId: users[0],
+        courseId: courses.A,
+        status: 'COMPLETED',
+        grade: 'B+',
+        gradePoints: 3.5,
+        electiveGroup: 'Historical claim',
+        semester: 'Legacy term',
+        year: 2025,
+      },
+    });
+    expect((await scoped('progress', { userId: users[0], curriculumId: contexts[0] })).status).toBe(
+      200,
+    );
+    expect(await saved('A')).toEqual(original);
+    expect(await saved('F')).toMatchObject({ status: 'PLANNED' });
+  });
+
+  it('rejects a stale import before its otherwise additive merge or no-op writes', async () => {
+    await seedCompletion('A');
+    const before = await records();
+    expect((await scoped('progress', { userId: users[0], curriculumId: null })).status).toBe(409);
+    expect(await records()).toEqual(before);
+    expect(await saved('F')).toBeNull();
+  });
+
+  describe.each(['complete', 'progress'] as const)('%s scope validation', (endpoint) => {
+    it.each([
+      null,
+      {},
+      { userId: users[0] },
+      { curriculumId: contexts[0] },
+      { userId: 'invalid', curriculumId: contexts[0] },
+      { userId: users[0], curriculumId: 'CS' },
+      { userId: users[0], curriculumId: contexts[0], role: 'ADMIN' },
+    ])('rejects malformed preconditions %j without progress changes', async (scope) => {
+      expect((await scoped(endpoint, scope)).status).toBe(400);
+      expect(await records()).toEqual([]);
+    });
+  });
+
+  it('keeps prerequisites valid when a scoped import races a scoped uncompletion', async () => {
+    await seedCompletion('A');
+    const expectedScope = { userId: users[0], curriculumId: contexts[0] };
+    const [incoming, removal] = await Promise.all([
+      request(app)
+        .post('/api/users/me/progress')
+        .set('Cookie', cookie())
+        .send({ completedIds: { [courses.B]: null }, plannedIds: [], expectedScope }),
+      scoped('complete', expectedScope, 0, 'DROPPED'),
+    ]);
+    expect([200, 409]).toContain(incoming.status);
+    expect(removal.status).toBe(200);
+    expect((await saved('A'))?.status).toBe('DROPPED');
+    expect((await saved('B'))?.status).not.toBe('COMPLETED');
   });
 });

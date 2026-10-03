@@ -59,8 +59,8 @@ router.post('/me/complete', requireAuth, async (req, res) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
   try {
-    const data = CompleteCourseSchema.parse(req.body);
-    const result = await updateStudentRecord(req.userId, data);
+    const { expectedScope, ...data } = CompleteCourseSchema.parse(req.body);
+    const result = await updateStudentRecord(req.userId, data, false, expectedScope);
     return res.json({
       success: true,
       data: { ...result.progress, uncompletedCourseIds: result.uncompletedCourseIds },

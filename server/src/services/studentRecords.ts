@@ -1,10 +1,12 @@
 import { CourseStatus, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { UpdateStudentRecordSchema } from '@iu-study-planner/shared';
+import type { AccountWriteScopeDTO } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { readStudentProgress } from './studentProgress';
 import { readProgressCourseContext, validateContextClaim } from './progressCourseContext';
 import { StudentRecordError } from './studentRecordError';
+import { assertProgressWriteScope } from './progressWriteScope';
 
 export { StudentRecordError } from './studentRecordError';
 
@@ -14,6 +16,7 @@ export async function updateStudentRecord(
   userIdentifier: string,
   data: RecordUpdate,
   removeWhenPlanned = false,
+  expectedScope?: AccountWriteScopeDTO,
 ) {
   // Retry serialization conflicts so concurrent completion/uncompletion cannot
   // commit a completed course with a newly incomplete prerequisite.
@@ -28,6 +31,7 @@ export async function updateStudentRecord(
             where: isUuid ? { id: userIdentifier } : { studentId: userIdentifier },
           });
           if (!user) throw new StudentRecordError('User not found', 404);
+          assertProgressWriteScope(expectedScope, user);
 
           const course = await tx.course.findUnique({
             where: { id: data.courseId },
