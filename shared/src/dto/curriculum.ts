@@ -1,4 +1,4 @@
-import type { CourseDifficultyDTO, Semester } from './index';
+import type { CourseDifficultyDTO, RecommendationStatsDTO, Semester } from './index';
 
 export interface CurriculumSummaryDTO {
   id: string;
@@ -58,4 +58,15 @@ export interface CurriculumDetailDTO extends CurriculumSummaryDTO {
     mandatory: true;
   }[];
   ratingPrior: { mean: number; source: CurriculumPriorSource } | null;
+}
+
+export interface CurriculumRecommendationsDTO {
+  courses: CurriculumCourseDTO[];
+  stats: RecommendationStatsDTO;
+  scope: {
+    curriculumId: string;
+    usage: 'REFERENCE_ONLY';
+    categoryPersonalizationAvailable: false;
+    ratingPrior: CurriculumDetailDTO['ratingPrior'];
+  };
 }
