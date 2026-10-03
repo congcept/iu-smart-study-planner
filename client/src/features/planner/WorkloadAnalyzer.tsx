@@ -1,177 +1,149 @@
-import React, { useState } from 'react';
-import type { Course, WorkloadAnalysis } from '../../types';
-import { Badge, Card, ProgressBar } from '@components/ui';
-import { analyzeWorkload } from '../../lib/api';
-import { AlertTriangle, CheckCircle, Lightbulb, Calculator, BookOpen } from 'lucide-react';
-import { riskLevelColors, riskLevelLabels, categoryLabels } from '../../lib/utils';
+import React, { useEffect, useRef, useState } from 'react';
+
+import type { Course, WorkloadAnalysis } from '@/types';
+import { analyzeWorkload } from '@/lib/api';
+import { categoryLabels, formatCredits } from '@/lib/utils';
+import { Badge, Button, Card } from '@components/ui';
 
 interface WorkloadAnalyzerProps {
   selectedCourses: Course[];
   onClear?: () => void;
 }
 
+const bandLabels: Record<WorkloadAnalysis['riskLevel'], string> = {
+  LOW: 'Lower estimate',
+  MEDIUM: 'Moderate estimate',
+  HIGH: 'Higher estimate',
+  CRITICAL: 'Highest estimate',
+};
+
 export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCourses, onClear }) => {
-  const [analysis, setAnalysis] = useState<WorkloadAnalysis | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const selectionKey = selectedCourses
+    .map((course) => course.id)
+    .sort()
+    .join('|');
+  const currentSelection = useRef(selectionKey);
+  useEffect(() => {
+    currentSelection.current = selectionKey;
+  }, [selectionKey]);
+  const requestId = useRef(0);
+  const [result, setResult] = useState<{ key: string; data: WorkloadAnalysis } | null>(null);
+  const [analyzingKey, setAnalyzingKey] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const analysis = result?.key === selectionKey ? result.data : null;
+  const isAnalyzing = analyzingKey === selectionKey;
+  const hasError = errorKey === selectionKey;
+  const totalCredits = selectedCourses.reduce((sum, course) => sum + course.credits, 0);
 
   const handleAnalyze = async () => {
-    if (selectedCourses.length === 0) return;
-
-    setIsAnalyzing(true);
+    if (selectedCourses.length === 0 || isAnalyzing) return;
+    const currentRequest = ++requestId.current;
+    const key = selectionKey;
+    setAnalyzingKey(key);
+    setErrorKey(null);
     try {
-      const courseIds = selectedCourses.map((c) => c.id);
-      const response = await analyzeWorkload(courseIds);
-      if (response.success && response.data) {
-        setAnalysis(response.data);
+      const response = await analyzeWorkload(selectedCourses.map((course) => course.id));
+      if (currentRequest !== requestId.current || currentSelection.current !== key) return;
+      if (!response.success || !response.data) throw new Error('Analysis unavailable');
+      setResult({ key, data: response.data });
+    } catch {
+      if (currentRequest === requestId.current && currentSelection.current === key) {
+        setResult(null);
+        setErrorKey(key);
       }
-    } catch (error) {
-      console.error('Failed to analyze workload:', error);
     } finally {
-      setIsAnalyzing(false);
+      if (currentRequest === requestId.current) setAnalyzingKey(null);
     }
   };
 
-  const totalCredits = selectedCourses.reduce((sum, c) => sum + c.credits, 0);
-  const avgDifficulty =
-    selectedCourses.length > 0
-      ? selectedCourses.reduce((sum, c) => sum + c.difficultyLevel, 0) / selectedCourses.length
-      : 0;
-
-  if (selectedCourses.length === 0) {
-    return (
-      <Card title="Workload Analyzer" subtitle="Select courses to analyze your semester workload">
-        <div className="text-center py-8 text-gray-500">
-          <Calculator size={48} className="mx-auto mb-4 opacity-50" />
-          <p>No courses selected</p>
-          <p className="text-sm mt-2">Add courses to see workload analysis</p>
-        </div>
-      </Card>
-    );
-  }
-
   return (
     <Card
-      title="Workload Analyzer"
-      subtitle={`${selectedCourses.length} course(s) selected`}
-      headerAction={
-        <div className="flex gap-2">
-          {onClear && (
-            <button onClick={onClear} className="text-sm text-gray-500 hover:text-gray-700">
-              Clear
-            </button>
-          )}
-          <button
-            onClick={handleAnalyze}
-            disabled={isAnalyzing || selectedCourses.length === 0}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
-          >
-            {isAnalyzing ? 'Analyzing...' : 'Analyze'}
-          </button>
-        </div>
+      title="Workload estimate"
+      subtitle={
+        selectedCourses.length > 0
+          ? `${selectedCourses.length} selected courses · ${formatCredits(totalCredits)}`
+          : 'Review a selected set of courses'
       }
     >
-      {/* Selected Courses Summary */}
-      <div className="mb-6">
-        <h4 className="text-sm font-medium text-gray-700 mb-2">Selected Courses</h4>
-        <div className="space-y-2 max-h-40 overflow-y-auto">
-          {selectedCourses.map((course) => (
-            <div
-              key={course.id}
-              className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+      {selectedCourses.length === 0 ? (
+        <p className="text-sm text-gray-700">
+          Select courses to compare their total credits and see a workload estimate.
+        </p>
+      ) : (
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => void handleAnalyze()}
+              isLoading={isAnalyzing}
+              disabled={isAnalyzing}
             >
-              <div className="flex items-center gap-2">
-                <BookOpen size={16} className="text-gray-400" />
-                <span className="text-sm font-medium">{course.code}</span>
-                <span className="text-sm text-gray-600">{course.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={course.category === 'REQUIRED' ? 'info' : 'default'}>
-                  {categoryLabels[course.category]}
-                </Badge>
-                <span className="text-sm text-gray-500">{course.credits} cr</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-gray-900">{totalCredits}</div>
-          <div className="text-sm text-gray-500">Total Credits</div>
-        </div>
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-gray-900">{avgDifficulty.toFixed(1)}</div>
-          <div className="text-sm text-gray-500">Avg Difficulty</div>
-        </div>
-      </div>
-
-      {/* Analysis Results */}
-      {analysis && (
-        <div className="border-t pt-6">
-          <h4 className="text-sm font-medium text-gray-700 mb-4">Analysis Results</h4>
-
-          {/* Risk Level */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Risk Level</span>
-              <Badge className={riskLevelColors[analysis.riskLevel]}>
-                {riskLevelLabels[analysis.riskLevel]}
-              </Badge>
-            </div>
-            <div className={`h-2 rounded-full ${riskLevelColors[analysis.riskLevel]} opacity-30`}>
-              <div
-                className={`h-full rounded-full ${riskLevelColors[analysis.riskLevel]} transition-all duration-500`}
-                style={{
-                  width:
-                    analysis.riskLevel === 'LOW'
-                      ? '25%'
-                      : analysis.riskLevel === 'MEDIUM'
-                        ? '50%'
-                        : analysis.riskLevel === 'HIGH'
-                          ? '75%'
-                          : '100%',
-                }}
-              />
-            </div>
+              {isAnalyzing ? 'Calculating…' : 'Calculate estimate'}
+            </Button>
+            {onClear && (
+              <Button variant="ghost" size="sm" onClick={onClear}>
+                Clear selection
+              </Button>
+            )}
           </div>
+          <ul className="max-h-56 divide-y divide-gray-200 overflow-y-auto border-y border-gray-200">
+            {selectedCourses.map((course) => (
+              <li
+                key={course.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 py-3"
+              >
+                <div className="min-w-0">
+                  <strong className="text-gray-900">{course.code}</strong>
+                  <span className="ml-2 text-gray-700">{course.name}</span>
+                  <p className="text-sm text-gray-700">{categoryLabels[course.category]}</p>
+                </div>
+                <span className="text-sm text-gray-700">{formatCredits(course.credits)}</span>
+              </li>
+            ))}
+          </ul>
 
-          {/* Workload Score */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Workload Score</span>
-              <span className="text-lg font-semibold">{analysis.workloadScore.toFixed(1)}</span>
-            </div>
-            <ProgressBar progress={analysis.workloadScore} max={60} size="sm" showLabel={false} />
-          </div>
+          <p className="mt-4 max-w-2xl text-sm text-gray-700">
+            This estimate combines credits with seeded course difficulty. It does not check
+            timetables, teaching capacity or your personal study time.
+          </p>
 
-          {/* Recommendations */}
-          {analysis.recommendations.length > 0 && (
-            <div className="mt-4">
-              <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <Lightbulb size={16} className="text-yellow-500" />
-                Recommendations
-              </h5>
-              <ul className="space-y-2">
-                {analysis.recommendations.map((rec, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
-                    <AlertTriangle size={14} className="mt-0.5 text-amber-500 flex-shrink-0" />
-                    {rec}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {hasError && (
+            <p role="alert" className="mt-4 text-sm text-red-700">
+              We couldn’t calculate this selection. Check your connection and try again.
+            </p>
           )}
 
-          {/* All Clear Message */}
-          {analysis.recommendations.length === 0 && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
-              <CheckCircle size={20} className="text-green-500" />
-              <span className="text-sm text-green-700">Your semester plan looks balanced!</span>
-            </div>
+          {analysis && (
+            <section aria-label="Workload result" className="mt-6 border-t border-gray-200 pt-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <div>
+                  <h4 className="font-semibold text-gray-900">Estimated workload</h4>
+                  <p className="mt-1 text-sm text-gray-700">
+                    Heuristic score {analysis.workloadScore.toFixed(1)} · Average seeded difficulty{' '}
+                    {analysis.averageDifficulty.toFixed(1)}
+                  </p>
+                </div>
+                <Badge variant="default">{bandLabels[analysis.riskLevel]}</Badge>
+              </div>
+
+              {analysis.recommendations.length > 0 ? (
+                <div className="mt-5">
+                  <h5 className="text-sm font-semibold text-gray-900">Things to review</h5>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
+                    {analysis.recommendations.map((recommendation, index) => (
+                      <li key={`${index}-${recommendation}`}>{recommendation}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="mt-5 text-sm text-gray-700">
+                  No threshold notes were triggered for this selection. Check your timetable and
+                  commitments before choosing a semester load.
+                </p>
+              )}
+            </section>
           )}
-        </div>
+        </>
       )}
     </Card>
   );

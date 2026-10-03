@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { Course } from '@/types';
 import { playLockedSound } from '@/lib/sounds';
 
@@ -33,12 +33,13 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onPrereqsHover,
   onPrereqsLeave,
 }) => {
-  const [hovered, setHovered] = useState(false);
+  const [showPrerequisites, setShowPrerequisites] = useState(false);
 
   const handleClick = useCallback(() => {
     if (disabled) return;
     if (isLocked) {
       playLockedSound();
+      setShowPrerequisites((open) => !open);
     } else {
       onToggleComplete(course.id);
     }
@@ -55,85 +56,80 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   }, [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned]);
 
   let borderColor = 'border-gray-300';
-  let opacity = 'opacity-100';
-  let statusIcon = null;
-  let highlightRing = '';
+  let status = 'Available';
 
   if (isCompleted) {
     borderColor = 'border-green-500';
-    statusIcon = <span className="text-green-600 font-bold text-[10px]">DONE</span>;
+    status = 'Done';
   } else if (isPlanned) {
     borderColor = 'border-blue-500 ring-1 ring-blue-200';
-    statusIcon = <span className="text-blue-600 font-bold text-[10px]">PLANNED</span>;
+    status = 'Planned';
   } else if (isRecommended) {
     borderColor = 'border-amber-500 ring-2 ring-amber-200';
-    statusIcon = <span className="text-amber-600 font-bold text-[10px]">NEXT</span>;
+    status = 'Next';
   } else if (isLocked) {
     borderColor = 'border-gray-200';
-    opacity = 'opacity-50';
-    statusIcon = <span className="text-gray-400 font-bold text-[10px]">LOCKED</span>;
-  }
-
-  if (isHighlighted || (isLocked && hovered)) {
-    opacity = 'opacity-100';
-    borderColor = 'border-violet-500';
-    highlightRing = 'ring-2 ring-violet-400 bg-violet-50 scale-[1.02] shadow-md';
-  }
-
-  if (isBlurred) {
-    opacity = 'opacity-25 blur-[1px]';
-    highlightRing = '';
+    status = 'Locked';
   }
 
   return (
     <div
-      aria-disabled={disabled}
-      onClick={handleClick}
       onContextMenu={handleContextMenu}
       onMouseEnter={() => {
-        setHovered(true);
         if (isLocked && onPrereqsHover) {
           onPrereqsHover(course.prerequisites.map((p) => p.prerequisiteId));
         }
       }}
       onMouseLeave={() => {
-        setHovered(false);
         if (onPrereqsLeave) {
           onPrereqsLeave();
         }
       }}
       className={`
-        bg-white rounded-md shadow-sm border-2 p-2
-        transition-all duration-150 hover:shadow-md
-        ${borderColor} ${opacity} ${highlightRing}
-        ${!isLocked ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-not-allowed'}
+        bg-white rounded-md border-2 px-2 py-1.5 transition-colors
+        ${isHighlighted ? 'ring-2 ring-violet-500' : ''}
+        ${isBlurred ? 'opacity-40' : ''}
+        ${borderColor}
       `}
     >
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {(course.category === 'ELECTIVE' || course.category === 'FREE_ELECTIVE' || course.category === 'MAJOR_ELECTIVE') && (
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-amber-500" />
-          )}
-          <span className="text-[10px] font-bold text-gray-700 truncate">{course.code}</span>
-          <span className="text-[10px] text-gray-500 shrink-0">{course.credits} cr</span>
-        </div>
-        {statusIcon}
-      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={handleClick}
+        aria-label={`${course.code} ${course.name}: ${isLocked ? 'Show prerequisites' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
+        aria-pressed={isLocked ? undefined : isCompleted}
+        aria-expanded={isLocked ? showPrerequisites : undefined}
+        className="min-h-11 w-full rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700"
+      >
+        <span className="flex items-center justify-between gap-1 text-[11px] leading-tight">
+          <span className="flex min-w-0 items-center gap-1 font-semibold text-gray-700">
+            {(course.category === 'ELECTIVE' || course.category === 'FREE_ELECTIVE' || course.category === 'MAJOR_ELECTIVE') && (
+              <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+            )}
+            <span className="truncate">{course.code}</span>
+          </span>
+          <span className="shrink-0 text-gray-600">{course.credits} cr</span>
+        </span>
+        <span className="mt-0.5 block break-words text-xs font-medium leading-snug text-gray-900">
+          {course.name}
+        </span>
+        <span className={`mt-0.5 block text-[11px] font-semibold leading-tight ${
+          isCompleted ? 'text-green-700' : isPlanned ? 'text-blue-700' : isRecommended ? 'text-amber-700' : 'text-gray-700'
+        }`}>{status}{isLocked ? ' · prerequisites' : ''}</span>
+      </button>
 
-      <h4 className="font-medium text-[10px] text-gray-900 leading-snug break-words">
-        {course.name}
-      </h4>
-
-      {course.prerequisites.length > 0 && hovered && isLocked && (
-        <div className="mt-1.5 bg-gray-50 rounded px-2 py-1.5 space-y-0.5">
-          <p className="text-[10px] text-gray-600 font-medium">Requires:</p>
-          {course.prerequisites.map((prereq) => (
-            <span key={prereq.id} className="block text-[10px] text-gray-500">
-              {prereq.prerequisite
-                ? `${prereq.prerequisite.code} - ${prereq.prerequisite.name}`
-                : prereq.prerequisiteId}
-            </span>
-          ))}
+      {isLocked && showPrerequisites && (
+        <div className="mt-1.5 border-t border-gray-200 pt-1.5 text-xs text-gray-700">
+          <p className="font-semibold">Requires</p>
+          <ul className="mt-1 space-y-1">
+            {course.prerequisites.map((prereq) => (
+              <li key={prereq.id}>
+                {prereq.prerequisite
+                  ? `${prereq.prerequisite.code} - ${prereq.prerequisite.name}`
+                  : prereq.prerequisiteId}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

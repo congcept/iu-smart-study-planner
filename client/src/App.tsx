@@ -72,7 +72,7 @@ function AppShell() {
         >
           {user ? (
             <>
-              <Link to="/curriculum" className="text-primary-700 underline">
+              <Link to="/curriculum" className="inline-flex min-h-11 items-center text-primary-700 underline">
                 My curriculum
               </Link>
               <span className="text-gray-600">{user.name}</span>
@@ -85,13 +85,13 @@ function AppShell() {
             </>
           ) : (
             <>
-              <Link to="/" className="text-gray-600 underline">
+              <Link to="/" className="inline-flex min-h-11 items-center text-gray-600 underline">
                 Demo curriculum
               </Link>
-              <Link to="/login" className="text-primary-700 underline">
+              <Link to="/login" className="inline-flex min-h-11 items-center text-primary-700 underline">
                 Sign in
               </Link>
-              <Link to="/register" className="text-primary-700 underline">
+              <Link to="/register" className="inline-flex min-h-11 items-center text-primary-700 underline">
                 Create account
               </Link>
             </>
@@ -99,7 +99,7 @@ function AppShell() {
         </nav>
         {apiStatus === 'error' && (
           <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full ml-auto">
-            API Disconnected
+            Cannot connect to the planner. Reload the page to try again.
           </span>
         )}
       </header>
@@ -115,7 +115,7 @@ function AppShell() {
             <p role="alert" className="mb-4 text-red-700">
               {sessionError}
             </p>
-            <Button onClick={() => void refresh()}>Retry</Button>
+            <Button onClick={() => void refresh()}>Try again</Button>
           </div>
         ) : (
           <>
