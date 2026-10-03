@@ -87,3 +87,26 @@ including historical votes after uncompletion. Query parameters cannot select an
 account, and an admin reads only their own votes. Public aggregates still contain no
 identities. Six real PostgreSQL tests cover authentication and isolation. Full gates
 pass307 server/153 client tests. This supports displaying saved votes in the upcoming form.
+
+## Student rating entry
+
+Protected /ratings and the signed-in Ratings navigation use the cookie account’s
+completed courses and saved votes. Native selectors explain1–5; each explicit save
+replaces that account’s one vote, refreshes the course estimates and returns keyboard
+focus to Course. Empty, loading and reload states are explicit. The server rechecks
+completion even if the displayed catalog is stale.
+
+A sessionStorage journal is written before POST. Failed/uncertain responses retain
+the course/value and lock editing until the same vote is acknowledged on retry.
+Reloading never writes or discards the pending vote. Corrupt/unavailable storage blocks
+writes; account changes ignore late responses.429 displays the server retry interval.
+This tab-local recovery is not a cross-device draft; closing the tab loses its journal.
+Concurrent deliberate edits from multiple tabs retain the API’s last-committed-vote
+semantics; immutable request history is specific to grades, not ratings.
+
+Twenty-five new client cases cover adapter validation, routing, completion filtering,
+empty/error states, saves, duplicate clicks, locked retries, storage, quota and account
+isolation. Full gates pass307 server/178 client tests. A real simulated vote changed
+4→3, retained count1 and refreshed the estimate; desktop/mobile checks passed at390px
+without page overflow. UI review/documentation used a disclosed inline fallback after
+subagent account usage limits. Curriculum means and scoring integration remain pending.
