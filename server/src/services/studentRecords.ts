@@ -3,16 +3,10 @@ import { z } from 'zod';
 import { UpdateStudentRecordSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { readStudentProgress } from './studentProgress';
+import { readProgressCourseContext, validateContextClaim } from './progressCourseContext';
+import { StudentRecordError } from './studentRecordError';
 
-export class StudentRecordError extends Error {
-  constructor(
-    message: string,
-    readonly status: 404 | 409,
-    readonly details?: { id: string; code: string; name: string }[],
-  ) {
-    super(message);
-  }
-}
+export { StudentRecordError } from './studentRecordError';
 
 type RecordUpdate = z.infer<typeof UpdateStudentRecordSchema>;
 
@@ -44,20 +38,39 @@ export async function updateStudentRecord(
             },
           });
           if (!course) throw new StudentRecordError('Course not found', 404);
+          const context = user.curriculumId
+            ? (await readProgressCourseContext(tx, user.curriculumId, [data.courseId])).get(
+                data.courseId,
+              )!
+            : null;
+          const prerequisites = context?.prerequisites ?? course.prerequisites;
+          let electiveGroup = data.electiveGroup;
+          if (context && data.status === CourseStatus.COMPLETED) {
+            if (electiveGroup === undefined) {
+              electiveGroup =
+                (
+                  await tx.studentRecord.findUnique({
+                    where: { userId_courseId: { userId: user.id, courseId: data.courseId } },
+                    select: { electiveGroup: true },
+                  })
+                )?.electiveGroup ?? null;
+            }
+            validateContextClaim(context.placements, electiveGroup);
+          }
 
           if (data.status === CourseStatus.COMPLETED) {
             const completed = await tx.studentRecord.findMany({
               where: {
                 userId: user.id,
                 status: CourseStatus.COMPLETED,
-                courseId: { in: course.prerequisites.map((edge) => edge.prerequisiteId) },
+                courseId: { in: prerequisites.map((edge) => edge.prerequisiteId) },
               },
               select: { courseId: true },
             });
             const completedIds = new Set(completed.map((record) => record.courseId));
             // Product policy: every prerequisite is mandatory, including rows
             // previously tagged as recommended or corequisite.
-            const unmet = course.prerequisites
+            const unmet = prerequisites
               .filter((edge) => !completedIds.has(edge.prerequisiteId))
               .map((edge) => edge.prerequisite);
             if (unmet.length > 0) {
@@ -67,9 +80,14 @@ export async function updateStudentRecord(
 
           let uncompletedCourseIds: string[] = [];
           if (data.status !== CourseStatus.COMPLETED) {
-            const edges = await tx.prerequisite.findMany({
-              select: { courseId: true, prerequisiteId: true },
-            });
+            const edges = user.curriculumId
+              ? await tx.curriculumPrerequisite.findMany({
+                  where: { curriculumId: user.curriculumId },
+                  select: { courseId: true, prerequisiteId: true },
+                })
+              : await tx.prerequisite.findMany({
+                  select: { courseId: true, prerequisiteId: true },
+                });
             const dependents = new Map<string, string[]>();
             for (const edge of edges) {
               const ids = dependents.get(edge.prerequisiteId) ?? [];
@@ -128,12 +146,12 @@ export async function updateStudentRecord(
             where: { userId_courseId: { userId: user.id, courseId: data.courseId } },
             update: {
               ...data,
-              electiveGroup: data.status === CourseStatus.COMPLETED ? data.electiveGroup : null,
+              electiveGroup: data.status === CourseStatus.COMPLETED ? electiveGroup : null,
             },
             create: {
               userId: user.id,
               ...data,
-              electiveGroup: data.status === CourseStatus.COMPLETED ? data.electiveGroup : null,
+              electiveGroup: data.status === CourseStatus.COMPLETED ? electiveGroup : null,
             },
             include: { course: true },
           });
