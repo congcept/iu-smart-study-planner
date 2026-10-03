@@ -141,7 +141,7 @@ npm run dev                                # Build shared, then run shared/clien
 Full execution prompt: `documentation/thesis/MASTER_IMPLEMENTATION_PROMPT.md`. This section is the
 decision record + working conventions. Read both before starting roadmap work.
 
-## Implementation Progress — 2026-10-03
+## Implementation Progress — 2026-10-04
 
 User-approved working scope: features first, keep each change small, simulated students,
 deadline end of 2026, all prerequisites mandatory, new grade entry uses actual 0–100 scores, credit-weighted GPA uses the highest course score on
@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 721 server tests and 463 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 721 server tests and 470 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -187,10 +187,10 @@ Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
-## Active Checkpoint — 2026-10-03
+## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #67 are pushed/merged. The narrow current saved-course list is verified and ready for its own PR. Saved-semester creation/course-list edits
+through PR #68 are pushed/merged. The legacy GPA response-scope guard is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -338,7 +338,17 @@ pass on the exact isolated snapshot. Desktop/mobile browser checks showed the co
 completion row with no horizontal overflow and unchanged fixture records/attempts. Review
 was inline after the account usage limit. See docs/phase-2/context-saved-course-list.md.
 
-Next: verify context-aware completion mutation/cache handling before enabling editing. Keep completion
+The legacy CS GPA hook now validates present grade scope and requires the expected owner
+and a null curriculum context. Wrong cookie owners, malformed scopes and assigned fork/
+nonfork contexts cannot expose legacy path/manual controls. Matching unassigned numeric and
+null GPA still work; old scope-less reply compatibility remains behind the parent's fresh
+null-session gate. Focus errors withhold old eligibility and retry recovers. Seven new hook
+cases plus all map/GPA regressions pass. Build/types/zero-warning lint and 721 server / 470
+client tests pass on the exact isolated snapshot. No visual layout or server policy changed;
+review was inline after the account usage limit. See docs/phase-2/legacy-gpa-scope-guard.md.
+
+Next: add atomic expected-owner/context preconditions to completion, grade and rating writes,
+then adopt context-aware completion mutation/cache handling before enabling editing. Keep completion
 editing gated until progress/cache hydration/types and pending mutations/claims are isolated
 by owner and context. The old GPA hook is retained only within the confirmed-null legacy map.
 Do not enable assignment yet. Remaining legacy consumers expect flat
@@ -619,7 +629,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 721 server tests and 463 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 721 server tests and 470 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

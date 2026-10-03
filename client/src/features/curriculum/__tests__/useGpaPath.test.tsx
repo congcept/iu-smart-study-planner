@@ -48,6 +48,44 @@ afterEach(() => {
 });
 
 describe('account-scoped server GPA path', () => {
+  const ownerId = '11111111-1111-4111-8111-111111111111';
+  const otherId = '22222222-2222-4222-8222-222222222222';
+  const scope = { userId: ownerId, curriculumId: null, isGpaPath: true };
+  it.each(['numeric', 'null'] as const)(
+    'accepts the matching unassigned %s scope',
+    async (kind) => {
+      getGrades.mockResolvedValueOnce({ ...(kind === 'numeric' ? scored() : empty), scope });
+      const { result } = hook(ownerId);
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(result.current.manual).toBe(kind === 'null');
+    },
+  );
+  it.each([
+    ['another owner', { ...scope, userId: otherId }],
+    ['assigned fork', { ...scope, curriculumId: otherId }],
+    ['assigned nonfork', { ...scope, curriculumId: otherId, isGpaPath: false }],
+    ['invalid scope', { ...scope, userId: 'not-a-uuid' }],
+  ])('rejects %s before exposing a CS path or manual controls', async (_name, responseScope) => {
+    getGrades.mockResolvedValueOnce({ ...empty, scope: responseScope });
+    const { result } = hook(ownerId);
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current).toMatchObject({ mode: null, manual: false, gpa100: null });
+    act(() => result.current.selectManual('below'));
+    expect(result.current.mode).toBeNull();
+  });
+  it('removes stale eligibility when the cookie scope changes during focus refresh and recovers on retry', async () => {
+    getGrades
+      .mockResolvedValueOnce({ ...scored(), scope })
+      .mockResolvedValueOnce({ ...scored(), scope: { ...scope, userId: otherId } })
+      .mockResolvedValueOnce({ ...empty, scope });
+    const { result } = hook(ownerId);
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    act(() => window.dispatchEvent(new Event('focus')));
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current).toMatchObject({ mode: null, manual: false, gpa100: null });
+    await act(async () => result.current.reload());
+    expect(result.current).toMatchObject({ status: 'ready', manual: true, gpa100: null });
+  });
   it('keeps the guest manual, without loading grades or refreshing on focus', async () => {
     const { result } = renderHook(() => useGpaPath());
     expect(result.current).toMatchObject({ status: 'ready', mode: 'above', manual: true });

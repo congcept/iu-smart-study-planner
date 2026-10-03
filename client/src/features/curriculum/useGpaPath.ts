@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { StudentGradeScopeSchema } from '@iu-study-planner/shared';
 import { getStudentGrades } from '@/lib/gradesApi';
 
 type GpaMode = 'above' | 'below';
@@ -27,8 +28,13 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseSnapshot(value: unknown): GpaSnapshot {
+function parseSnapshot(value: unknown, userId: string): GpaSnapshot {
   if (!isObject(value) || !isObject(value.summary)) throw new Error('Invalid GPA summary');
+  if (value.scope !== undefined) {
+    const scope = StudentGradeScopeSchema.parse(value.scope);
+    if (scope.userId !== userId.toLowerCase() || scope.curriculumId !== null)
+      throw new Error('Wrong legacy GPA scope');
+  }
   const { gpaPath, gpa100, gradedCredits, gradedCourseCount } = value.summary;
   if (
     (gpaPath !== null && gpaPath !== 'THESIS' && gpaPath !== 'ALTERNATIVE') ||
@@ -94,7 +100,7 @@ export function useGpaPath(userId?: string) {
       try {
         // Defer invocation so even a synchronous adapter failure cannot settle
         // before the pending-request reference is installed.
-        const snapshot = parseSnapshot(await Promise.resolve().then(getStudentGrades));
+        const snapshot = parseSnapshot(await Promise.resolve().then(getStudentGrades), userId);
         if (isCurrent())
           setState((current) => ({
             ownerId: userId,
