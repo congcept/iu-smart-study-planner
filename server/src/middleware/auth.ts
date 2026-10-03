@@ -35,6 +35,12 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
   }
 };
 
+/** Public demos remain anonymous; a supplied session must be valid, never silently downgraded. */
+export const optionalAuth: RequestHandler = (req, res, next) => {
+  if (req.cookies?.[AUTH_COOKIE_NAME] === undefined) return next();
+  return requireAuth(req, res, next);
+};
+
 export const requireAdmin: RequestHandler[] = [
   requireAuth,
   (req, res, next) => {

@@ -67,6 +67,12 @@ export interface RecommendationStatsDTO {
   averageDifficulty: number;
 }
 
+export interface WorkloadScopeDTO {
+  curriculumId: string | null;
+  categoryBalanceAvailable: boolean;
+  ratingPrior: { mean: number; source: RatingPriorSource };
+}
+
 export interface StudentGradesDTO {
   attempts: GradeAttemptDTO[];
   summary: {

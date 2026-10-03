@@ -202,9 +202,18 @@ export const CreatePrerequisiteSchema = z.object({
 });
 
 // Recommendations
-export const AnalyzeWorkloadSchema = z.object({
-  courseIds: z.array(z.string().uuid()).min(1),
-});
+export const AnalyzeWorkloadSchema = z
+  .object({
+    courseIds: z
+      .array(
+        z
+          .string()
+          .uuid()
+          .transform((id) => id.toLowerCase()),
+      )
+      .min(1),
+  })
+  .strict();
 
 // Study Plans
 export const CreateStudyPlanSchema = z.object({
