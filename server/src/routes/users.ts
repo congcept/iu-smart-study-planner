@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import { CourseStatus } from '@prisma/client';
 import { z } from 'zod';
 import {
   CreateUserSchema,
@@ -15,17 +14,7 @@ import { PUBLIC_USER_SELECT } from '../services/authService';
 import { readStudentProgress } from '../services/studentProgress';
 import { importStudentProgress } from '../services/importStudentProgress';
 import { readStudentProgressView } from '../services/studentProgressView';
-
-async function findUserByIdentifier(identifier: string) {
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
-    return prisma.user.findUnique({ where: { id: identifier } });
-  }
-  return prisma.user.findUnique({ where: { studentId: identifier } });
-}
-
-const NON_CREDIT_COURSE_CODES = new Set(['PT001IU', 'PT002IU']);
-const degreeCredits = (course: { code: string; credits: number }) =>
-  NON_CREDIT_COURSE_CODES.has(course.code) ? 0 : course.credits;
+import { readStudentProfileView, readStudentRecordsView } from '../services/studentAccountViews';
 
 const router = Router();
 
@@ -120,75 +109,16 @@ router.get('/', requireAdmin, async (_req: Request, res: Response) => {
   }
 });
 
-// Get user by ID with records
+// Get user by ID with context-aware records and preserved history.
 router.get('/:id', requireUserAccess, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const user = await findUserByIdentifier(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-    }
-
-    const fullUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        ...PUBLIC_USER_SELECT,
-        studentRecords: {
-          include: {
-            course: true,
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-        studyPlans: {
-          where: { isActive: true },
-          include: {
-            semesters: true,
-          },
-        },
-      },
-    });
-
-    if (!fullUser) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-    }
-
-    // Calculate statistics
-    const completedCourses = fullUser.studentRecords.filter(
-      (r) => r.status === CourseStatus.COMPLETED,
-    );
-    const totalCredits = completedCourses.reduce((sum, r) => sum + degreeCredits(r.course), 0);
-    const gpa =
-      completedCourses.length > 0
-        ? completedCourses.reduce((sum, r) => sum + (r.gradePoints ?? 0), 0) /
-          completedCourses.length
-        : 0;
-
-    return res.json({
-      success: true,
-      data: {
-        ...fullUser,
-        stats: {
-          totalCourses: fullUser.studentRecords.length,
-          completedCourses: completedCourses.length,
-          totalCredits,
-          gpa: Math.round(gpa * 100) / 100,
-        },
-      },
-    });
+    return res.json({ success: true, data: await readStudentProfileView(req.params.id) });
   } catch (error) {
+    if (error instanceof StudentRecordError) {
+      return res.status(error.status).json({ success: false, error: error.message });
+    }
     console.error('Error fetching user:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch user',
-    });
+    return res.status(500).json({ success: false, error: 'Failed to fetch user' });
   }
 });
 
@@ -223,57 +153,21 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
   }
 });
 
-// Get user's student records
+// Get active records and historical records in their own curriculum scope.
 router.get('/:id/records', requireUserAccess, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-
-    const user = await findUserByIdentifier(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-    }
-
-    const records = await prisma.studentRecord.findMany({
-      where: { userId: user.id },
-      include: {
-        course: {
-          include: {
-            prerequisites: {
-              include: {
-                prerequisite: {
-                  select: { id: true, code: true, name: true },
-                },
-              },
-            },
-            isPrerequisiteFor: {
-              include: {
-                course: {
-                  select: { id: true, code: true, name: true },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
+    const data = await readStudentRecordsView(req.params.id);
     return res.json({
       success: true,
-      data: records,
-      count: records.length,
+      data,
+      count: Array.isArray(data) ? data.length : data.records.length,
     });
   } catch (error) {
+    if (error instanceof StudentRecordError) {
+      return res.status(error.status).json({ success: false, error: error.message });
+    }
     console.error('Error fetching student records:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch student records',
-    });
+    return res.status(500).json({ success: false, error: 'Failed to fetch student records' });
   }
 });
 

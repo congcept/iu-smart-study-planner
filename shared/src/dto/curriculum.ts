@@ -1,9 +1,11 @@
 import type {
+  AuthUserDTO,
   CourseDifficultyDTO,
   CourseStatus,
   GpaPath,
   RecommendationStatsDTO,
   Semester,
+  StudentGradesDTO,
 } from './index';
 
 export interface CurriculumSummaryDTO {
@@ -114,4 +116,55 @@ export interface ContextStudentProgressDTO {
     gpaPath: GpaPath | null;
     ratingPrior: CurriculumDetailDTO['ratingPrior'];
   };
+}
+
+export interface ContextAccountScopeDTO {
+  curriculumId: string;
+  usage: 'REFERENCE_ONLY';
+  ratingPrior: CurriculumDetailDTO['ratingPrior'];
+}
+
+export interface ContextStudentRecordsDTO {
+  records: ContextStudentRecordDTO[];
+  historicalRecords: ContextStudentProgressDTO['historicalRecords'];
+  scope: ContextAccountScopeDTO;
+}
+
+/** Existing saved JSON remains historical data, not a validated contextual schedule. */
+export interface CachedStudyPlanDTO {
+  id: string;
+  userId: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  semesters: {
+    id: string;
+    studyPlanId: string;
+    semester: Semester;
+    year: number;
+    courses: unknown;
+    totalCredits: number;
+    difficultyScore: number | null;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+}
+
+export interface ContextStudentProfileDTO extends AuthUserDTO {
+  major: string | null;
+  enrollmentYear: number | null;
+  targetGraduationYear: number | null;
+  createdAt: string;
+  updatedAt: string;
+  studentRecords: ContextStudentRecordDTO[];
+  historicalRecords: ContextStudentProgressDTO['historicalRecords'];
+  studyPlans: CachedStudyPlanDTO[];
+  stats: StudentGradesDTO['summary'] & {
+    totalCourses: number;
+    completedCourses: number;
+    totalCredits: number;
+  };
+  scope: ContextAccountScopeDTO & { studyPlansValidated: false };
 }
