@@ -5,6 +5,15 @@ export const PaginationQuerySchema = z.object({
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
 });
 
+export const CurriculumParamsSchema = z
+  .object({
+    id: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase()),
+  })
+  .strict();
+
 // Enums
 export const CourseStatusSchema = z.enum([
   'PLANNED',

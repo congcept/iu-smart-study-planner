@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import * as schemas from '../schemas';
 
+export * from './curriculum';
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
