@@ -7,6 +7,7 @@ import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
 import { ArchivedProgressImport } from './ArchivedProgressImport';
 import { collectCompletedDependents } from './prerequisites';
+import { recommendCurriculumCourses } from './recommendations';
 import { GraduationCap, BookOpen, Target, ListChecks, ChevronRight } from 'lucide-react';
 
 const getElectiveGroupLabel = (groupName: string): string => {
@@ -117,40 +118,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
       return;
     }
 
-    const availableCourses = allCourses.filter(
-      (c) => !completedIdsSet.has(c.id),
+    const recommended = recommendCurriculumCourses(
+      groups,
+      completedIdsSet,
+      creditsPerSemester,
+      isY4S2ThesisMode,
     );
-
-    const unlockedCourses = availableCourses.filter((c) =>
-      c.prerequisites.every((p) => completedIdsSet.has(p.prerequisiteId)),
-    );
-
-    unlockedCourses.sort((a, b) => {
-      const aGroup = groups.find((g) => g.courses.some((c) => c.id === a.id));
-      const bGroup = groups.find((g) => g.courses.some((c) => c.id === b.id));
-      if (!aGroup || !bGroup) return 0;
-      if (aGroup.year !== bGroup.year) return aGroup.year - bGroup.year;
-      if (aGroup.semester !== bGroup.semester) return aGroup.semester - bGroup.semester;
-      return a.code.localeCompare(b.code);
-    });
-
-    const recommended: string[] = [];
-    let totalCredits = 0;
-
-    for (const course of unlockedCourses) {
-      const courseGroup = groups.find((g) => g.courses.some((c) => c.id === course.id));
-      if (courseGroup?.year === 4 && courseGroup.semester === 2) {
-        const isThesis = course.code === 'IT058IU';
-        if (isY4S2ThesisMode !== isThesis) continue;
-      }
-
-      if (totalCredits + course.credits <= creditsPerSemester) {
-        recommended.push(course.id);
-        totalCredits += course.credits;
-      }
-
-      if (totalCredits >= creditsPerSemester) break;
-    }
 
     setRecommendedIds(new Set(recommended));
   }, [allCourses, completedIdsSet, recommendationsEnabled, isY4S2ThesisMode, groups, creditsPerSemester]);
