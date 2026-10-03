@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 717 server tests and 432 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 721 server tests and 461 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-03
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #65 are pushed/merged. The account curriculum reference increment is verified and ready for its own PR. Saved-semester creation/course-list edits
+through PR #66 are pushed/merged. The contextual progress summary is verified and ready for its own PR. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -314,7 +314,23 @@ isolated source snapshot. Desktop/mobile review confirmed nonfork copy, member-o
 44-pixel reload and no horizontal overflow while preserving fixture history. Review was
 inline after the account usage limit. See docs/phase-2/account-curriculum-reference.md.
 
-Next: adopt context-specific progress reads and summary in the reference view. Keep completion
+Assigned references now include a private, read-only saved-progress summary with current
+completed/planned/in-progress counts, earned credits excluding physical training, and
+preserved outside-context records/claims shown separately. The existing private progress
+endpoint adds its authoritative owner to scope from the same repeatable-read snapshot.
+Strict shared/client validation rejects legacy replies, wrong owners/contexts, duplicate
+records, invalid buckets, mismatched course identities and inconsistent earned totals.
+Owner/context remounts and request generations withhold stale results and support retry;
+the parent focus refresh remounts the summary. No percent, remaining-degree total or
+progress mutation is added. Four PostgreSQL, nineteen API and ten summary cases pass.
+Build/types/zero-warning lint and 721 server / 461 client tests pass on the exact isolated
+snapshot. Desktop/mobile checks showed one current completed course/4 earned credits,
+a preserved outside-context thesis record, 44-pixel reloads and no horizontal overflow;
+all fixture attempts and legacy records remained unchanged. Review was inline after the
+account usage limit. See docs/phase-2/context-progress-summary.md.
+
+Next: surface current member record states on the read-only reference cards and verify
+context-aware completion mutation/cache handling before enabling editing. Keep completion
 editing gated until progress/cache hydration/types and pending mutations/claims are isolated
 by owner and context. The old GPA hook is retained only within the confirmed-null legacy map.
 Do not enable assignment yet. Remaining legacy consumers expect flat
@@ -595,7 +611,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 717 server tests and 432 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 721 server tests and 461 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

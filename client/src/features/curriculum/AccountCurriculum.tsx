@@ -6,6 +6,7 @@ import { getSession } from '@/lib/api';
 import { getCurriculumReference } from '@/lib/curriculumApi';
 import { CurriculumProgressMap } from './CurriculumProgressMap';
 import { CurriculumReference } from './CurriculumReference';
+import { CurriculumProgressSummary } from './CurriculumProgressSummary';
 
 type State = { ownerId: string; request: number } & (
   | { status: 'loading' }
@@ -131,7 +132,12 @@ export function AccountCurriculum({ userId }: { userId: string }) {
         </p>
       ) : (
         <>
-          {visible.curriculum && <CurriculumReference curriculum={visible.curriculum} />}
+          {visible.curriculum && (
+            <>
+              <CurriculumProgressSummary userId={userId} curriculumId={visible.curriculum.id} />
+              <CurriculumReference curriculum={visible.curriculum} />
+            </>
+          )}
           <Link
             to="/planner"
             className="inline-flex min-h-11 items-center font-semibold text-primary-700 underline"

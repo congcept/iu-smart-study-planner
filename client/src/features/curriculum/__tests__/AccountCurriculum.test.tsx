@@ -15,6 +15,7 @@ import {
 import { AccountCurriculum } from '../AccountCurriculum';
 
 const legacy = vi.hoisted(() => ({ mount: vi.fn() }));
+vi.mock('../CurriculumProgressSummary', () => ({ CurriculumProgressSummary: () => null }));
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/curriculumApi', () => ({ getCurriculumReference: vi.fn() }));
 vi.mock('../CurriculumProgressMap', () => ({

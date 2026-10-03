@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { ContextStudentProgressSchema } from '@iu-study-planner/shared';
 import app, { prisma } from '../index';
 import { AUTH_COOKIE_NAME, issueToken } from '../services/authService';
 
@@ -210,6 +211,27 @@ describe('contextual progress summary reads (PostgreSQL)', () => {
     expect(
       await prisma.studentRecord.findMany({ where: { userId: users[0] }, orderBy: { id: 'asc' } }),
     ).toEqual(before);
+  });
+
+  it.each([0, 1, 4])(
+    'validates private context response %s with authoritative owner metadata',
+    async (index) => {
+      const response = await read(index);
+      expect(response.status).toBe(200);
+      expect(ContextStudentProgressSchema.parse(response.body.data)).toEqual(response.body.data);
+      expect(response.body.data.scope.userId).toBe(users[index]);
+    },
+  );
+
+  it('validates member records, physical-training exclusion and preserved history', async () => {
+    await complete();
+    await complete(physical);
+    await complete(courses[4]);
+    const response = await read();
+    expect(response.status).toBe(200);
+    expect(ContextStudentProgressSchema.parse(response.body.data)).toEqual(response.body.data);
+    expect(response.body.data.progress.completedCredits).toBe(3);
+    expect(response.body.data.historicalRecords).toHaveLength(1);
   });
 
   it('uses context-only mandatory prerequisites and matches recommendation availability', async () => {
