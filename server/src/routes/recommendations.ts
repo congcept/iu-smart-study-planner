@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { CourseStatus, Semester, StudentRecord, Course, Prerequisite } from '@prisma/client';
+import { CourseStatus, Semester, Prisma, Course, Prerequisite } from '@prisma/client';
+import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
 import WorkloadBalancer from '../services/workloadBalancer';
 import SemesterPlanner from '../services/semesterPlanner';
-import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { requireUserIdAccess } from '../middleware/auth';
+import { decorateCourseDifficulties } from '../services/courseRatings';
 
 const router = Router();
 const workloadBalancer = new WorkloadBalancer();
@@ -15,41 +16,38 @@ const semesterPlanner = new SemesterPlanner();
 router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const { semester, maxCredits = '18', maxDifficulty = '3.5' } = req.query;
+    const { semester, maxCredits, maxDifficulty } = z
+      .object({
+        semester: z.nativeEnum(Semester).optional(),
+        maxCredits: z.coerce.number().int().min(1).max(30).default(18),
+        maxDifficulty: z.coerce.number().min(1).max(5).default(3.5),
+      })
+      .parse(req.query);
 
-    // Get user's completed and in-progress courses
-    const userRecords = await prisma.studentRecord.findMany({
-      where: { userId },
-      include: { course: true },
-    });
-
-    const userRecordsTyped = userRecords as (StudentRecord & { course: Course })[];
-
-    const completedCourseIds = new Set(
-      userRecordsTyped.filter((r) => r.status === CourseStatus.COMPLETED).map((r) => r.courseId),
-    );
-
-    const inProgressCourseIds = new Set(
-      userRecordsTyped.filter((r) => r.status === CourseStatus.IN_PROGRESS).map((r) => r.courseId),
-    );
-
-    // Get all courses with prerequisites
-    const allCourses = await prisma.course.findMany({
-      include: {
-        prerequisites: {
-          include: {
-            prerequisite: true,
-          },
-        },
+    const { userRecords, allCourses } = await prisma.$transaction(
+      async (tx) => {
+        const userRecords = await tx.studentRecord.findMany({ where: { userId } });
+        const rows = await tx.course.findMany({
+          include: { prerequisites: { include: { prerequisite: true } }, isPrerequisiteFor: true },
+        });
+        return { userRecords, allCourses: await decorateCourseDifficulties(tx, rows) };
       },
-    });
-
-    const allCoursesTyped = allCourses as (Course & {
-      prerequisites: (Prerequisite & { prerequisite: Course })[];
-    })[];
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    const courseById = new Map(allCourses.map((course) => [course.id, course]));
+    const userRecordsTyped = userRecords.map((record) => ({
+      ...record,
+      course: courseById.get(record.courseId)!,
+    }));
+    const completedCourseIds = new Set(
+      userRecords.filter((r) => r.status === CourseStatus.COMPLETED).map((r) => r.courseId),
+    );
+    const inProgressCourseIds = new Set(
+      userRecords.filter((r) => r.status === CourseStatus.IN_PROGRESS).map((r) => r.courseId),
+    );
 
     // Filter available courses (prerequisites met and not already taken)
-    const availableCourses = allCoursesTyped.filter((course) => {
+    const availableCourses = allCourses.filter((course) => {
       // Skip if already completed or in progress
       if (completedCourseIds.has(course.id) || inProgressCourseIds.has(course.id)) {
         return false;
@@ -62,16 +60,14 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
     // Apply semester filter if provided
     let filteredCourses = availableCourses;
     if (semester) {
-      filteredCourses = availableCourses.filter((c) =>
-        c.semesterOffered.includes(semester as Semester),
-      );
+      filteredCourses = availableCourses.filter((c) => c.semesterOffered.includes(semester));
     }
 
     // Calculate recommendations with workload balancing
     const recommendations = workloadBalancer.calculateRecommendations({
       availableCourses: filteredCourses,
-      maxCredits: parseInt(maxCredits as string),
-      maxDifficulty: parseFloat(maxDifficulty as string),
+      maxCredits,
+      maxDifficulty,
       userHistory: userRecordsTyped,
     });
 
@@ -86,13 +82,17 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
           totalRecommendedCredits: recommendations.reduce((sum, c) => sum + c.credits, 0),
           averageDifficulty:
             recommendations.length > 0
-              ? recommendations.reduce((sum, c) => sum + c.difficultyLevel, 0) /
+              ? recommendations.reduce((sum, c) => sum + c.ratingDifficulty, 0) /
                 recommendations.length
               : 0,
         },
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError)
+      return res
+        .status(400)
+        .json({ success: false, error: 'Validation error', details: error.errors });
     console.error('Error generating recommendations:', error);
     return res.status(500).json({
       success: false,
@@ -106,9 +106,13 @@ router.post('/analyze-workload', async (req: Request, res: Response) => {
   try {
     const { courseIds } = AnalyzeWorkloadSchema.parse(req.body);
 
-    const courses = await prisma.course.findMany({
-      where: { id: { in: courseIds } },
-    });
+    const courses = await prisma.$transaction(
+      async (tx) => {
+        const rows = await tx.course.findMany({ where: { id: { in: courseIds } } });
+        return decorateCourseDifficulties(tx, rows);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
 
     const analysis = workloadBalancer.analyzeSemesterWorkload(courses);
 

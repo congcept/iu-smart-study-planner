@@ -1,6 +1,9 @@
 import { Course, StudentRecord, Prerequisite } from '@prisma/client';
+import type { CourseDifficultyDTO } from '@iu-study-planner/shared';
 
-type CourseWithRelations = Course & {
+type RatedCourse = Course & CourseDifficultyDTO;
+
+type CourseWithRelations = RatedCourse & {
   prerequisites: (Prerequisite & { prerequisite?: Course })[];
   isPrerequisiteFor?: (Prerequisite & { course?: Course })[];
 };
@@ -17,7 +20,7 @@ interface RecommendationInput {
   availableCourses: CourseWithRelations[];
   maxCredits: number;
   maxDifficulty: number;
-  userHistory: (StudentRecord & { course: Course })[];
+  userHistory: (StudentRecord & { course: RatedCourse })[];
 }
 
 class WorkloadBalancer {
@@ -25,11 +28,11 @@ class WorkloadBalancer {
    * Calculate the workload score based on credits and difficulty
    * Score = (totalCredits * 0.4) + (avgDifficulty * totalCredits * 0.6)
    */
-  private calculateWorkloadScore(courses: Course[]): number {
+  private calculateWorkloadScore(courses: RatedCourse[]): number {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
     const avgDifficulty =
       courses.length > 0
-        ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
+        ? courses.reduce((sum, c) => sum + c.ratingDifficulty, 0) / courses.length
         : 0;
 
     return totalCredits * 0.4 + avgDifficulty * totalCredits * 0.6;
@@ -48,11 +51,11 @@ class WorkloadBalancer {
   /**
    * Analyze a semester's workload and provide insights
    */
-  analyzeSemesterWorkload(courses: Course[]): WorkloadAnalysis {
+  analyzeSemesterWorkload(courses: RatedCourse[]): WorkloadAnalysis {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
     const averageDifficulty =
       courses.length > 0
-        ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
+        ? courses.reduce((sum, c) => sum + c.ratingDifficulty, 0) / courses.length
         : 0;
 
     const workloadScore = this.calculateWorkloadScore(courses);
@@ -71,7 +74,7 @@ class WorkloadBalancer {
         'High average difficulty detected. Consider balancing with easier courses',
       );
     }
-    if (courses.filter((c) => c.difficultyLevel >= 4).length > 2) {
+    if (courses.filter((c) => c.ratingDifficulty >= 4).length > 2) {
       recommendations.push(
         'Multiple high-difficulty courses detected. Spread them across semesters',
       );
@@ -104,7 +107,7 @@ class WorkloadBalancer {
   /**
    * Calculate course recommendations with workload balancing
    */
-  calculateRecommendations(input: RecommendationInput): Course[] {
+  calculateRecommendations(input: RecommendationInput): RatedCourse[] {
     const { availableCourses, maxCredits, maxDifficulty, userHistory } = input;
 
     // Sort by priority factors
@@ -121,7 +124,9 @@ class WorkloadBalancer {
 
       // Consider user's past performance on similar difficulty levels
       const similarDifficultyCourses = userHistory.filter(
-        (r) => r.course.difficultyLevel === course.difficultyLevel,
+        (r) =>
+          r.gradePoints !== null &&
+          Math.abs(r.course.ratingDifficulty - course.ratingDifficulty) <= 0.5,
       );
       if (similarDifficultyCourses.length > 0) {
         const avgPerformance =
@@ -137,7 +142,7 @@ class WorkloadBalancer {
       }
 
       // Penalize very high difficulty courses slightly
-      if (course.difficultyLevel >= 4) {
+      if (course.ratingDifficulty >= 4) {
         priorityScore -= 1;
       }
 
@@ -148,14 +153,14 @@ class WorkloadBalancer {
     scoredCourses.sort((a, b) => b.priorityScore - a.priorityScore);
 
     // Select courses while respecting constraints
-    const selected: Course[] = [];
+    const selected: RatedCourse[] = [];
     let currentCredits = 0;
     let currentDifficultySum = 0;
 
     for (const { course } of scoredCourses) {
       const projectedCredits = currentCredits + course.credits;
       const projectedDifficulty =
-        (currentDifficultySum + course.difficultyLevel) / (selected.length + 1);
+        (currentDifficultySum + course.ratingDifficulty) / (selected.length + 1);
 
       // Check constraints
       if (projectedCredits > maxCredits) continue;
@@ -167,7 +172,7 @@ class WorkloadBalancer {
 
       selected.push(course);
       currentCredits += course.credits;
-      currentDifficultySum += course.difficultyLevel;
+      currentDifficultySum += course.ratingDifficulty;
     }
 
     return selected;
@@ -204,7 +209,7 @@ class WorkloadBalancer {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
     const avgDifficulty =
       courses.length > 0
-        ? courses.reduce((sum, c) => sum + c.difficultyLevel, 0) / courses.length
+        ? courses.reduce((sum, c) => sum + c.ratingDifficulty, 0) / courses.length
         : 0;
 
     if (totalCredits > 21) {
