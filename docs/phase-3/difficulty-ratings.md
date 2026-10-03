@@ -153,3 +153,19 @@ Five real PostgreSQL cases cover inverted seed/estimate ranking, zero-vote estim
 mandatory prerequisites, disabling the weight and API metadata. Build, types, lint and
 all 336 server/178 client tests pass. Graduation estimates remain heuristic; incomplete
 schedule reporting is the next increment. Curriculum-specific priors remain pending.
+
+
+## Incomplete semester schedules
+
+Planning statistics now distinguish the number of suggested semesters from completion:
+`planningComplete`, `unplannedCourseIds` and `plannedSemesterCount` expose gaps.
+`semestersToCompletion` and the graduation estimate are null if any provided course
+remains unscheduled. An empty/already-completed catalog has zero semesters remaining
+and no invented graduation date. Feasible suggestions are retained when other courses
+are blocked. Complete schedules retain the existing approximate calendar estimate.
+
+Nine real PostgreSQL cases cover empty/completed catalogs, complete chains, cycles,
+missing prerequisites, oversized courses, partial plans, horizon limits and API output.
+Build, types, lint and all 345 server/178 client tests pass. Completion here means all
+provided catalog courses were scheduled; curriculum elective/degree requirements and
+a verified academic calendar are still pending.

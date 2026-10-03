@@ -143,9 +143,13 @@ class SemesterPlanner {
     }
 
     const nextRecommendedIds = semesters.length > 0 ? semesters[0].recommendedCourseIds : [];
-    const semestersToCompletion = semesters.length;
+    const unplannedCourseIds = remainingCourses
+      .filter((course) => !plannedIds.has(course.id))
+      .map((course) => course.id);
+    const planningComplete = unplannedCourseIds.length === 0;
+    const semestersToCompletion = planningComplete ? semesters.length : null;
 
-    const monthsToAdvance = semestersToCompletion * 5;
+    const monthsToAdvance = semesters.length * 5;
     const gradDate = new Date(Date.now() + monthsToAdvance * 30 * 24 * 60 * 60 * 1000);
     const gradSemester = gradDate.getMonth() < 6 ? 'Spring' : 'Fall';
     const gradYear = gradDate.getFullYear();
@@ -155,8 +159,12 @@ class SemesterPlanner {
       nextRecommendedIds,
       stats: {
         totalRemainingCredits,
+        planningComplete,
+        unplannedCourseIds,
+        plannedSemesterCount: semesters.length,
         semestersToCompletion,
-        estimatedGraduationSemester: `${gradSemester} ${gradYear}`,
+        estimatedGraduationSemester:
+          planningComplete && semesters.length > 0 ? `${gradSemester} ${gradYear}` : null,
       },
     };
   }
