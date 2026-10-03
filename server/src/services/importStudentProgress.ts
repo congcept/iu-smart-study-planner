@@ -3,6 +3,7 @@ import type { StudentProgressDTO, UpsertProgressDTO } from '@iu-study-planner/sh
 import { prisma } from '../db';
 import { readStudentProgress } from './studentProgress';
 import { StudentRecordError } from './studentRecords';
+import { readProgressCourseContext, validateContextClaim } from './progressCourseContext';
 
 export async function importStudentProgress(
   userId: string,
@@ -12,7 +13,10 @@ export async function importStudentProgress(
     try {
       return await prisma.$transaction(
         async (tx) => {
-          const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true } });
+          const user = await tx.user.findUnique({
+            where: { id: userId },
+            select: { id: true, curriculumId: true },
+          });
           if (!user) throw new StudentRecordError('User not found', 404);
 
           const completedIds = Object.keys(data.completedIds);
@@ -35,6 +39,11 @@ export async function importStudentProgress(
           if (incomingIds.some((id) => !coursesById.has(id))) {
             throw new StudentRecordError('One or more imported courses were not found', 404);
           }
+          const context = user.curriculumId
+            ? await readProgressCourseContext(tx, user.curriculumId, incomingIds)
+            : null;
+          const prerequisitesFor = (id: string) =>
+            context ? context.get(id)!.prerequisites : coursesById.get(id)!.prerequisites;
 
           const records = await tx.studentRecord.findMany({
             where: { userId },
@@ -47,9 +56,17 @@ export async function importStudentProgress(
               .map((record) => record.courseId),
           );
           const finalCompletedIds = new Set([...currentCompletedIds, ...completedIds]);
+          if (context) {
+            for (const id of completedIds) {
+              // Existing completions keep their server claim; ignored archive metadata
+              // must not cause a no-op import to fail or overwrite historical evidence.
+              if (!currentCompletedIds.has(id))
+                validateContextClaim(context.get(id)!.placements, data.completedIds[id]);
+            }
+          }
           const unmet = new Map<string, { id: string; code: string; name: string }>();
           for (const id of completedIds) {
-            for (const edge of coursesById.get(id)?.prerequisites ?? []) {
+            for (const edge of prerequisitesFor(id)) {
               // Every prerequisite is mandatory, including recommended/corequisite rows.
               if (!finalCompletedIds.has(edge.prerequisiteId)) {
                 unmet.set(edge.prerequisiteId, edge.prerequisite);
@@ -69,7 +86,7 @@ export async function importStudentProgress(
           const dependencyCounts = new Map<string, number>();
           const dependents = new Map<string, string[]>();
           for (const id of newCompletedIds) {
-            const dependencies = (coursesById.get(id)?.prerequisites ?? []).filter((edge) =>
+            const dependencies = prerequisitesFor(id).filter((edge) =>
               newCompletedSet.has(edge.prerequisiteId),
             );
             dependencyCounts.set(id, dependencies.length);
