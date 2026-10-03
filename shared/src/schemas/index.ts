@@ -52,6 +52,32 @@ export const StudentGradeScopeSchema = z
     message: 'Unassigned accounts retain the legacy GPA path policy',
   });
 
+export const StudentGradeCoursesSchema = z
+  .object({
+    scope: StudentGradeScopeSchema,
+    courses: z.array(
+      z
+        .object({
+          id: z
+            .string()
+            .uuid()
+            .transform((id) => id.toLowerCase()),
+          code: z.string().min(1),
+          name: z.string().min(1),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+  .refine(
+    (data) =>
+      new Set(data.courses.map(({ id }) => id)).size === data.courses.length &&
+      new Set(data.courses.map(({ code }) => code)).size === data.courses.length,
+    {
+      message: 'Grade course identities must be unique',
+    },
+  );
+
 export const RateCourseSchema = z.object({ rating: z.number().int().min(1).max(5) }).strict();
 
 export const CourseRatingQuerySchema = z

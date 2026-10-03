@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { StudentGradesDTO } from '@iu-study-planner/shared';
+import type { StudentGradeCoursesDTO, StudentGradesDTO } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { GradeAttemptError } from './gradeAttempts';
 import { calculateGradeSummary } from './gradeSummary';
@@ -80,4 +80,37 @@ export function readStudentGrades(userId: string): Promise<StudentGradesDTO> {
   return prisma.$transaction((tx) => readStudentGradeSnapshot(tx, userId), {
     isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
   });
+}
+
+/** Match the membership/placement gate for new numeric attempts; no completion mutation. */
+export function readStudentGradeCourses(userId: string): Promise<StudentGradeCoursesDTO> {
+  return prisma.$transaction(
+    async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { curriculumId: true, curriculum: { select: { isGpaPath: true } } },
+      });
+      if (!user) throw new GradeAttemptError('User not found', 404);
+      const courses = await tx.course.findMany({
+        where: user.curriculumId
+          ? {
+              curriculumCourses: {
+                some: { curriculumId: user.curriculumId, placements: { some: {} } },
+              },
+            }
+          : {},
+        select: { id: true, code: true, name: true },
+        orderBy: { code: 'asc' },
+      });
+      return {
+        scope: {
+          userId,
+          curriculumId: user.curriculumId,
+          isGpaPath: user.curriculum?.isGpaPath ?? true,
+        },
+        courses,
+      };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
 }

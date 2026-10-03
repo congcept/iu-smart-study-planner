@@ -90,6 +90,10 @@ export interface StudentProgressDTO {
   completedIds: Record<string, string | null>;
   plannedIds: string[];
 }
+export interface StudentGradeCoursesDTO {
+  scope: NonNullable<StudentGradesDTO['scope']>;
+  courses: { id: string; code: string; name: string }[];
+}
 export interface CompleteCourseResponseDTO extends StudentProgressDTO {
   uncompletedCourseIds: string[];
 }

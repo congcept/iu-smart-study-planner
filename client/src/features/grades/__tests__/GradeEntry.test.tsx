@@ -3,13 +3,15 @@ import { AxiosError } from 'axios';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppendGradeAttemptDTO, StudentGradesDTO } from '@iu-study-planner/shared';
-import { getCourses } from '@/lib/api';
-import { appendStudentGrade, getStudentGrades } from '@/lib/gradesApi';
+import { appendStudentGrade, getStudentGradeCourses, getStudentGrades } from '@/lib/gradesApi';
 import { GradeEntry } from '../GradeEntry';
 import { GradeDashboard } from '../GradeDashboard';
-vi.mock('@/lib/api', () => ({ getCourses: vi.fn() }));
-vi.mock('@/lib/gradesApi', () => ({ appendStudentGrade: vi.fn(), getStudentGrades: vi.fn() }));
-const catalog = vi.mocked(getCourses);
+vi.mock('@/lib/gradesApi', () => ({
+  appendStudentGrade: vi.fn(),
+  getStudentGradeCourses: vi.fn(),
+  getStudentGrades: vi.fn(),
+}));
+const catalog = vi.mocked(getStudentGradeCourses);
 const append = vi.mocked(appendStudentGrade);
 const read = vi.mocked(getStudentGrades);
 const courseId = '00000000-0000-4000-8000-000000000001';
@@ -76,14 +78,10 @@ beforeEach(() => {
     setItem: (key: string, value: string) => storage.set(key, value),
     removeItem: (key: string) => storage.delete(key),
   });
-  catalog.mockResolvedValue({
-    success: true,
-    data: [
-      { id: courseId, code: 'MA001IU', name: 'Calculus 1' } as NonNullable<
-        Awaited<ReturnType<typeof getCourses>>['data']
-      >[number],
-    ],
-  });
+  catalog.mockImplementation(async (userId) => ({
+    scope: { userId, curriculumId: null, isGpaPath: true },
+    courses: [{ id: courseId, code: 'MA001IU', name: 'Calculus 1' }],
+  }));
   append.mockImplementation(async (data) => saved(data));
   read.mockResolvedValue(empty);
 });
@@ -92,6 +90,106 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('numeric grade entry', () => {
+  const assignedChoices = {
+    scope: {
+      userId: 'one',
+      curriculumId: '22222222-2222-4222-8222-222222222222',
+      isGpaPath: false,
+    },
+    courses: [{ id: courseId, code: 'MA001IU', name: 'Calculus 1' }],
+  };
+  it('requests confirmed account choices and explains the assigned reference scope', async () => {
+    catalog.mockResolvedValue(assignedChoices);
+    await mount();
+    expect(catalog).toHaveBeenCalledWith('one');
+    expect(
+      screen.getByText(/Course choices follow your current reference curriculum/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /MA001IU/ })).toBeInTheDocument();
+  });
+  it('disables new grade entry for an empty context', async () => {
+    catalog.mockResolvedValue({ ...assignedChoices, courses: [] });
+    await mount();
+    expect(screen.getByText('No courses are available for grade entry.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
+    expect(append).not.toHaveBeenCalled();
+  });
+  it('clears an obsolete draft course when fresh context choices no longer contain it', async () => {
+    const otherId = '33333333-3333-4333-8333-333333333333';
+    await mount();
+    fill('80');
+    catalog.mockResolvedValueOnce({
+      ...assignedChoices,
+      courses: [{ id: otherId, code: 'OTHER', name: 'Other context course' }],
+    });
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByRole('option', { name: /Other context course/ });
+    expect(screen.getByLabelText('Course')).toHaveValue('');
+    submit();
+    expect(append).not.toHaveBeenCalled();
+    expect(storage.has(key)).toBe(false);
+  });
+  it('withholds old choices while a focus refresh is pending', async () => {
+    await mount();
+    const pendingChoices = deferred<Awaited<ReturnType<typeof getStudentGradeCourses>>>();
+    catalog.mockReturnValueOnce(pendingChoices.promise);
+    act(() => window.dispatchEvent(new Event('focus')));
+    expect(screen.queryByRole('option', { name: /MA001IU/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
+    await act(async () => pendingChoices.resolve(assignedChoices));
+    expect(screen.getByRole('option', { name: /MA001IU/ })).toBeInTheDocument();
+  });
+  it('does not restore older choices after a newer refresh succeeds', async () => {
+    await mount();
+    const older = deferred<Awaited<ReturnType<typeof getStudentGradeCourses>>>();
+    catalog
+      .mockReturnValueOnce(older.promise)
+      .mockResolvedValueOnce({ ...assignedChoices, courses: [] });
+    act(() => window.dispatchEvent(new Event('focus')));
+    await waitFor(() => expect(catalog).toHaveBeenCalledTimes(2));
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByText('No courses are available for grade entry.');
+    await act(async () => older.resolve(assignedChoices));
+    expect(screen.queryByRole('option', { name: /MA001IU/ })).not.toBeInTheDocument();
+  });
+  it('recovers a committed old request even when its course is outside the new choices', async () => {
+    storage.set(key, JSON.stringify(payload));
+    catalog.mockResolvedValue({ ...assignedChoices, courses: [] });
+    read.mockResolvedValue(saved(payload));
+    await mount();
+    await screen.findByText('Score saved. Course completion is unchanged.');
+    expect(storage.has(key)).toBe(false);
+    expect(append).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledWith(saved(payload));
+  });
+  it('retains an uncommitted old request for exact-key retry outside new choices', async () => {
+    storage.set(key, JSON.stringify(payload));
+    catalog.mockResolvedValue({ ...assignedChoices, courses: [] });
+    read.mockResolvedValue(empty);
+    await mount();
+    await screen.findByRole('button', { name: 'Retry this attempt' });
+    expect(storage.get(key)).toBe(JSON.stringify(payload));
+    expect(
+      screen.getByRole('option', { name: 'Course from pending saved request' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry this attempt' }));
+    await screen.findByText('Score saved. Course completion is unchanged.');
+    expect(append).toHaveBeenCalledWith(payload);
+  });
+  it('preserves the journal when recovery returns another scoped cookie owner', async () => {
+    storage.set(key, JSON.stringify(payload));
+    read.mockResolvedValue({
+      ...saved(payload),
+      scope: { ...assignedChoices.scope, userId: 'two' },
+    });
+    await mount();
+    await screen.findByText(/Could not confirm whether the score was saved/);
+    expect(storage.get(key)).toBe(JSON.stringify(payload));
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
+  });
   it('updates dashboard history from the returned snapshot without an extra load', async () => {
     render(<GradeDashboard userId="one" />);
     await waitFor(() => expect(screen.getByLabelText('Course')).toBeEnabled());

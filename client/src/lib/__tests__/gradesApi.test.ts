@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import apiClient from '../api';
-import { appendStudentGrade, getStudentGrades } from '../gradesApi';
+import { appendStudentGrade, getStudentGradeCourses, getStudentGrades } from '../gradesApi';
 vi.mock('../api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 const get = vi.mocked(apiClient.get);
 const post = vi.mocked(apiClient.post);
@@ -32,6 +32,30 @@ describe('grade API adapter', () => {
     curriculumId: '22222222-2222-4222-8222-222222222222',
     isGpaPath: false,
   };
+  const options = {
+    scope,
+    courses: [{ id: input.courseId.toLowerCase(), code: 'MA001IU', name: 'Calculus 1' }],
+  };
+  it('reads cookie-account course choices without owner/context query overrides', async () => {
+    get.mockResolvedValue({ data: { success: true, data: options } });
+    expect(await getStudentGradeCourses(scope.userId)).toEqual(options);
+    expect(get).toHaveBeenCalledWith('/users/me/grades/courses');
+  });
+  it('accepts empty contextual choices without a global catalog fallback', async () => {
+    get.mockResolvedValue({ data: { success: true, data: { scope, courses: [] } } });
+    expect(await getStudentGradeCourses(scope.userId)).toEqual({ scope, courses: [] });
+  });
+  it.each([
+    { ...options, scope: { ...scope, userId: '33333333-3333-4333-8333-333333333333' } },
+    { courses: options.courses },
+    { ...options, courses: [...options.courses, options.courses[0]] },
+    { ...options, courses: [{ ...options.courses[0], category: 'REQUIRED' }] },
+    { ...options, courses: [{ ...options.courses[0], id: 'unknown' }] },
+    { ...options, courses: [{ ...options.courses[0], name: '' }] },
+  ])('rejects ambiguous, legacy or other-account choice responses %j', async (options) => {
+    get.mockResolvedValue({ data: { success: true, data: options } });
+    await expect(getStudentGradeCourses(scope.userId)).rejects.toThrow(/verify/);
+  });
   it('preserves a nonfork numeric GPA and current context on read and append', async () => {
     const scoped = {
       ...data,

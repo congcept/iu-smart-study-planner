@@ -17,6 +17,7 @@ describe('account-context grades (PostgreSQL)', () => {
   const cookie = (index = 0) => `${AUTH_COOKIE_NAME}=${issueToken(users[index])}`;
   const path = '/api/users/me/grades';
   const read = (index = 0) => request(app).get(path).set('Cookie', cookie(index));
+  const choices = (index = 0) => request(app).get(`${path}/courses`).set('Cookie', cookie(index));
   const append = (course: string, score: number, requestId = randomUUID(), index = 0) =>
     request(app)
       .post(path)
@@ -197,6 +198,120 @@ describe('account-context grades (PostgreSQL)', () => {
       isGpaPath: true,
     });
   });
+
+  it('offers only placed curriculum members, once, with no global placement/category metadata', async () => {
+    const member = await prisma.curriculumCourse.findUniqueOrThrow({
+      where: { curriculumId_courseId: { curriculumId: contexts[0], courseId: courses.A } },
+    });
+    const extra = await prisma.curriculumPlacement.create({
+      data: { curriculumCourseId: member.id, sourceOrder: 99 },
+    });
+    try {
+      const response = await choices();
+      expect(response.status).toBe(200);
+      expect(response.body.data.scope).toEqual({
+        userId: users[0],
+        curriculumId: contexts[0],
+        isGpaPath: true,
+      });
+      expect(response.body.data.courses.map((course: { id: string }) => course.id).sort()).toEqual(
+        [courses.A, courses.B, courses.PT, courses.ZERO].sort(),
+      );
+      for (const course of response.body.data.courses)
+        expect(Object.keys(course).sort()).toEqual(['code', 'id', 'name']);
+      expect(response.body.data.courses.map((course: { code: string }) => course.code)).toEqual(
+        [...response.body.data.courses.map((course: { code: string }) => course.code)].sort(),
+      );
+    } finally {
+      await prisma.curriculumPlacement.delete({ where: { id: extra.id } });
+    }
+  });
+
+  it('retains the basic global course choices only for a confirmed unassigned account', async () => {
+    const response = await choices(2);
+    expect(response.body.data.scope).toEqual({
+      userId: users[2],
+      curriculumId: null,
+      isGpaPath: true,
+    });
+    expect(response.body.data.courses).toEqual(
+      await prisma.course.findMany({
+        select: { id: true, code: true, name: true },
+        orderBy: { code: 'asc' },
+      }),
+    );
+  });
+
+  it('uses the other account context without the first account courses or fork policy', async () => {
+    const response = await choices(1);
+    expect(response.body.data.scope).toEqual({
+      userId: users[1],
+      curriculumId: contexts[1],
+      isGpaPath: false,
+    });
+    expect(response.body.data.courses.map((course: { id: string }) => course.id).sort()).toEqual(
+      [courses.A, courses.OUTSIDE].sort(),
+    );
+  });
+
+  it('returns no choices for an empty assigned curriculum instead of global fallback', async () => {
+    const empty = await prisma.curriculum.create({
+      data: {
+        code: `${prefix}-empty`,
+        name: 'Empty simulated reference',
+        school: 'CSE',
+        degree: 'Bachelor',
+        programUrl: 'https://example.test/empty',
+      },
+    });
+    try {
+      await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: empty.id } });
+      const response = await choices();
+      expect(response.body.data).toEqual({
+        scope: { userId: users[0], curriculumId: empty.id, isGpaPath: false },
+        courses: [],
+      });
+    } finally {
+      await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: contexts[0] } });
+      await prisma.curriculum.delete({ where: { id: empty.id } });
+    }
+  });
+
+  it('refreshes choices after stored context changes without changing numeric attempts or progress', async () => {
+    await append('A', 90);
+    const attempts = await history();
+    const records = await prisma.studentRecord.findMany({
+      where: { userId: users[0] },
+      orderBy: { id: 'asc' },
+    });
+    await choices();
+    await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: contexts[1] } });
+    const response = await choices();
+    expect(response.body.data.scope.curriculumId).toBe(contexts[1]);
+    expect(response.body.data.courses.map((course: { id: string }) => course.id).sort()).toEqual(
+      [courses.A, courses.OUTSIDE].sort(),
+    );
+    expect(await history()).toEqual(attempts);
+    expect(
+      await prisma.studentRecord.findMany({ where: { userId: users[0] }, orderBy: { id: 'asc' } }),
+    ).toEqual(records);
+  });
+
+  it('requires cookie authentication for grade-entry choices', async () => {
+    expect((await request(app).get(`${path}/courses`)).status).toBe(401);
+  });
+
+  it.each(['userId', 'curriculumId'])(
+    'rejects a %s query override instead of changing choice scope',
+    async (key) => {
+      const response = await request(app)
+        .get(`${path}/courses`)
+        .query({ [key]: key === 'userId' ? users[1] : contexts[1] })
+        .set('Cookie', cookie());
+      expect(response.status).toBe(400);
+      expect((await choices()).body.data.scope.curriculumId).toBe(contexts[0]);
+    },
+  );
 
   it('uses highest retakes and member credit weights while retaining lower attempts', async () => {
     await append('A', 40);

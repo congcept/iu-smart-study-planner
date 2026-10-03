@@ -6,8 +6,7 @@ import {
   type StudentGradesDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getCourses } from '@/lib/api';
-import { appendStudentGrade, getStudentGrades } from '@/lib/gradesApi';
+import { appendStudentGrade, getStudentGradeCourses, getStudentGrades } from '@/lib/gradesApi';
 
 type Props = { userId: string; onSaved: (grades: StudentGradesDTO) => void };
 type Phase = 'idle' | 'saving' | 'checking' | 'retry' | 'blocked';
@@ -33,6 +32,7 @@ function GradeEntrySession({ userId, onSaved }: Props) {
   });
   const pending = useRef<AppendGradeAttemptDTO | null>(journal.pending);
   const generation = useRef(0);
+  const catalogGeneration = useRef(0);
   const busy = useRef(false);
   const scoreInput = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>(
@@ -49,9 +49,11 @@ function GradeEntrySession({ userId, onSaved }: Props) {
   const [year, setYear] = useState(journal.pending?.year ? String(journal.pending.year) : '');
   const [courses, setCourses] = useState<Option[]>([]);
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [curriculumId, setCurriculumId] = useState<string | null>(null);
 
   const finish = useCallback(
     (grades: StudentGradesDTO) => {
+      if (grades.scope && grades.scope.userId !== userId) throw new Error('Wrong grade owner');
       sessionStorage.removeItem(requestKey(userId));
       pending.current = null;
       busy.current = false;
@@ -71,6 +73,7 @@ function GradeEntrySession({ userId, onSaved }: Props) {
       try {
         const grades = await getStudentGrades();
         if (token !== generation.current) return;
+        if (grades.scope && grades.scope.userId !== userId) throw new Error('Wrong grade owner');
         const saved = grades.attempts.find((attempt) => attempt.requestId === payload.requestId);
         if (saved) {
           if (
@@ -101,26 +104,29 @@ function GradeEntrySession({ userId, onSaved }: Props) {
         if (token === generation.current) busy.current = false;
       }
     },
-    [finish, onSaved],
+    [finish, onSaved, userId],
   );
 
   const loadCourses = useCallback(async () => {
     const token = generation.current;
+    const catalogToken = ++catalogGeneration.current;
     setCatalogStatus('loading');
+    setCourses([]);
     try {
-      const response = await getCourses();
-      if (!response.success || !response.data) throw new Error('No catalog');
-      if (token !== generation.current) return;
-      setCourses(
-        [...new Map(response.data.map((course) => [course.id, course])).values()].sort((a, b) =>
-          a.code.localeCompare(b.code),
-        ),
-      );
+      const response = await getStudentGradeCourses(userId);
+      if (token !== generation.current || catalogToken !== catalogGeneration.current) return;
+      setCourses([...response.courses].sort((a, b) => a.code.localeCompare(b.code)));
+      setCurriculumId(response.scope.curriculumId);
+      if (!pending.current)
+        setCourseId((current) =>
+          response.courses.some(({ id }) => id === current) ? current : '',
+        );
       setCatalogStatus('ready');
     } catch {
-      if (token === generation.current) setCatalogStatus('error');
+      if (token === generation.current && catalogToken === catalogGeneration.current)
+        setCatalogStatus('error');
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const activeGeneration = generation;
@@ -132,6 +138,19 @@ function GradeEntrySession({ userId, onSaved }: Props) {
       activeBusy.current = false;
     };
   }, [journal.pending, loadCourses, recover]);
+
+  useEffect(() => {
+    const refresh = () => void loadCourses();
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refreshVisible);
+    };
+  }, [loadCourses]);
 
   const send = async (payload: AppendGradeAttemptDTO) => {
     if (busy.current) return;
@@ -178,6 +197,10 @@ function GradeEntrySession({ userId, onSaved }: Props) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (phase !== 'idle' || busy.current || catalogStatus !== 'ready') return;
+    if (!courses.some(({ id }) => id === courseId)) {
+      setMessage('Choose a course from your current grade-entry choices before saving a score.');
+      return;
+    }
     const parsed = AppendGradeAttemptSchema.safeParse({
       courseId,
       requestId: crypto.randomUUID(),
@@ -201,7 +224,7 @@ function GradeEntrySession({ userId, onSaved }: Props) {
     )
       scoreInput.current?.focus();
   }, [catalogStatus, message, phase]);
-  const locked = phase !== 'idle' || catalogStatus !== 'ready';
+  const locked = phase !== 'idle' || catalogStatus !== 'ready' || courses.length === 0;
   const fieldClass =
     'mt-1 min-h-11 w-full min-w-0 rounded-md border border-gray-300 bg-white px-3 text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700 disabled:bg-gray-100';
   return (
@@ -216,6 +239,12 @@ function GradeEntrySession({ userId, onSaved }: Props) {
         Enter your actual score out of 100. Retakes stay in your history; recording a score does not
         mark a course completed.
       </p>
+      {catalogStatus === 'ready' && curriculumId && (
+        <p className="mt-3 max-w-prose text-sm text-gray-600">
+          Course choices follow your current reference curriculum. Historical attempts remain in
+          grade history even when their courses are outside this curriculum.
+        </p>
+      )}
       {catalogStatus === 'loading' && (
         <p role="status" className="mt-3 text-sm text-gray-600">
           Loading courses…
@@ -245,6 +274,9 @@ function GradeEntrySession({ userId, onSaved }: Props) {
               className={fieldClass}
             >
               <option value="">Choose a course</option>
+              {pending.current && !courses.some(({ id }) => id === pending.current?.courseId) && (
+                <option value={pending.current.courseId}>Course from pending saved request</option>
+              )}
               {courses.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.code} — {course.name}
