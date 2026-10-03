@@ -119,6 +119,7 @@ describe('numeric grade APIs (PostgreSQL)', () => {
     const response = await read();
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({
+      scope: { userId: ownerId, curriculumId: null, isGpaPath: true },
       attempts: [],
       summary: {
         gpa100: null,

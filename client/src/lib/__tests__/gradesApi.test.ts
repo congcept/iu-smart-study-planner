@@ -27,6 +27,52 @@ beforeEach(() => {
   post.mockResolvedValue({ data: { success: true, data } });
 });
 describe('grade API adapter', () => {
+  const scope = {
+    userId: '11111111-1111-4111-8111-111111111111',
+    curriculumId: '22222222-2222-4222-8222-222222222222',
+    isGpaPath: false,
+  };
+  it('preserves a nonfork numeric GPA and current context on read and append', async () => {
+    const scoped = {
+      ...data,
+      scope,
+      summary: { ...data.summary, gpa100: 90, gradedCredits: 3, gradedCourseCount: 1 },
+    };
+    get.mockResolvedValue({ data: { success: true, data: scoped } });
+    post.mockResolvedValue({ data: { success: true, data: scoped } });
+    expect(await getStudentGrades()).toEqual(scoped);
+    expect(await appendStudentGrade(input)).toEqual(scoped);
+    expect(post).toHaveBeenCalledWith('/users/me/grades', {
+      ...input,
+      courseId: input.courseId.toLowerCase(),
+      requestId: input.requestId.toLowerCase(),
+    });
+  });
+  it.each([
+    null,
+    { ...scope, userId: 'other-user' },
+    { ...scope, curriculumId: 'CS' },
+    { ...scope, isGpaPath: 'false' },
+    { ...scope, curriculumId: null, isGpaPath: false },
+    { ...scope, role: 'ADMIN' },
+  ])('rejects malformed scope %j instead of treating it as legacy metadata', async (scope) => {
+    get.mockResolvedValue({ data: { success: true, data: { ...data, scope } } });
+    await expect(getStudentGrades()).rejects.toThrow(/scope/);
+  });
+  it('rejects a thesis eligibility claim for a nonfork context', async () => {
+    post.mockResolvedValue({
+      data: {
+        success: true,
+        data: { ...data, scope, summary: { ...data.summary, gpaPath: 'THESIS' } },
+      },
+    });
+    await expect(appendStudentGrade(input)).rejects.toThrow(/scope/);
+  });
+  it('retains explicit null context and the legacy fork policy', async () => {
+    const scoped = { ...data, scope: { ...scope, curriculumId: null, isGpaPath: true } };
+    get.mockResolvedValue({ data: { success: true, data: scoped } });
+    expect(await getStudentGrades()).toEqual(scoped);
+  });
   it('reads only current-account grades through the cookie API client', async () => {
     expect(await getStudentGrades()).toEqual(data);
     expect(get).toHaveBeenCalledWith('/users/me/grades');

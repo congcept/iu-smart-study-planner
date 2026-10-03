@@ -15,6 +15,7 @@ export function GradeDashboard({ userId }: { userId: string }) {
     setError(null);
     try {
       const grades = await getStudentGrades();
+      if (grades.scope && grades.scope.userId !== userId) throw new Error('Wrong grade owner');
       if (request === generation.current) setResult({ ownerId: userId, grades });
     } catch {
       if (request === generation.current)
@@ -35,6 +36,7 @@ export function GradeDashboard({ userId }: { userId: string }) {
   }, [load]);
   const acceptSaved = useCallback(
     (saved: StudentGradesDTO) => {
+      if (saved.scope && saved.scope.userId !== userId) return;
       generation.current++;
       setResult({ ownerId: userId, grades: saved });
       setError(null);
@@ -103,6 +105,17 @@ export function GradeDashboard({ userId }: { userId: string }) {
                 Only courses with recorded numeric scores are included. Ungraded courses are not
                 counted as zero.
               </p>
+              {grades.scope?.curriculumId && (
+                <p className="mt-3 max-w-prose text-sm text-gray-600">
+                  GPA includes scored courses in your current reference curriculum. Attempts outside
+                  this curriculum remain in grade history.
+                </p>
+              )}
+              {grades.scope?.isGpaPath === false && (
+                <p className="mt-3 max-w-prose text-sm text-gray-600">
+                  This curriculum does not use a GPA-based thesis path.
+                </p>
+              )}
               {grades.completedCoursesWithoutNumericGrades.length > 0 && (
                 <p className="mt-3 text-sm text-amber-800">
                   {grades.completedCoursesWithoutNumericGrades.length} completed{' '}
