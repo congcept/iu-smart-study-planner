@@ -32,6 +32,10 @@ export interface CourseRatingsDTO {
   priorMean: number;
   priorSource: 'GLOBAL_RATINGS' | 'GLOBAL_SEED';
 }
+export interface OwnCourseRatingDTO {
+  courseId: string;
+  rating: number;
+}
 export interface SubmittedCourseRatingDTO extends CourseRatingsDTO {
   yourRating: number;
 }
