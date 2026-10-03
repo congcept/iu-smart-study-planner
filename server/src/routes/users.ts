@@ -22,6 +22,10 @@ async function findUserByIdentifier(identifier: string) {
   return prisma.user.findUnique({ where: { studentId: identifier } });
 }
 
+const NON_CREDIT_COURSE_CODES = new Set(['PT001IU', 'PT002IU']);
+const degreeCredits = (course: { code: string; credits: number }) =>
+  NON_CREDIT_COURSE_CODES.has(course.code) ? 0 : course.credits;
+
 const router = Router();
 
 // Place session-scoped routes before legacy identifier routes.
@@ -144,7 +148,7 @@ router.get('/:id', requireUserAccess, async (req: Request, res: Response) => {
     const completedCourses = fullUser.studentRecords.filter(
       (r) => r.status === CourseStatus.COMPLETED,
     );
-    const totalCredits = completedCourses.reduce((sum, r) => sum + r.course.credits, 0);
+    const totalCredits = completedCourses.reduce((sum, r) => sum + degreeCredits(r.course), 0);
     const gpa =
       completedCourses.length > 0
         ? completedCourses.reduce((sum, r) => sum + (r.gradePoints ?? 0), 0) /
@@ -364,16 +368,10 @@ router.get('/:id/progress', requireUserAccess, async (req: Request, res: Respons
       return course.prerequisites.every((prereq) => completedCourseIds.has(prereq.prerequisiteId));
     });
 
-    const NON_CREDIT_COURSE_CODES = new Set(['PT001IU', 'PT002IU']);
-    const totalCredits = allCourses.reduce(
-      (sum, c) => sum + (NON_CREDIT_COURSE_CODES.has(c.code) ? 0 : c.credits),
-      0,
-    );
+    const totalCredits = allCourses.reduce((sum, course) => sum + degreeCredits(course), 0);
     const completedCredits = records
-      .filter(
-        (r) => r.status === CourseStatus.COMPLETED && !NON_CREDIT_COURSE_CODES.has(r.course.code),
-      )
-      .reduce((sum, r) => sum + r.course.credits, 0);
+      .filter((r) => r.status === CourseStatus.COMPLETED)
+      .reduce((sum, r) => sum + degreeCredits(r.course), 0);
     const percentage = totalCredits > 0 ? Math.round((completedCredits / totalCredits) * 100) : 0;
 
     return res.json({
