@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 706 server tests and 382 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 714 server tests and 398 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -287,8 +287,20 @@ Desktop/mobile review of a disposable nonfork reference/account showed GPA 90 wi
 attempts preserved, including an excluded historical 100; no horizontal page overflow.
 Review was inline after the account usage limit. See docs/phase-2/grade-summary-scope.md.
 
-Next: scope the grade-entry course picker (currently global) to placed account curriculum
-members, preserving immutable retry recovery. Then update the curriculum map and
+The grade-entry picker now reads cookie-account course choices in one repeatable-read
+snapshot. Assigned choices contain only placed curriculum members; confirmed null accounts
+retain the global basic list. Strict shared/API validation rejects another owner, duplicate
+or malformed choices and extra global metadata. Loading, errors and empty contexts disable
+new entry without fallback; focus/visibility refresh clears obsolete selections and rejects
+stale responses. Historical attempts remain visible and exact-key pending recovery survives
+an outside-current-context course without creating a new request. Eight PostgreSQL, eight
+API and eight entry cases pass. Build/types/zero-warning lint and 714 server / 398 client
+tests pass on the exact isolated snapshot. Desktop/mobile browser checks confirmed only the
+member course, 44-pixel form controls and no horizontal overflow; read-only inspection
+preserved all numeric attempts and legacy records. Review was inline after the account
+usage limit. See docs/phase-2/grade-course-picker.md. This does not enable account assignment.
+
+Next: update the curriculum map and
 progress/cache hydration/types/renderers/scope copy and its grade nonfork handling before
 assignment. Remaining legacy consumers expect flat
 profile/recommendation fields; the Planner preview now consumes its contextual DTO.
@@ -568,7 +580,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 706 server tests and 382 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 714 server tests and 398 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

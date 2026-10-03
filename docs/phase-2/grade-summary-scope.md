@@ -24,7 +24,7 @@ no horizontal page overflow. Read-only inspection preserved all attempts and leg
 records; only those temporary fixtures/listeners were removed. Review was inline because
 the account usage limit prevented further subagent review.
 
-Account assignment remains gated. The score picker still reads the global catalog; its
-server already rejects new nonmember/unplaced grades. A scoped picker is the next small
-increment. Curriculum map rendering and its old GPA hook still require contextual/nonfork
+Account assignment remains gated. The subsequent scoped picker increment is recorded in
+[grade-course-picker.md](grade-course-picker.md); its server already rejects new
+nonmember/unplaced grades. Curriculum map rendering and its old GPA hook still require contextual/nonfork
 handling; this metadata change does not enable a major selector or change existing scores.

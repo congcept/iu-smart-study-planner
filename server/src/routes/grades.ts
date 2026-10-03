@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { AppendGradeAttemptSchema } from '@iu-study-planner/shared';
 import { requireAuth } from '../middleware/auth';
 import { appendGradeAttempt, GradeAttemptError } from '../services/gradeAttempts';
-import { readStudentGrades } from '../services/studentGradeContext';
+import { readStudentGradeCourses, readStudentGrades } from '../services/studentGradeContext';
 
 const router = Router();
 router.use(requireAuth);
@@ -20,6 +20,17 @@ function handleGradeError(error: unknown, res: Response) {
   console.error('Error accessing numeric grades:', error);
   return res.status(500).json({ success: false, error: 'Could not load or save grades' });
 }
+
+router.get('/courses', async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({}).strict().parse(req.query);
+    return res.json({ success: true, data: await readStudentGradeCourses(req.userId) });
+  } catch (error) {
+    return handleGradeError(error, res);
+  }
+});
 
 router.get('/', async (req, res) => {
   if (!req.userId)

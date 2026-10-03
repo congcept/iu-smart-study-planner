@@ -1,9 +1,11 @@
 import {
   AppendGradeAttemptSchema,
   StudentGradeScopeSchema,
+  StudentGradeCoursesSchema,
   type AppendGradeAttemptDTO,
   type ApiResponse,
   type StudentGradesDTO,
+  type StudentGradeCoursesDTO,
 } from '@iu-study-planner/shared';
 import apiClient from './api';
 
@@ -22,6 +24,20 @@ function readGrades(response: ApiResponse<StudentGradesDTO>): StudentGradesDTO {
 export async function getStudentGrades(): Promise<StudentGradesDTO> {
   const response = await apiClient.get<ApiResponse<StudentGradesDTO>>('/users/me/grades');
   return readGrades(response.data);
+}
+
+export async function getStudentGradeCourses(
+  expectedUserId: string,
+): Promise<StudentGradeCoursesDTO> {
+  const response = await apiClient.get<ApiResponse<unknown>>('/users/me/grades/courses');
+  const parsed = StudentGradeCoursesSchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    parsed.data.scope.userId !== expectedUserId.toLowerCase()
+  )
+    throw new Error('Could not verify grade-entry courses for your account');
+  return parsed.data;
 }
 
 export async function appendStudentGrade(data: AppendGradeAttemptDTO): Promise<StudentGradesDTO> {
