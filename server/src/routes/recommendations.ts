@@ -11,6 +11,11 @@ import { buildNumericGradeHistory } from '../services/numericGradeFit';
 import { calculateGradeSummary } from '../services/gradeSummary';
 import { isCourseInGpaPath } from '../services/gpaPath';
 import { readAccountWorkload, WorkloadContextError } from '../services/workloadContext';
+import { readCurriculumSnapshot } from '../services/curriculumContexts';
+import {
+  recommendCurriculumCourses,
+  RecommendationContextError,
+} from '../services/curriculumRecommendations';
 
 const router = Router();
 const workloadBalancer = new WorkloadBalancer();
@@ -28,18 +33,36 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
       })
       .parse(req.query);
 
-    const { userRecords, allCourses, numericHistory, gpaPath } = await prisma.$transaction(
+    const snapshot = await prisma.$transaction(
       async (tx) => {
-        const userRecords = await tx.studentRecord.findMany({ where: { userId } });
-        const rows = await tx.course.findMany({
-          include: { prerequisites: { include: { prerequisite: true } }, isPrerequisiteFor: true },
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { curriculumId: true },
         });
+        if (!user) throw new RecommendationContextError('User not found');
+        const userRecords = await tx.studentRecord.findMany({ where: { userId } });
         const attempts = await tx.gradeAttempt.findMany({
           where: { userId },
           select: { courseId: true, score: true },
         });
+        if (user.curriculumId) {
+          const context = await readCurriculumSnapshot(tx, user.curriculumId);
+          if (!context) throw new RecommendationContextError('Curriculum not found');
+          return {
+            kind: 'CURRICULUM' as const,
+            data: recommendCurriculumCourses(context, userRecords, attempts, {
+              semester,
+              maxCredits,
+              maxDifficulty,
+            }),
+          };
+        }
+        const rows = await tx.course.findMany({
+          include: { prerequisites: { include: { prerequisite: true } }, isPrerequisiteFor: true },
+        });
         const allCourses = await decorateCourseDifficulties(tx, rows);
         return {
+          kind: 'LEGACY' as const,
           userRecords,
           allCourses,
           numericHistory: buildNumericGradeHistory(allCourses, attempts),
@@ -48,6 +71,8 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
+    if (snapshot.kind === 'CURRICULUM') return res.json({ success: true, data: snapshot.data });
+    const { userRecords, allCourses, numericHistory, gpaPath } = snapshot;
     const completedCourseIds = new Set(
       userRecords.filter((r) => r.status === CourseStatus.COMPLETED).map((r) => r.courseId),
     );
@@ -100,6 +125,8 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
       },
     });
   } catch (error) {
+    if (error instanceof RecommendationContextError)
+      return res.status(error.status).json({ success: false, error: error.message });
     if (error instanceof z.ZodError)
       return res
         .status(400)

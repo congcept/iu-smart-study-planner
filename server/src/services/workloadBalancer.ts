@@ -1,9 +1,14 @@
-import { Course, Prerequisite } from '@prisma/client';
+import { Course, CourseCategory, Prerequisite } from '@prisma/client';
 import type { CourseDifficultyDTO } from '@iu-study-planner/shared';
 import config from '../config';
 import { calculateNumericGradeFit, type NumericGradeHistoryEntry } from './numericGradeFit';
 
 type RatedCourse = Course & CourseDifficultyDTO;
+
+type WorkloadCourse = Pick<Course, 'credits'> &
+  Pick<CourseDifficultyDTO, 'ratingDifficulty'> & { category?: CourseCategory };
+
+type RecommendationCourse = WorkloadCourse & { isPrerequisiteFor?: readonly unknown[] };
 
 type CourseWithRelations = RatedCourse & {
   prerequisites: (Prerequisite & { prerequisite?: Course })[];
@@ -18,8 +23,8 @@ interface WorkloadAnalysis {
   recommendations: string[];
 }
 
-interface RecommendationInput {
-  availableCourses: CourseWithRelations[];
+interface RecommendationInput<T extends RecommendationCourse> {
+  availableCourses: T[];
   maxCredits: number;
   maxDifficulty: number;
   numericHistory: NumericGradeHistoryEntry[];
@@ -30,7 +35,7 @@ class WorkloadBalancer {
    * Calculate the workload score based on credits and difficulty
    * Score = (totalCredits * 0.4) + (avgDifficulty * totalCredits * 0.6)
    */
-  private calculateWorkloadScore(courses: RatedCourse[]): number {
+  private calculateWorkloadScore(courses: WorkloadCourse[]): number {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
     const avgDifficulty =
       courses.length > 0
@@ -54,7 +59,7 @@ class WorkloadBalancer {
    * Analyze a semester's workload and provide insights
    */
   analyzeSemesterWorkload(
-    courses: RatedCourse[],
+    courses: WorkloadCourse[],
     options: { categoryBalanceAvailable?: boolean } = {},
   ): WorkloadAnalysis {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
@@ -88,6 +93,7 @@ class WorkloadBalancer {
     // Add category-specific recommendations
     const categoryCount = new Map<string, number>();
     courses.forEach((c) => {
+      if (c.category === undefined) return;
       const count = categoryCount.get(c.category) || 0;
       categoryCount.set(c.category, count + 1);
     });
@@ -112,7 +118,7 @@ class WorkloadBalancer {
   /**
    * Calculate course recommendations with workload balancing
    */
-  calculateRecommendations(input: RecommendationInput): RatedCourse[] {
+  calculateRecommendations<T extends RecommendationCourse>(input: RecommendationInput<T>): T[] {
     const { availableCourses, maxCredits, maxDifficulty, numericHistory } = input;
 
     // Sort by priority factors
@@ -127,10 +133,17 @@ class WorkloadBalancer {
       const unlocksCount = course.isPrerequisiteFor?.length || 0;
       priorityScore += unlocksCount * 2;
 
-      priorityScore += calculateNumericGradeFit(course, numericHistory, {
-        weight: config.recommendationGradeFitWeight,
-        difficultyTolerance: config.recommendationGradeDifficultyTolerance,
-      });
+      // Curriculum projections omit unverified global categories, so no category fit is inferred.
+      if (course.category !== undefined) {
+        priorityScore += calculateNumericGradeFit(
+          { category: course.category, ratingDifficulty: course.ratingDifficulty },
+          numericHistory,
+          {
+            weight: config.recommendationGradeFitWeight,
+            difficultyTolerance: config.recommendationGradeDifficultyTolerance,
+          },
+        );
+      }
 
       // Penalize very high difficulty courses slightly
       if (course.ratingDifficulty >= 4) {
@@ -144,7 +157,7 @@ class WorkloadBalancer {
     scoredCourses.sort((a, b) => b.priorityScore - a.priorityScore);
 
     // Select courses while respecting constraints
-    const selected: RatedCourse[] = [];
+    const selected: T[] = [];
     let currentCredits = 0;
     let currentDifficultySum = 0;
 
