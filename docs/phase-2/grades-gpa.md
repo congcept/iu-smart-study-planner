@@ -25,3 +25,18 @@ changes while retaining completed/planned progress.
 rounded 70, no-score manual mode, retries, stale accounts, refresh and preserved progress.
 Full build/typecheck/lint, 367 server and 234 client tests pass. Browser checks at desktop
 and 390px confirm the 84.29 Thesis path and no horizontal page overflow.
+
+## Personalized recommendation path
+
+The server recommendation route now applies the exact grade-summary path before
+availability counts, semester filtering, ranking and credit budgeting. Only courses
+whose stored earliest placement is Year 4 Semester 2 are affected: Thesis for THESIS,
+other courses for ALTERNATIVE. Earlier duplicate elective placements remain eligible;
+using the overwritten electiveGroup alone would incorrectly remove them. Null numeric
+GPA retains both options because no manual server choice is persisted. Query parameters
+cannot override a numeric path. Statistics expose gpaPath through a shared DTO.
+
+This is current CS placement policy. Curriculum context must replace that assumption
+before IT/DS support. Twelve placement and 14 PostgreSQL route cases cover decimal
+boundaries, highest retakes, exclusions, budget refill, prerequisites and account/admin
+isolation. Build/typecheck/zero-warning lint and 427 server/234 client tests pass.

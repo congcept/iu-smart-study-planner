@@ -1,13 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { CourseStatus, Semester, Prisma } from '@prisma/client';
-import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
+import { AnalyzeWorkloadSchema, type RecommendationStatsDTO } from '@iu-study-planner/shared';
 import WorkloadBalancer from '../services/workloadBalancer';
 import SemesterPlanner from '../services/semesterPlanner';
 import { prisma } from '../db';
 import { requireUserIdAccess } from '../middleware/auth';
 import { decorateCourseDifficulties } from '../services/courseRatings';
 import { buildNumericGradeHistory } from '../services/numericGradeFit';
+import { calculateGradeSummary } from '../services/gradeSummary';
+import { isCourseInGpaPath } from '../services/gpaPath';
 
 const router = Router();
 const workloadBalancer = new WorkloadBalancer();
@@ -25,7 +27,7 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
       })
       .parse(req.query);
 
-    const { userRecords, allCourses, numericHistory } = await prisma.$transaction(
+    const { userRecords, allCourses, numericHistory, gpaPath } = await prisma.$transaction(
       async (tx) => {
         const userRecords = await tx.studentRecord.findMany({ where: { userId } });
         const rows = await tx.course.findMany({
@@ -40,6 +42,7 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
           userRecords,
           allCourses,
           numericHistory: buildNumericGradeHistory(allCourses, attempts),
+          gpaPath: calculateGradeSummary(allCourses, attempts).gpaPath,
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
@@ -53,6 +56,7 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
 
     // Filter available courses (prerequisites met and not already taken)
     const availableCourses = allCourses.filter((course) => {
+      if (!isCourseInGpaPath(course, gpaPath)) return false;
       // Skip if already completed or in progress
       if (completedCourseIds.has(course.id) || inProgressCourseIds.has(course.id)) {
         return false;
@@ -81,6 +85,7 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
       data: {
         courses: recommendations,
         stats: {
+          gpaPath,
           totalAvailable: availableCourses.length,
           filteredCount: filteredCourses.length,
           recommendedCount: recommendations.length,
@@ -90,7 +95,7 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
               ? recommendations.reduce((sum, c) => sum + c.ratingDifficulty, 0) /
                 recommendations.length
               : 0,
-        },
+        } satisfies RecommendationStatsDTO,
       },
     });
   } catch (error) {

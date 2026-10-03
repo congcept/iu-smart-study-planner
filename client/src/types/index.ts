@@ -1,5 +1,9 @@
 import type { SemesterPlanningDTO, SemesterPlanSlotDTO } from '@iu-study-planner/shared';
-import type { CourseDifficultyDTO, StudentProgressDTO } from '@iu-study-planner/shared';
+import type {
+  CourseDifficultyDTO,
+  StudentProgressDTO,
+  RecommendationStatsDTO,
+} from '@iu-study-planner/shared';
 
 // Course Types
 export interface Course extends Partial<CourseDifficultyDTO> {
@@ -97,13 +101,7 @@ export interface PlannedSemester {
 // Recommendation Types
 export interface Recommendation {
   courses: Course[];
-  stats: {
-    totalAvailable: number;
-    filteredCount: number;
-    recommendedCount: number;
-    totalRecommendedCredits: number;
-    averageDifficulty: number;
-  };
+  stats: RecommendationStatsDTO;
 }
 
 export interface WorkloadAnalysis {
