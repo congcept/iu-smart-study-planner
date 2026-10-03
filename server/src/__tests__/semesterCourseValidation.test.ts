@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import request from 'supertest';
 import app, { prisma } from '../index';
 import { AUTH_COOKIE_NAME, issueToken } from '../services/authService';
+import { readCourseRatings } from '../services/courseRatings';
 
 describe('semester course validation (PostgreSQL)', () => {
   const prefix = `semester-validation-${randomUUID()}`;
@@ -83,7 +84,7 @@ describe('semester course validation (PostgreSQL)', () => {
     expect(response.body.data).toMatchObject({
       courses: entries,
       totalCredits: 7,
-      difficultyScore: 3,
+      difficultyScore: (await readCourseRatings(courseA)).priorMean,
     });
     expect(
       (await saved()).find((semester) => semester.id === response.body.data.id)?.courses,
@@ -96,7 +97,7 @@ describe('semester course validation (PostgreSQL)', () => {
     expect(response.body.data).toMatchObject({
       courses: entries,
       totalCredits: 7,
-      difficultyScore: 3,
+      difficultyScore: (await readCourseRatings(courseA)).priorMean,
       semester: 'FALL',
       year: 2026,
     });
@@ -142,7 +143,7 @@ describe('semester course validation (PostgreSQL)', () => {
     expect((await saved())[0]).toMatchObject({
       courses: [{ courseId: courseB, position: 9 }],
       totalCredits: 4,
-      difficultyScore: 4,
+      difficultyScore: (await readCourseRatings(courseB)).priorMean,
     });
   });
 
