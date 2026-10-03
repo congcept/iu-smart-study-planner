@@ -7,25 +7,13 @@ import type {
   SemesterPlanSlotDTO,
 } from '@iu-study-planner/shared';
 import policyConfig from '../config';
+import { getSemesterIntensityConfig } from '../config/semesterIntensity';
 
 type CourseWithPrereqs = Course &
   CourseDifficultyDTO & {
     prerequisites: (Prerequisite & { prerequisite?: Course })[];
     isPrerequisiteFor?: { course: { id: string } }[];
   };
-
-interface IntensityConfig {
-  maxCreditsPerSemester: number;
-  maxSemesters: number;
-  preferredMinCredits: number;
-}
-
-const INTENSITY_CONFIGS: Record<string, IntensityConfig> = {
-  low: { maxCreditsPerSemester: 9, maxSemesters: 18, preferredMinCredits: 6 },
-  normal: { maxCreditsPerSemester: 15, maxSemesters: 12, preferredMinCredits: 12 },
-  high: { maxCreditsPerSemester: 21, maxSemesters: 10, preferredMinCredits: 15 },
-  max: { maxCreditsPerSemester: 24, maxSemesters: 8, preferredMinCredits: 21 },
-};
 
 class SemesterPlanner {
   private scrapedSemesters: {
@@ -68,7 +56,7 @@ class SemesterPlanner {
     completedCourseIds: Set<string>,
     intensityMode: string,
   ): SemesterPlanningDTO {
-    const config = INTENSITY_CONFIGS[intensityMode] ?? INTENSITY_CONFIGS.normal;
+    const config = getSemesterIntensityConfig(intensityMode);
 
     const remainingCourses = allCourses.filter((c) => !completedCourseIds.has(c.id));
     const totalRemainingCredits = remainingCourses.reduce((sum, c) => sum + c.credits, 0);

@@ -139,3 +139,5 @@ export interface SemesterPlanningDTO {
     estimatedGraduationSemester: string | null;
   };
 }
+
+export type PlanSemesterDTO = z.infer<typeof schemas.PlanSemesterSchema>;

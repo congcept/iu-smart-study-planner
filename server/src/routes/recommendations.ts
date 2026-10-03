@@ -1,9 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { CourseStatus, Semester, Prisma } from '@prisma/client';
-import { AnalyzeWorkloadSchema, type RecommendationStatsDTO } from '@iu-study-planner/shared';
+import {
+  AnalyzeWorkloadSchema,
+  PlanSemesterSchema,
+  type RecommendationStatsDTO,
+} from '@iu-study-planner/shared';
 import WorkloadBalancer from '../services/workloadBalancer';
 import SemesterPlanner from '../services/semesterPlanner';
+import { readCurriculumSemesterPreview } from '../services/curriculumSemesterPreview';
+import { StudentRecordError } from '../services/studentRecordError';
 import { prisma } from '../db';
 import { optionalAuth, requireUserIdAccess } from '../middleware/auth';
 import { decorateCourseDifficulties } from '../services/courseRatings';
@@ -304,29 +310,13 @@ router.get('/prerequisite-chain/:courseId', async (req: Request, res: Response) 
 });
 
 // Plan semester based on intensity and completed courses
-router.post('/plan-semester', async (req: Request, res: Response) => {
+router.post('/plan-semester', optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { intensityMode, completedCourseIds } = z
-      .object({
-        intensityMode: z.enum(['low', 'normal', 'high', 'max']),
-        completedCourseIds: z.array(z.string()).optional(),
-      })
-      .parse(req.body);
-
+    const { intensityMode, completedCourseIds } = PlanSemesterSchema.parse(req.body);
+    const input = await readCurriculumSemesterPreview(req.userId, intensityMode);
+    if (input.kind === 'CONTEXT') return res.json({ success: true, data: input.data });
     const completedSet = new Set(completedCourseIds ?? []);
-
-    const allCourses = await prisma.$transaction(
-      async (tx) => {
-        const rows = await tx.course.findMany({
-          include: {
-            prerequisites: { include: { prerequisite: true } },
-            isPrerequisiteFor: { include: { course: { select: { id: true } } } },
-          },
-        });
-        return decorateCourseDifficulties(tx, rows);
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-    );
+    const allCourses = input.courses;
     const plan = semesterPlanner.plan(allCourses, completedSet, intensityMode);
 
     const courseById = new Map(allCourses.map((c) => [c.id, c]));
@@ -350,6 +340,9 @@ router.post('/plan-semester', async (req: Request, res: Response) => {
         error: 'Validation error',
         details: error.errors,
       });
+    }
+    if (error instanceof StudentRecordError) {
+      return res.status(error.status).json({ success: false, error: error.message });
     }
     console.error('Error planning semester:', error);
     return res.status(500).json({

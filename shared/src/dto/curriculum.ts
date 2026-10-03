@@ -168,3 +168,46 @@ export interface ContextStudentProfileDTO extends AuthUserDTO {
   };
   scope: ContextAccountScopeDTO & { studyPlansValidated: false };
 }
+
+export type SemesterPreviewUnscheduledReason =
+  | 'UNPLACED'
+  | 'GPA_EXCLUDED'
+  | 'COURSE_EXCEEDS_CREDIT_CAP'
+  | 'REFERENCE_SLOT_LIMIT'
+  | 'PREREQUISITE_CYCLE'
+  | 'UNMET_PREREQUISITE'
+  | 'NO_REMAINING_PLACEMENT';
+
+export interface CurriculumSemesterPreviewDTO {
+  scope: {
+    curriculumId: string;
+    usage: 'REFERENCE_ONLY';
+    planningBasis: 'SELECTED_COURSES';
+    ratingPrior: CurriculumDetailDTO['ratingPrior'];
+    electiveRequirementsValidated: false;
+    offeringValidationAvailable: false;
+    calendarDatesAvailable: false;
+  };
+  gpaPath: GpaPath | null;
+  slots: {
+    academicYear: number;
+    academicSemester: number;
+    courseIds: string[];
+    totalCredits: number;
+    averageDifficulty: number;
+  }[];
+  courses: CurriculumCourseDTO[];
+  ignoredPlannedIds: string[];
+  unscheduled: { courseId: string; reason: SemesterPreviewUnscheduledReason }[];
+  stats: {
+    selectedCourseCount: number;
+    scheduledCourseCount: number;
+    unscheduledCourseCount: number;
+    selectedCredits: number;
+    scheduledCredits: number;
+    semestersToCompletion: null;
+    totalRemainingCredits: null;
+    estimatedGraduation: null;
+  };
+  requirements: CurriculumDetailDTO['requirements'];
+}
