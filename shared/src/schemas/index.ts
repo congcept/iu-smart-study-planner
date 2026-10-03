@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export { CurriculumSemesterPreviewSchema } from './curriculumSemesterPreview';
+
 export const PaginationQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),

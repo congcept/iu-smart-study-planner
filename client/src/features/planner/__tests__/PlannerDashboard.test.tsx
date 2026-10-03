@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResponse, StudentProgressDTO } from '@iu-study-planner/shared';
-import { getCourses, getCurrentStudentProgress } from '@/lib/api';
+import { getCourses, getCurrentStudentProgress, getSession } from '@/lib/api';
 import type { Course } from '@/types';
 import { PlannerDashboard } from '../PlannerDashboard';
 
@@ -13,7 +13,12 @@ const children = vi.hoisted(() => ({
   recommendations: vi.fn(),
   recommendationMount: vi.fn(),
 }));
-vi.mock('@/lib/api', () => ({ getCourses: vi.fn(), getCurrentStudentProgress: vi.fn() }));
+vi.mock('@/lib/api', () => ({
+  getCourses: vi.fn(),
+  getCurrentStudentProgress: vi.fn(),
+  getSession: vi.fn(),
+  getCurriculumSemesterPreview: vi.fn(),
+}));
 vi.mock('../WorkloadAnalyzer', () => ({
   WorkloadAnalyzer: (props: { selectedCourses: Course[]; onClear?: () => void }) => {
     children.workload(props);
@@ -70,14 +75,27 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
-const dashboard = (userId = 'one') => (
-  <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-    <PlannerDashboard userId={userId} />
-  </MemoryRouter>
-);
+let sessionOwner = 'one';
+const dashboard = (userId = 'one') => {
+  sessionOwner = userId;
+  return (
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <PlannerDashboard userId={userId} />
+    </MemoryRouter>
+  );
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
+  sessionOwner = 'one';
+  vi.mocked(getSession).mockImplementation(async () => ({
+    id: sessionOwner,
+    studentId: 'SIMULATED',
+    name: 'Simulated planner owner',
+    email: 'planner@example.test',
+    role: 'STUDENT',
+    curriculumId: null,
+  }));
   progress.mockResolvedValue(saved);
   catalog.mockResolvedValue(catalogResponse);
 });

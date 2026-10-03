@@ -20,6 +20,7 @@ const student: AuthUserDTO = {
   name: 'Simulated Alice',
   email: 'alice@example.test',
   role: 'STUDENT',
+  curriculumId: null,
 };
 beforeEach(() => {
   vi.resetAllMocks();

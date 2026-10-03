@@ -1,41 +1,108 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import type { CurriculumSemesterPreviewDTO, PlanSemesterDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getCourses, getCurrentStudentProgress } from '@/lib/api';
+import {
+  getCourses,
+  getCurrentStudentProgress,
+  getCurriculumSemesterPreview,
+  getSession,
+} from '@/lib/api';
 import type { Course } from '@/types';
 import { Recommendations } from '../recommendations/Recommendations';
 import { WorkloadAnalyzer } from './WorkloadAnalyzer';
+import { CurriculumPlannerPreview } from './CurriculumPlannerPreview';
 
+type IntensityMode = PlanSemesterDTO['intensityMode'];
+type PlannerIdentity = { ownerId: string; key: string; request: number };
 type PlannerState =
-  | { ownerId: string; status: 'loading' }
-  | { ownerId: string; status: 'error'; missingCourses: boolean }
-  | { ownerId: string; status: 'ready'; courses: Course[]; revision: number };
+  | (PlannerIdentity & { status: 'loading'; assigned: boolean })
+  | (PlannerIdentity & { status: 'error'; missingCourses: boolean; assigned: boolean })
+  | (PlannerIdentity & { status: 'ready'; kind: 'legacy'; courses: Course[]; revision: number })
+  | (PlannerIdentity & { status: 'ready'; kind: 'context'; preview: CurriculumSemesterPreviewDTO });
+
+const curriculumIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 class MissingPlannedCoursesError extends Error {}
 
 export function PlannerDashboard({ userId }: { userId: string }) {
-  const [state, setState] = useState<PlannerState>({ ownerId: userId, status: 'loading' });
+  const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
+  const requestKey = JSON.stringify([userId, intensityMode]);
+  const [state, setState] = useState<PlannerState>({
+    ownerId: userId,
+    key: requestKey,
+    request: 0,
+    status: 'loading',
+    assigned: false,
+  });
   const generation = useRef(0);
   const revision = useRef(0);
   const mounted = useRef(false);
   const owner = useRef(userId);
-  const pending = useRef<{ ownerId: string; generation: number; promise: Promise<void> } | null>(
-    null,
-  );
+  const identity = useRef(requestKey);
+  const assignedOwner = useRef<string | null>(null);
+  const pending = useRef<{ key: string; generation: number; promise: Promise<void> } | null>(null);
+  if (owner.current !== userId) assignedOwner.current = null;
   owner.current = userId;
+  if (identity.current !== requestKey) {
+    identity.current = requestKey;
+    generation.current++;
+    pending.current = null;
+  }
 
   const reload = useCallback((): Promise<void> => {
-    if (!mounted.current || owner.current !== userId) return Promise.resolve();
-    if (pending.current?.ownerId === userId && pending.current.generation === generation.current)
+    if (!mounted.current || identity.current !== requestKey) return Promise.resolve();
+    if (pending.current?.key === requestKey && pending.current.generation === generation.current)
       return pending.current.promise;
     const request = ++generation.current;
-    setState({ ownerId: userId, status: 'loading' });
+    setState({
+      ownerId: userId,
+      key: requestKey,
+      request,
+      status: 'loading',
+      assigned: assignedOwner.current === userId,
+    });
     const isCurrent = () =>
-      mounted.current && owner.current === userId && request === generation.current;
+      mounted.current && identity.current === requestKey && request === generation.current;
     const promise = (async () => {
       try {
-        // Read saved selections directly, including on a direct visit to /planner.
-        // Browser-cached curriculum state is not evidence of confirmed selections.
+        // Cached session metadata cannot choose the scope of a fresh planner read.
+        const session = await Promise.resolve().then(() => getSession());
+        if (!isCurrent()) return;
+        if (
+          !session ||
+          session.id !== userId ||
+          !(
+            session.curriculumId === null ||
+            (typeof session.curriculumId === 'string' &&
+              curriculumIdPattern.test(session.curriculumId))
+          )
+        ) {
+          throw new Error('Session scope unavailable');
+        }
+        if (session.curriculumId !== null) {
+          assignedOwner.current = userId;
+          setState({
+            ownerId: userId,
+            key: requestKey,
+            request,
+            status: 'loading',
+            assigned: true,
+          });
+          const preview = await getCurriculumSemesterPreview(intensityMode, session.curriculumId);
+          if (!isCurrent()) return;
+          setState({
+            ownerId: userId,
+            key: requestKey,
+            request,
+            status: 'ready',
+            kind: 'context',
+            preview,
+          });
+          return;
+        }
+        assignedOwner.current = null;
+        // Anonymous browser selections are never evidence of confirmed account selections.
         const [progress, catalog] = await Promise.all([
           Promise.resolve().then(() => getCurrentStudentProgress()),
           Promise.resolve().then(() => getCourses()),
@@ -54,27 +121,37 @@ export function PlannerDashboard({ userId }: { userId: string }) {
             throw new Error('Ambiguous course catalog');
           courseById.set(course.id, course);
         }
-        const plannedIds = [...new Set(progress.plannedIds)];
-        const courses = plannedIds.map((id) => {
+        const courses = [...new Set(progress.plannedIds)].map((id) => {
           const course = courseById.get(id);
           if (!course) throw new MissingPlannedCoursesError();
           return course;
         });
-        setState({ ownerId: userId, status: 'ready', courses, revision: ++revision.current });
+        setState({
+          ownerId: userId,
+          key: requestKey,
+          request,
+          status: 'ready',
+          kind: 'legacy',
+          courses,
+          revision: ++revision.current,
+        });
       } catch (error) {
         if (isCurrent())
           setState({
             ownerId: userId,
+            key: requestKey,
+            request,
             status: 'error',
             missingCourses: error instanceof MissingPlannedCoursesError,
+            assigned: assignedOwner.current === userId,
           });
       } finally {
         if (pending.current?.generation === request) pending.current = null;
       }
     })();
-    pending.current = { ownerId: userId, generation: request, promise };
+    pending.current = { key: requestKey, generation: request, promise };
     return promise;
-  }, [userId]);
+  }, [userId, intensityMode, requestKey]);
 
   const invalidatePending = useCallback(() => {
     mounted.current = false;
@@ -85,11 +162,43 @@ export function PlannerDashboard({ userId }: { userId: string }) {
   useEffect(() => {
     mounted.current = true;
     void reload();
-    return invalidatePending;
+    const onFocus = () => void reload();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void reload();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      invalidatePending();
+    };
   }, [reload, invalidatePending]);
 
   const current: PlannerState =
-    state.ownerId === userId ? state : { ownerId: userId, status: 'loading' };
+    state.ownerId === userId && state.key === requestKey && state.request === generation.current
+      ? state
+      : {
+          ownerId: userId,
+          key: requestKey,
+          request: generation.current,
+          status: 'loading',
+          assigned: assignedOwner.current === userId,
+        };
+  const assigned = current.status === 'ready' ? current.kind === 'context' : current.assigned;
+  const changeIntensity = (value: string) => {
+    if (
+      current.status === 'loading' ||
+      !mounted.current ||
+      identity.current !== requestKey ||
+      !(value === 'low' || value === 'normal' || value === 'high' || value === 'max') ||
+      value === intensityMode
+    )
+      return;
+    generation.current++;
+    pending.current = null;
+    setIntensityMode(value);
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -97,9 +206,9 @@ export function PlannerDashboard({ userId }: { userId: string }) {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Planner</h2>
           <p className="mt-2 max-w-prose text-sm text-gray-600">
-            Review the workload of your saved planned courses and explore personalized course
-            suggestions. Suggestions are read-only here. Update your course selections in My
-            curriculum.
+            {assigned
+              ? 'Review your saved planned courses in the assigned reference curriculum. This preview is read-only.'
+              : 'Review the workload of your saved planned courses and explore personalized course suggestions. Suggestions are read-only here. Update your course selections in My curriculum.'}
           </p>
         </div>
         <Button
@@ -112,6 +221,25 @@ export function PlannerDashboard({ userId }: { userId: string }) {
           Reload planner
         </Button>
       </header>
+      {assigned && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="planner-intensity" className="text-sm font-semibold text-gray-900">
+            Planning intensity
+          </label>
+          <select
+            id="planner-intensity"
+            value={intensityMode}
+            disabled={current.status === 'loading'}
+            onChange={(event) => changeIntensity(event.target.value)}
+            className="min-h-11 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700 disabled:opacity-50"
+          >
+            <option value="low">Low · up to 9 credits per slot</option>
+            <option value="normal">Normal · up to 15 credits per slot</option>
+            <option value="high">High · up to 21 credits per slot</option>
+            <option value="max">Maximum · up to 24 credits per slot</option>
+          </select>
+        </div>
+      )}
       {current.status === 'loading' ? (
         <p role="status" className="text-gray-600">
           Loading your saved planned courses…
@@ -123,13 +251,17 @@ export function PlannerDashboard({ userId }: { userId: string }) {
               ? 'Some saved planned courses are missing from the current catalog. Reload the planner to try again, or review your selections in My curriculum.'
               : 'Could not load your saved planned courses. Check your connection and reload the planner.'}
           </p>
-          <Link
-            to="/curriculum"
-            className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700"
-          >
-            Open My curriculum
-          </Link>
+          {!assigned && (
+            <Link
+              to="/curriculum"
+              className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary-700 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700"
+            >
+              Open My curriculum
+            </Link>
+          )}
         </div>
+      ) : current.kind === 'context' ? (
+        <CurriculumPlannerPreview preview={current.preview} />
       ) : (
         <>
           {current.courses.length === 0 ? (

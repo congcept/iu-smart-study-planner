@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { CurriculumSemesterPreviewSchema } from '@iu-study-planner/shared';
 import type {
   ApiResponse,
   AuthResponseDTO,
@@ -17,6 +18,8 @@ import type {
   CreateStudyPlanDTO,
   CreateSemesterDTO,
   AnalyzeWorkloadDTO,
+  CurriculumSemesterPreviewDTO,
+  PlanSemesterDTO,
 } from '@iu-study-planner/shared';
 import type {
   Course,
@@ -76,6 +79,24 @@ async function readAuthResponse(response: ApiResponse<AuthResponseDTO>) {
 export const getSession = async () => {
   const response = await apiClient.get<ApiResponse<AuthResponseDTO>>('/auth/me');
   return readAuthResponse(response.data);
+};
+
+export const getCurriculumSemesterPreview = async (
+  intensityMode: PlanSemesterDTO['intensityMode'],
+  expectedCurriculumId: string,
+): Promise<CurriculumSemesterPreviewDTO> => {
+  const response = await apiClient.post<ApiResponse<unknown>>('/recommendations/plan-semester', {
+    intensityMode,
+  });
+  const parsed = CurriculumSemesterPreviewSchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    parsed.data.scope.curriculumId.toLowerCase() !== expectedCurriculumId.toLowerCase()
+  ) {
+    throw new Error('Could not verify the curriculum planner preview. Reload to try again.');
+  }
+  return parsed.data;
 };
 
 export const login = async (data: LoginDTO) => {
