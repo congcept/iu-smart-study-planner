@@ -13,6 +13,64 @@ function isNotFoundError(error: unknown): boolean {
 
 const router = Router();
 
+const SemesterInputSchema = CreateSemesterSchema.extend({
+  courses: z
+    .array(
+      CreateSemesterSchema.shape.courses.element
+        .extend({
+          courseId: z
+            .string()
+            .uuid()
+            .transform((id) => id.toLowerCase()),
+        })
+        .strict(),
+    )
+    .superRefine((courses, ctx) => {
+      const seen = new Set<string>();
+      courses.forEach(({ courseId }, index) => {
+        if (seen.has(courseId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index, 'courseId'],
+            message: 'A course may appear only once in a semester',
+          });
+        }
+        seen.add(courseId);
+      });
+    }),
+}).strict();
+
+const SemesterUpdateSchema = SemesterInputSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  { message: 'At least one field must be provided' },
+);
+
+async function calculateSemesterTotals(courses: z.infer<typeof SemesterInputSchema>['courses']) {
+  const savedCourses = await prisma.course.findMany({
+    where: { id: { in: courses.map(({ courseId }) => courseId) } },
+    select: { id: true, credits: true, difficultyLevel: true },
+  });
+  const knownIds = new Set(savedCourses.map(({ id }) => id));
+  const missing = courses.flatMap(({ courseId }, index) =>
+    knownIds.has(courseId)
+      ? []
+      : [
+          {
+            code: z.ZodIssueCode.custom,
+            path: ['courses', index, 'courseId'],
+            message: 'Course not found',
+          },
+        ],
+  );
+  if (missing.length) throw new z.ZodError(missing);
+  return {
+    totalCredits: savedCourses.reduce((sum, course) => sum + course.credits, 0),
+    difficultyScore:
+      savedCourses.reduce((sum, course) => sum + course.difficultyLevel, 0) /
+      (savedCourses.length || 1),
+  };
+}
+
 // Get all study plans for a user
 router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Response) => {
   try {
@@ -146,7 +204,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const validatedData = CreateSemesterSchema.parse(req.body);
+      const validatedData = SemesterInputSchema.parse(req.body);
 
       // Check if study plan exists
       const plan = await prisma.studyPlan.findUnique({ where: { id } });
@@ -157,21 +215,8 @@ router.post(
         });
       }
 
-      // Calculate total credits and difficulty
-      const courseIds = validatedData.courses.map((c) => c.courseId);
-      const courses = await prisma.course.findMany({
-        where: { id: { in: courseIds } },
-      });
-
-      const totalCredits = courses.reduce(
-        (sum: number, c: { credits: number }) => sum + c.credits,
-        0,
-      );
-      const difficultyScore =
-        courses.reduce(
-          (sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel,
-          0,
-        ) / (courses.length || 1);
+      // Validate every submitted course before calculating or saving totals.
+      const totals = await calculateSemesterTotals(validatedData.courses);
 
       const semester = await prisma.plannedSemester.create({
         data: {
@@ -179,8 +224,7 @@ router.post(
           semester: validatedData.semester,
           year: validatedData.year,
           courses: validatedData.courses,
-          totalCredits,
-          difficultyScore,
+          ...totals,
         },
       });
 
@@ -214,7 +258,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const { semesterId } = req.params;
-      const validatedData = CreateSemesterSchema.partial().parse(req.body);
+      const validatedData = SemesterUpdateSchema.parse(req.body);
 
       // Recalculate if courses changed
       const updateData: typeof validatedData & { totalCredits?: number; difficultyScore?: number } =
@@ -222,20 +266,7 @@ router.put(
           ...validatedData,
         };
       if (validatedData.courses) {
-        const courseIds = validatedData.courses.map((c) => c.courseId);
-        const courses = await prisma.course.findMany({
-          where: { id: { in: courseIds } },
-        });
-
-        updateData.totalCredits = courses.reduce(
-          (sum: number, c: { credits: number }) => sum + c.credits,
-          0,
-        );
-        updateData.difficultyScore =
-          courses.reduce(
-            (sum: number, c: { difficultyLevel: number }) => sum + c.difficultyLevel,
-            0,
-          ) / (courses.length || 1);
+        Object.assign(updateData, await calculateSemesterTotals(validatedData.courses));
       }
 
       const semester = await prisma.plannedSemester.update({
