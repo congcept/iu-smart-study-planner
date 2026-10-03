@@ -83,6 +83,7 @@ export function readStudentProgressView(identifier: string) {
             percentage: null,
           },
           scope: {
+            userId: user.id,
             curriculumId: context.id,
             usage: context.usage,
             degreeProgressAvailable: false,

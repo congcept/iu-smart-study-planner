@@ -112,6 +112,7 @@ export interface ContextStudentProgressDTO {
   scope: {
     curriculumId: string;
     usage: 'REFERENCE_ONLY';
+    userId: string;
     degreeProgressAvailable: false;
     gpaPath: GpaPath | null;
     ratingPrior: CurriculumDetailDTO['ratingPrior'];

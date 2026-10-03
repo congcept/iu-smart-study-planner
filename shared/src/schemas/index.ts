@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+export { ContextStudentProgressSchema } from './contextStudentProgress';
 export { CurriculumDetailSchema } from './curriculumDetail';
 export { CurriculumSemesterPreviewSchema } from './curriculumSemesterPreview';
 
