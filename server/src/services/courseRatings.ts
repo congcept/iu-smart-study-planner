@@ -8,6 +8,7 @@ import {
 import config from '../config';
 import { prisma } from '../db';
 import { estimateDifficulty } from './bayesianDifficulty';
+import { readContextPrior } from './curriculumContexts';
 
 export class CourseRatingError extends Error {
   constructor(
@@ -27,7 +28,7 @@ async function readGlobalPrior(tx: Prisma.TransactionClient) {
       : null;
   const mean = global._avg.rating ?? seed?._avg.difficultyLevel;
   if (mean === null || mean === undefined) throw new Error('No global difficulty prior available');
-  const source: CourseDifficultyDTO['ratingPriorSource'] =
+  const source: 'GLOBAL_RATINGS' | 'GLOBAL_SEED' =
     global._avg.rating === null ? 'GLOBAL_SEED' : 'GLOBAL_RATINGS';
   return { mean, source };
 }
@@ -53,6 +54,7 @@ export async function decorateCourseDifficulties<
 async function summarize(
   tx: Prisma.TransactionClient,
   courseId: string,
+  curriculumId?: string,
 ): Promise<CourseRatingsDTO> {
   const course = await tx.course.findUnique({
     where: { id: courseId },
@@ -66,7 +68,15 @@ async function summarize(
     _count: true,
   });
   for (const group of groups) distribution[group.rating as 1 | 2 | 3 | 4 | 5] = group._count;
-  const prior = await readGlobalPrior(tx);
+  if (
+    curriculumId &&
+    !(await tx.curriculumCourse.findUnique({
+      where: { curriculumId_courseId: { curriculumId, courseId } },
+      select: { id: true },
+    }))
+  )
+    throw new CourseRatingError(404, 'Course not found in this curriculum');
+  const prior = curriculumId ? await readContextPrior(tx, curriculumId) : await readGlobalPrior(tx);
   const priorMean = prior.mean;
   const estimate = estimateDifficulty({
     average: course.avgRating,
@@ -89,6 +99,15 @@ export function readCourseRatings(courseId: string): Promise<CourseRatingsDTO> {
   });
 }
 
+export function readCurriculumCourseRatings(
+  courseId: string,
+  curriculumId: string,
+): Promise<CourseRatingsDTO> {
+  return prisma.$transaction((tx) => summarize(tx, courseId, curriculumId), {
+    isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+  });
+}
+
 /** Completion, quota, vote, cached aggregates and returned summary commit together. */
 export async function submitCourseRating(
   userId: string,
@@ -102,8 +121,8 @@ export async function submitCourseRating(
         async (tx) => {
           // This also serializes a user's quota across different courses and API instances.
           const owners = await tx.$queryRaw<
-            { id: string }[]
-          >`SELECT id FROM users WHERE id=${userId} FOR NO KEY UPDATE`;
+            { id: string; curriculumId: string | null }[]
+          >`SELECT id, curriculum_id AS "curriculumId" FROM users WHERE id=${userId} FOR NO KEY UPDATE`;
           if (owners.length === 0) throw new CourseRatingError(401, 'Authentication required');
           const course = await tx.course.findUnique({
             where: { id: courseId },
@@ -144,7 +163,18 @@ export async function submitCourseRating(
               update: { rating: value },
             });
           }
-          return { ...(await summarize(tx, courseId)), yourRating: value };
+          const assignedId = owners[0].curriculumId;
+          const membership = assignedId
+            ? await tx.curriculumCourse.findUnique({
+                where: { curriculumId_courseId: { curriculumId: assignedId, courseId } },
+                select: { id: true },
+              })
+            : null;
+          // Completed historical courses remain globally rateable after a context change.
+          return {
+            ...(await summarize(tx, courseId, membership ? assignedId! : undefined)),
+            yourRating: value,
+          };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );

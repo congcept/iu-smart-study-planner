@@ -1,10 +1,11 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
-import { RateCourseSchema } from '@iu-study-planner/shared';
+import { RateCourseSchema, CourseRatingQuerySchema } from '@iu-study-planner/shared';
 import { requireAuth } from '../middleware/auth';
 import {
   CourseRatingError,
   readCourseRatings,
+  readCurriculumCourseRatings,
   submitCourseRating,
 } from '../services/courseRatings';
 
@@ -27,9 +28,12 @@ function handleError(error: unknown, res: Response) {
 }
 router.get('/:id/ratings', async (req, res) => {
   try {
+    const { curriculumId } = CourseRatingQuerySchema.parse(req.query);
     return res.json({
       success: true,
-      data: await readCourseRatings(courseIdSchema.parse(req.params.id)),
+      data: curriculumId
+        ? await readCurriculumCourseRatings(courseIdSchema.parse(req.params.id), curriculumId)
+        : await readCourseRatings(courseIdSchema.parse(req.params.id)),
     });
   } catch (error) {
     return handleError(error, res);

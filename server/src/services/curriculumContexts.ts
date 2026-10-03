@@ -29,7 +29,7 @@ export async function listCurriculumContexts(): Promise<CurriculumSummaryDTO[]> 
 }
 
 /** Mean of votes on unique member courses; voters and cached course averages remain global. */
-async function readContextPrior(tx: Prisma.TransactionClient, curriculumId: string) {
+export async function readContextPrior(tx: Prisma.TransactionClient, curriculumId: string) {
   const memberCourseFilter = { curriculumCourses: { some: { curriculumId } } };
   const ratings = await tx.courseRating.aggregate({
     where: { course: memberCourseFilter },
