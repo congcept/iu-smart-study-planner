@@ -23,6 +23,8 @@ export const CategorySchema = z.enum([
 ]);
 export const SemesterSchema = z.enum(['FALL', 'SPRING', 'SUMMER']);
 
+export const RateCourseSchema = z.object({ rating: z.number().int().min(1).max(5) }).strict();
+
 export const AppendGradeAttemptSchema = z
   .object({
     courseId: z
