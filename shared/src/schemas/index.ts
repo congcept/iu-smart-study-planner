@@ -34,6 +34,16 @@ export const SemesterSchema = z.enum(['FALL', 'SPRING', 'SUMMER']);
 
 export const RateCourseSchema = z.object({ rating: z.number().int().min(1).max(5) }).strict();
 
+export const CourseRatingQuerySchema = z
+  .object({
+    curriculumId: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase())
+      .optional(),
+  })
+  .strict();
+
 export const AppendGradeAttemptSchema = z
   .object({
     courseId: z
