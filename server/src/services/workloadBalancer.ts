@@ -53,7 +53,10 @@ class WorkloadBalancer {
   /**
    * Analyze a semester's workload and provide insights
    */
-  analyzeSemesterWorkload(courses: RatedCourse[]): WorkloadAnalysis {
+  analyzeSemesterWorkload(
+    courses: RatedCourse[],
+    options: { categoryBalanceAvailable?: boolean } = {},
+  ): WorkloadAnalysis {
     const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
     const averageDifficulty =
       courses.length > 0
@@ -93,7 +96,7 @@ class WorkloadBalancer {
       ([_, count]) => count > 3,
     );
 
-    if (highConcentrationCategories.length > 0) {
+    if (options.categoryBalanceAvailable !== false && highConcentrationCategories.length > 0) {
       recommendations.push('Consider diversifying course categories for better balance');
     }
 

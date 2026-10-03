@@ -5,11 +5,12 @@ import { AnalyzeWorkloadSchema, type RecommendationStatsDTO } from '@iu-study-pl
 import WorkloadBalancer from '../services/workloadBalancer';
 import SemesterPlanner from '../services/semesterPlanner';
 import { prisma } from '../db';
-import { requireUserIdAccess } from '../middleware/auth';
+import { optionalAuth, requireUserIdAccess } from '../middleware/auth';
 import { decorateCourseDifficulties } from '../services/courseRatings';
 import { buildNumericGradeHistory } from '../services/numericGradeFit';
 import { calculateGradeSummary } from '../services/gradeSummary';
 import { isCourseInGpaPath } from '../services/gpaPath';
+import { readAccountWorkload, WorkloadContextError } from '../services/workloadContext';
 
 const router = Router();
 const workloadBalancer = new WorkloadBalancer();
@@ -112,25 +113,21 @@ router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Respo
 });
 
 // Analyze workload balance for a potential semester
-router.post('/analyze-workload', async (req: Request, res: Response) => {
+router.post('/analyze-workload', optionalAuth, async (req: Request, res: Response) => {
   try {
     const { courseIds } = AnalyzeWorkloadSchema.parse(req.body);
 
-    const courses = await prisma.$transaction(
-      async (tx) => {
-        const rows = await tx.course.findMany({ where: { id: { in: courseIds } } });
-        return decorateCourseDifficulties(tx, rows);
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-    );
+    const { courses, scope } = await readAccountWorkload(req.userId, courseIds);
 
-    const analysis = workloadBalancer.analyzeSemesterWorkload(courses);
+    const analysis = workloadBalancer.analyzeSemesterWorkload(courses, scope);
 
     return res.json({
       success: true,
-      data: analysis,
+      data: { ...analysis, scope },
     });
   } catch (error) {
+    if (error instanceof WorkloadContextError)
+      return res.status(error.status).json({ success: false, error: error.message });
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,

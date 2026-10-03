@@ -36,9 +36,14 @@ async function readGlobalPrior(tx: Prisma.TransactionClient) {
 /** Resolve one shared prior per collection, never one query per course. */
 export async function decorateCourseDifficulties<
   T extends { avgRating: number | null; ratingCount: number },
->(tx: Prisma.TransactionClient, courses: readonly T[]): Promise<(T & CourseDifficultyDTO)[]> {
+>(
+  tx: Prisma.TransactionClient,
+  courses: readonly T[],
+  curriculumId?: string,
+): Promise<(T & CourseDifficultyDTO)[]> {
   if (courses.length === 0) return [];
-  const prior = await readGlobalPrior(tx);
+  // The caller supplies a membership-filtered collection when selecting a curriculum prior.
+  const prior = curriculumId ? await readContextPrior(tx, curriculumId) : await readGlobalPrior(tx);
   return courses.map((course) => ({
     ...course,
     ratingDifficulty: estimateDifficulty({
