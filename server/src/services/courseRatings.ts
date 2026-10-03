@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import {
   RateCourseSchema,
+  type CourseDifficultyDTO,
   type CourseRatingsDTO,
   type SubmittedCourseRatingDTO,
 } from '@iu-study-planner/shared';
@@ -16,6 +17,37 @@ export class CourseRatingError extends Error {
   ) {
     super(message);
   }
+}
+
+async function readGlobalPrior(tx: Prisma.TransactionClient) {
+  const global = await tx.courseRating.aggregate({ _avg: { rating: true } });
+  const seed =
+    global._avg.rating === null
+      ? await tx.course.aggregate({ _avg: { difficultyLevel: true } })
+      : null;
+  const mean = global._avg.rating ?? seed?._avg.difficultyLevel;
+  if (mean === null || mean === undefined) throw new Error('No global difficulty prior available');
+  const source: CourseDifficultyDTO['ratingPriorSource'] =
+    global._avg.rating === null ? 'GLOBAL_SEED' : 'GLOBAL_RATINGS';
+  return { mean, source };
+}
+
+/** Resolve one shared prior per collection, never one query per course. */
+export async function decorateCourseDifficulties<
+  T extends { avgRating: number | null; ratingCount: number },
+>(tx: Prisma.TransactionClient, courses: readonly T[]): Promise<(T & CourseDifficultyDTO)[]> {
+  if (courses.length === 0) return [];
+  const prior = await readGlobalPrior(tx);
+  return courses.map((course) => ({
+    ...course,
+    ratingDifficulty: estimateDifficulty({
+      average: course.avgRating,
+      count: course.ratingCount,
+      priorMean: prior.mean,
+    }).score,
+    ratingPriorMean: prior.mean,
+    ratingPriorSource: prior.source,
+  }));
 }
 
 async function summarize(
@@ -34,14 +66,8 @@ async function summarize(
     _count: true,
   });
   for (const group of groups) distribution[group.rating as 1 | 2 | 3 | 4 | 5] = group._count;
-  const global = await tx.courseRating.aggregate({ _avg: { rating: true } });
-  const seed =
-    global._avg.rating === null
-      ? await tx.course.aggregate({ _avg: { difficultyLevel: true } })
-      : null;
-  const priorMean = global._avg.rating ?? seed?._avg.difficultyLevel;
-  if (priorMean === null || priorMean === undefined)
-    throw new Error('No global difficulty prior available');
+  const prior = await readGlobalPrior(tx);
+  const priorMean = prior.mean;
   const estimate = estimateDifficulty({
     average: course.avgRating,
     count: course.ratingCount,
@@ -53,7 +79,7 @@ async function summarize(
     distribution,
     difficulty: estimate.score,
     priorMean,
-    priorSource: global._avg.rating === null ? 'GLOBAL_SEED' : 'GLOBAL_RATINGS',
+    priorSource: prior.source,
   };
 }
 

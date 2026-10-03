@@ -1,7 +1,7 @@
-import type { StudentProgressDTO } from '@iu-study-planner/shared';
+import type { CourseDifficultyDTO, StudentProgressDTO } from '@iu-study-planner/shared';
 
 // Course Types
-export interface Course {
+export interface Course extends Partial<CourseDifficultyDTO> {
   id: string;
   code: string;
   name: string;

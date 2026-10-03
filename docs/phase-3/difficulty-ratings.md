@@ -57,3 +57,16 @@ strict and fractional inputs, cold-start/Bayesian summaries, preservation, idemp
 quota reset/isolation and races. Full gates pass291 server/143 client tests. Live simulated
 votes4 and5 produced a shared mean4.5; a zero-vote course displayed4.5 exactly and the
 one-vote course displayed4.416666666666667. Numeric progress remained unchanged.
+
+## Course projections
+
+Course lists, details and curriculum rows now include the Bayesian ratingDifficulty,
+ratingCount, observed average and shared prior/source. Each collection resolves the
+prior once inside a repeatable-read transaction, so concurrent votes cannot combine
+an older count with a newer mean. Duplicate elective placements share one global
+course estimate. Missing database rows do not receive fabricated rating metadata.
+
+Ten real PostgreSQL tests verify API consistency, cold starts, metadata preservation,
+one aggregate query for fifty courses, duplicate placements and concurrent snapshot
+isolation. Full build, type, lint and test gates pass301 server/143 client tests.
+The seed difficultyLevel remains intact; badges and scoring consumers are next.
