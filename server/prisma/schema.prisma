@@ -27,6 +27,7 @@ model Course {
   
   // Student records
   studentRecords    StudentRecord[]
+  gradeAttempts     GradeAttempt[]
   
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
@@ -70,6 +71,7 @@ model User {
   
   // Relations
   studentRecords  StudentRecord[]
+  gradeAttempts   GradeAttempt[]
   studyPlans      StudyPlan[]
   
   createdAt       DateTime        @default(now()) @map("created_at")
@@ -101,6 +103,24 @@ model StudentRecord {
   @@index([userId])
   @@index([courseId])
   @@map("student_records")
+}
+
+model GradeAttempt {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  courseId    String   @map("course_id")
+  requestId   String   @map("request_id") @db.Uuid
+  score       Float
+  semester    Semester?
+  year        Int?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([courseId])
+  @@map("grade_attempts")
 }
 
 model StudyPlan {
