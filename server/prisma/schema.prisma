@@ -76,6 +76,7 @@ model User {
   studentRecords  StudentRecord[]
   gradeAttempts   GradeAttempt[]
   ratings         CourseRating[]
+  ratingWriteLimit RatingWriteLimit?
   studyPlans      StudyPlan[]
   
   createdAt       DateTime        @default(now()) @map("created_at")
@@ -141,6 +142,15 @@ model CourseRating {
   @@unique([userId, courseId])
   @@index([courseId])
   @@map("course_ratings")
+}
+
+model RatingWriteLimit {
+  userId      String   @id @map("user_id")
+  windowStart DateTime @map("window_start")
+  writeCount  Int      @default(0) @map("write_count")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("rating_write_limits")
 }
 
 model StudyPlan {

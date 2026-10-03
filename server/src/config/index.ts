@@ -11,6 +11,7 @@ interface Config {
   jwtSecret: string;
   jwtExpiresIn: number;
   demoLoginEnabled: boolean;
+  ratingWritesPerHour: number;
 }
 
 const duration = /^([1-9]\d*)(s|m|h|d)$/.exec(process.env.JWT_EXPIRES_IN || '7d');
@@ -28,7 +29,17 @@ if (
   throw new Error('Production requires a non-placeholder JWT_SECRET of at least 32 characters');
 }
 
+const ratingWritesPerHour = Number(process.env.RATING_WRITES_PER_HOUR || '60');
+if (
+  !Number.isSafeInteger(ratingWritesPerHour) ||
+  ratingWritesPerHour < 1 ||
+  ratingWritesPerHour > 10000
+) {
+  throw new Error('RATING_WRITES_PER_HOUR must be an integer from 1 to 10000');
+}
+
 const config: Config = {
+  ratingWritesPerHour,
   port: parseInt(process.env.PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl:

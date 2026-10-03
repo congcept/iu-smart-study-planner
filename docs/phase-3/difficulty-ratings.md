@@ -9,7 +9,7 @@ exactly, even if a raw course average was supplied. Positive counts require a va
 are rejected. Hand-computed0/1/50-vote vectors and boundary/precision checks pass
 in24 tests.
 
-This helper is not yet wired to public APIs or scoring. Completion-gated authenticated writes, an hourly cap, curriculum/global mean resolution,
+This helper is consumed by the rating summary API. Curriculum-specific prior resolution,
 UI confidence badges and engine integration remain outstanding. Course.difficultyLevel
 is preserved. No ratings or difficulty changes have been fabricated in the live app.
 
@@ -29,6 +29,31 @@ regenerate Prisma. No reset or seed rewrite is required.
 
 Twenty real PostgreSQL tests verify boundaries, uniqueness, retakes of a vote, full
 precision, cache rollback, concurrent votes/updates, course moves, legacy record
-preservation and FK cleanup. Full gates passed253 server and143 client tests. Public
-rating writes, completion guards, hourly limits and UI/scoring integration remain pending.
+preservation and FK cleanup. Full gates passed253 server and143 client tests. UI/scoring integration remains pending; the API work is described below.
 Historical votes remain after uncompletion; deletion of the account/course removes them.
+
+## Completion-gated APIs
+
+GET /api/courses/:id/ratings is public and returns raw average, count, distribution1–5,
+unrounded Bayesian difficulty, priorMean and priorSource. It reads one repeatable-read
+snapshot and never reveals voter identities. Current data remains the global CS catalog:
+use the global vote mean, or the mean of retained seed difficulties if there are no votes.
+Curriculum-specific means require the pending curriculum joins.
+
+POST /api/courses/:id/rate accepts only an integer rating1–5. The cookie determines the
+account; students and admins must have a current COMPLETED record. Planned, failed,
+dropped, in-progress and absent records cannot rate. Completion/legacy grades stay intact.
+UUIDs normalize to lowercase. Writes and returned summaries use a serializable transaction
+with conflict retries.
+
+Changed votes consume a persistent fixed UTC-hour account quota (default60, configured
+by RATING_WRITES_PER_HOUR1–10000). User-row locking shares the cap across courses and
+API instances. An identical vote returns the same value without consuming another write.
+At the cap,429 includes Retry-After; no partial quota/vote/cache changes commit. The single
+quota row resets next hour and is removed on account deletion.
+
+Thirty-eight real PostgreSQL API tests cover session/origin/role access, all statuses,
+strict and fractional inputs, cold-start/Bayesian summaries, preservation, idempotency,
+quota reset/isolation and races. Full gates pass291 server/143 client tests. Live simulated
+votes4 and5 produced a shared mean4.5; a zero-vote course displayed4.5 exactly and the
+one-vote course displayed4.416666666666667. Numeric progress remained unchanged.

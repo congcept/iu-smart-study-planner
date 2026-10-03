@@ -16,6 +16,18 @@ export type LoginDTO = z.infer<typeof schemas.LoginSchema>;
 export type DemoLoginDTO = z.infer<typeof schemas.DemoLoginSchema>;
 export type CompleteCourseDTO = z.infer<typeof schemas.CompleteCourseSchema>;
 export type UpsertProgressDTO = z.infer<typeof schemas.UpsertProgressSchema>;
+export type RateCourseDTO = z.infer<typeof schemas.RateCourseSchema>;
+export interface CourseRatingsDTO {
+  average: number | null;
+  count: number;
+  distribution: Record<1 | 2 | 3 | 4 | 5, number>;
+  difficulty: number;
+  priorMean: number;
+  priorSource: 'GLOBAL_RATINGS' | 'GLOBAL_SEED';
+}
+export interface SubmittedCourseRatingDTO extends CourseRatingsDTO {
+  yourRating: number;
+}
 export type AppendGradeAttemptDTO = z.infer<typeof schemas.AppendGradeAttemptSchema>;
 export interface GradeAttemptDTO {
   id: string;

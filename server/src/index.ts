@@ -11,6 +11,7 @@ import studyPlanRoutes from './routes/studyPlans';
 import recommendationRoutes from './routes/recommendations';
 import authRoutes from './routes/auth';
 import gradeRoutes from './routes/grades';
+import courseRatingRoutes from './routes/courseRatings';
 import { checkRequestOrigin } from './middleware/auth';
 
 const app: Application = express();
@@ -46,6 +47,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/courses', courseRatingRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/users/me/grades', gradeRoutes);
 app.use('/api/users', userRoutes);
