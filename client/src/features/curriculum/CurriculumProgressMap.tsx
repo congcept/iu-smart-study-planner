@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurriculum } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
+import { playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
 import { ArchivedProgressImport } from './ArchivedProgressImport';
 import { collectCompletedDependents } from './prerequisites';
 import { recommendCurriculumCourses } from './recommendations';
+import { useGpaPath } from './useGpaPath';
+import { GpaPathControls } from './GpaPathControls';
 import { GraduationCap, BookOpen, Target, ListChecks, ChevronRight } from 'lucide-react';
 
 const getElectiveGroupLabel = (groupName: string): string => {
@@ -73,7 +75,9 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
   const [activeElectiveGroup, setActiveElectiveGroup] = useState<string | null>(null);
-  const [y4s2GpaMode, setY4s2GpaMode] = useState<'above' | 'below'>('above');
+  const gpaPolicy = useGpaPath(userId);
+  const y4s2GpaMode = gpaPolicy.mode;
+  const gpaReady = gpaPolicy.status === 'ready';
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
@@ -113,7 +117,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   }, [intensityMode]);
 
   useEffect(() => {
-    if (!recommendationsEnabled) {
+    if (!recommendationsEnabled || !gpaReady) {
       setRecommendedIds(new Set());
       return;
     }
@@ -126,7 +130,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     );
 
     setRecommendedIds(new Set(recommended));
-  }, [allCourses, completedIdsSet, recommendationsEnabled, isY4S2ThesisMode, groups, creditsPerSemester]);
+  }, [allCourses, completedIdsSet, recommendationsEnabled, isY4S2ThesisMode, groups, creditsPerSemester, gpaReady]);
 
   const isCourseAvailable = useCallback(
     (course: Course) => {
@@ -459,6 +463,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     });
   }, [baseScale, clampPan]);
 
+  if (!gpaReady) {
+    return <div className="mx-auto max-w-5xl p-4"><GpaPathControls policy={gpaPolicy} /></div>;
+  }
+
   if (loading || (userId && progressImportStatus !== 'importing' && ['idle', 'loading'].includes(progressStatus))) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
 
@@ -579,27 +587,8 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                 <div className="bg-gray-100 px-2.5 py-1.5 border-b-2 border-transparent h-[34px]" />
 
                 {group.year === 4 && group.semester === 2 && (
-                  <div className={`flex gap-1 mt-1 mb-1 px-1 transition-all duration-150 ${hoveredLockedId !== null ? 'blur-[1px] opacity-25' : ''}`}>
-                    <button
-                      onClick={() => { setY4s2GpaMode('above'); playToggleSound(); }}
-                      className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
-                        y4s2GpaMode === 'above'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                      }`}
-                    >
-                      GPA {'>'} 70
-                    </button>
-                    <button
-                      onClick={() => { setY4s2GpaMode('below'); playToggleSound(); }}
-                      className={`flex-1 text-[10px] font-semibold py-1 rounded transition-colors ${
-                        y4s2GpaMode === 'below'
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                      }`}
-                    >
-                      GPA {'<='} 70
-                    </button>
+                  <div className="my-2 px-1">
+                    <GpaPathControls policy={gpaPolicy} />
                   </div>
                 )}
 
