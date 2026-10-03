@@ -169,7 +169,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 401 server tests and 234 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 427 server tests and 234 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -185,12 +185,21 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-03
 
-Development resumed at the user's request. Completed increments through PR #41 are
-pushed and merged into GitHub `main`. Numeric recommendation grade fit passes full
-quality gates with 401 server / 234 client tests and is ready for its separate PR. The local
-Docker app is running; rebuilding backend shared types restored its signed-in session.
-Pre-existing staged files and unfinished UI edits outside these increments remain local
-and must not be included in a future commit without reviewing their ownership/scope.
+Development resumed at the user's request. Completed increments through PR #42 are
+pushed and merged into GitHub `main`. The separate GPA recommendation filter passes
+build/typecheck/zero-warning lint and 427 server / 234 client tests for its exact
+snapshot and is ready for commit and PR. It removes the opposite sole Y4S2 option
+before availability statistics, scoring and credit budgeting, preserves earlier
+elective placements, and retains both options when numeric GPA is null. Shared
+recommendation statistics expose the authoritative path. Independent review found no
+issue; 12 placement and 14 PostgreSQL route cases cover this increment.
+
+Next: activate a protected Planner page using saved planned-course workload and
+read-only personalized recommendations, with server hydration, rating confidence,
+account/selection isolation, and retry. No suggestion is saved without a real progress
+mutation. Pre-existing staged files and unfinished UI edits outside these increments
+remain local and must be excluded from commits without reviewing ownership/scope.
+The Docker shared DTOs were regenerated and backend restarted without changing data.
 
 Changes since the previous checkpoint:
 - Archived account selections can be reviewed and imported with account-scoped recovery.
@@ -223,8 +232,8 @@ Resume with small, separately verified increments in this order:
    PT/zero-credit exclusion, matching existing requirement category and Bayesian difficulty.
    A bounded bonus uses configurable weight (default 2, 0–20) and distance (default 0.5,
    0–4); zero weight disables it. Legacy grade metadata is preserved, never converted.
-   Before activating the existing workload/recommendation screens, apply the server GPA
-   path to recommendation availability before ranking and credit budgeting. Null numeric
+   The server GPA path now filters recommendation availability before ranking and
+   credit budgeting. Activate the existing workload/recommendation screens next. Null numeric
    GPA currently retains both server options; the map still permits manual choice.
    Course categories are requirement types, not subject disciplines. Subject-specific
    personalization needs verified metadata. Preserve pending UI ownership when adding routes.
@@ -237,7 +246,7 @@ Resume with small, separately verified increments in this order:
    follow their gates; neither is complete.
 
 The full Grades and Ratings roadmap phases are not complete: planner screen activation,
-server recommendation GPA filtering, curriculum priors and multi-objective scoring remain outstanding.
+curriculum priors and multi-objective scoring remain outstanding.
 Later UI finish reviews used a disclosed inline fallback after subagents hit
 an account usage limit; they must not be represented as independent agent reviews.
 
@@ -460,7 +469,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 401 server tests and 234 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 427 server tests and 234 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

@@ -51,6 +51,15 @@ export interface GradeAttemptDTO {
   course: { id: string; code: string; name: string; credits: number };
 }
 export type GpaPath = 'THESIS' | 'ALTERNATIVE';
+export interface RecommendationStatsDTO {
+  gpaPath: GpaPath | null;
+  totalAvailable: number;
+  filteredCount: number;
+  recommendedCount: number;
+  totalRecommendedCredits: number;
+  averageDifficulty: number;
+}
+
 export interface StudentGradesDTO {
   attempts: GradeAttemptDTO[];
   summary: {
