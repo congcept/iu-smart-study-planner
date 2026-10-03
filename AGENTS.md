@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 738 server tests and 482 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 769 server tests and 482 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #69 are pushed/merged. The scoped grade-write increment is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #70 are pushed/merged. The completion/import scope contract is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -369,7 +369,24 @@ The running backend recovered from stale generated DTOs by rebuilding its isolat
 output and triggering its existing source watcher; frontend/backend health reads return 200.
 No PostgreSQL reset, reseed or container recreation was needed.
 
-Next: add atomic expected-owner/context preconditions to completion/import and rating writes,
+Completion and archived-progress import now accept the same strict optional expected scope.
+A shared server guard compares it with the owner/context loaded inside each Serializable write
+transaction before membership, prerequisites, claims, cascades or record changes. Completion
+strips the precondition before passing record fields to Prisma; scope is never persisted.
+No-op imports/transitions with stale scope also reject, preserving records and timestamps.
+Legacy scope-less clients remain compatible. This is the server contract; the current progress
+store still needs validated owner/context snapshots before sending its confirmed preconditions.
+Assigned curriculum editing and account assignment remain gated.
+
+Thirty-one new PostgreSQL cases cover UUID/null transitions, shared-course membership, changed
+cookie owner, casing, malformed nested claims, all completion statuses, preserved numeric/rating
+history, matching-scope cascades, no-op metadata and concurrent import/uncompletion. All gates
+pass on the owned isolated source: 769 server / 482 client tests. Review is inline; previously
+requested subagents remain unavailable due account usage limits. Details:
+`docs/phase-2/progress-write-scope.md`.
+
+Next: expose validated cookie-owner/context progress snapshots, connect those preconditions to
+the progress store, and add rating-write scope checks,
 then adopt context-aware completion mutation/cache handling before enabling editing. Keep completion
 editing gated until progress/cache hydration/types and pending mutations/claims are isolated
 by owner and context. The old GPA hook is retained only within the confirmed-null legacy map.
@@ -651,7 +668,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 738 server tests and 482 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 769 server tests and 482 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

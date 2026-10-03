@@ -184,13 +184,17 @@ export const CompleteCourseSchema = UpdateStudentRecordSchema.pick({
   courseId: true,
   electiveGroup: true,
 })
-  .extend({ status: z.enum(['COMPLETED', 'PLANNED', 'DROPPED']).default('COMPLETED') })
+  .extend({
+    status: z.enum(['COMPLETED', 'PLANNED', 'DROPPED']).default('COMPLETED'),
+    expectedScope: AccountWriteScopeSchema.optional(),
+  })
   .strict();
 
 export const UpsertProgressSchema = z
   .object({
     completedIds: z.record(z.string().uuid(), z.string().trim().min(1).max(100).nullable()),
     plannedIds: z.array(z.string().uuid()).max(500),
+    expectedScope: AccountWriteScopeSchema.optional(),
   })
   .strict()
   .superRefine((data, ctx) => {

@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import { readStudentProgress } from './studentProgress';
 import { StudentRecordError } from './studentRecords';
 import { readProgressCourseContext, validateContextClaim } from './progressCourseContext';
+import { assertProgressWriteScope } from './progressWriteScope';
 
 export async function importStudentProgress(
   userId: string,
@@ -18,6 +19,7 @@ export async function importStudentProgress(
             select: { id: true, curriculumId: true },
           });
           if (!user) throw new StudentRecordError('User not found', 404);
+          assertProgressWriteScope(data.expectedScope, user);
 
           const completedIds = Object.keys(data.completedIds);
           const incomingIds = [...completedIds, ...data.plannedIds];

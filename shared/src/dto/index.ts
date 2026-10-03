@@ -17,6 +17,7 @@ export type RegisterDTO = z.infer<typeof schemas.RegisterSchema>;
 export type LoginDTO = z.infer<typeof schemas.LoginSchema>;
 export type DemoLoginDTO = z.infer<typeof schemas.DemoLoginSchema>;
 export type CompleteCourseDTO = z.infer<typeof schemas.CompleteCourseSchema>;
+export type AccountWriteScopeDTO = z.infer<typeof schemas.AccountWriteScopeSchema>;
 export type UpsertProgressDTO = z.infer<typeof schemas.UpsertProgressSchema>;
 export type RateCourseDTO = z.infer<typeof schemas.RateCourseSchema>;
 export type RatingPriorSource =
