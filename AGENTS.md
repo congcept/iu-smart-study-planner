@@ -184,6 +184,58 @@ legacy semester course-list validation, physical-training totals in legacy profi
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
+## Paused Checkpoint — 2026-10-03
+
+Development is paused at the user's request. All completed increments in this run are
+pushed and merged into GitHub `main` (PRs #17–#38). The verified code checkpoint is
+`62dd85b`, with build/typecheck/lint passing and 352 server / 195 client tests. The local
+Docker app is running; rebuilding backend shared types restored its signed-in session.
+Pre-existing staged files and unfinished UI edits outside these increments remain local
+and must not be included in a future commit without reviewing their ownership/scope.
+
+Changes since the previous checkpoint:
+- Archived account selections can be reviewed and imported with account-scoped recovery.
+- Saved semester lists reject malformed, duplicate and unknown courses; earned-credit
+  totals consistently exclude physical training while planned credits include it.
+- Numeric 0–100 grade entry, immutable retake history, highest-score credit-weighted GPA
+  and a protected Grades dashboard are shipped, including safe retry/tab recovery.
+- Completed-course difficulty voting, private personal votes, persistent hourly limits,
+  atomic cached counts/averages, Bayesian estimates and a protected Ratings screen are
+  shipped. Course cards show estimates with actual vote counts and honest zero-vote copy.
+- Workload recommendations, semester ranking, saved-plan totals and curriculum highlights
+  consume rating estimates. Course projections share consistent database snapshots.
+- The duplicated semester RULES array is removed; every database prerequisite is mandatory
+  and scheduled parents unlock dependents only in later semesters. Incomplete schedules
+  list unscheduled courses and withhold misleading completion/graduation estimates.
+- Curriculum highlights count duplicate elective placements once and preserve both GPA
+  paths before spending credits. Desktop/mobile browser checks covered the changed scope.
+
+Resume with small, separately verified increments in this order:
+1. Add the server-computed GPA path to grade summaries (`>70` thesis, `<=70` alternative,
+   null when there are no eligible numeric scores). Use unrounded credit-weighted highest
+   scores; never infer numbers from legacy letters. A started, unverified prototype was
+   saved locally at `/tmp/iu-server-gpa-path-draft-20261003.patch` and removed from active
+   source on pause. Treat it as a draft, not shipped work.
+2. Connect the curriculum Y4S2 path to that server result with account isolation, loading/
+   error recovery and manual choice only when no numeric GPA exists. Verify both paths,
+   exact 70, a value just above 70, retakes and switching accounts. The UI is still manual.
+3. Integrate numeric course/category grade fit into recommendations, then activate the
+   existing workload and recommendation screens against their verified APIs. Keep score
+   weights in server configuration and preserve the current UI until its pending edits
+   are deliberately reviewed.
+4. Implement curriculum context safely: additive Curriculum/CurriculumCourse migrations,
+   context-specific prerequisites, CS backfill, then reconcile/validate signed IT and DS
+   sources before seeding and adding the major selector. Resolve curriculum-specific
+   rating priors here; do not union prerequisites across majors.
+5. Implement required school-admin resources, demand/capacity, configurable multi-objective
+   scoring and scarcity allocation with a real dashboard. Deployment and thesis writing
+   follow their gates; neither is complete.
+
+The full Grades and Ratings roadmap phases are not complete: GPA-driven rendering,
+numeric grade fit, curriculum priors and multi-objective scoring remain outstanding.
+Later UI finish reviews used a disclosed inline fallback after subagents hit
+an account usage limit; they must not be represented as independent agent reviews.
+
 ## Locked Architectural Decisions
 
 These are settled. Do not relitigate without new evidence.
