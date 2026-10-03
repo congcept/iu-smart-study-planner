@@ -77,8 +77,9 @@ model Curriculum {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  courses CurriculumCourse[]
-  users   User[]
+  courses      CurriculumCourse[]
+  users        User[]
+  requirements CurriculumRequirement[]
 
   @@map("curriculums")
 }
@@ -101,7 +102,7 @@ model CurriculumCourse {
 }
 
 // Source order distinguishes occurrences, including repeated group claims.
-// Blank-code/free-elective requirements need a separate representation before backfill.
+// Blank-code/free-elective requirements live in CurriculumRequirement.
 model CurriculumPlacement {
   id                  String  @id @default(uuid())
   curriculumCourseId  String  @map("curriculum_course_id")
@@ -116,6 +117,28 @@ model CurriculumPlacement {
 
   @@unique([curriculumCourseId, sourceOrder])
   @@map("curriculum_placements")
+}
+
+// Uncoded requirements are preserved without inventing global Course identities.
+model CurriculumRequirement {
+  id               String                    @id @default(uuid())
+  curriculumId     String                    @map("curriculum_id")
+  kind             CurriculumRequirementKind @default(FREE_ELECTIVE)
+  name             String
+  credits          Int
+  academicYear     Int?                      @map("academic_year")
+  academicSemester Int?                      @map("academic_semester")
+  sourceOrder      Int                       @map("source_order")
+  sourceLabel      String?                   @map("source_label")
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, sourceOrder])
+  @@map("curriculum_requirements")
+}
+
+enum CurriculumRequirementKind {
+  FREE_ELECTIVE
 }
 
 // Both endpoints must be members of the same curriculum. Preserved flags are
