@@ -13,7 +13,7 @@ change eligibility at 70. Unknown courses and invalid scores/credits are rejecte
 Twenty-one calculator tests cover hand-computed weighted retakes and boundary cases.
 Retake storage and authenticated numeric grade APIs are implemented. The existing manual GPA-path
 toggle is not yet driven by the new numeric summary, and legacy profile GPA remains on
-its old scale until the grade dashboard is activated.
+its old scale for compatibility. The protected Grades dashboard displays the new 100-point summary.
 
 ## Retake storage
 
@@ -47,4 +47,15 @@ Thirty-eight PostgreSQL API tests cover strict inputs, account isolation, role/s
 access, request-origin protection, retries, GPA/coverage and preservation. The running
 Docker API also passed a simulated40→90 retake and70 in a second course: weighted GPA
 81.42857142857143, three immutable attempts, and identical progress before/after.
-Grade entry/dashboard and automatic GPA-path activation remain separate UI increments.
+Grade entry and automatic GPA-path activation remain separate UI increments.
+
+## Grades dashboard
+
+Signed-in students and administrators can open /grades from the header. It displays the
+server-calculated 100-point GPA, included courses/credits, missing numeric coverage, and
+every retake with its highest score marked. Null GPA is distinct from a real zero.
+Loading and retry states are explicit; late responses cannot expose another account’s
+history. The narrow-screen table scrolls inside a keyboard-focusable named region.
+
+Seventeen client adapter, dashboard and routing tests cover these behaviors. Desktop
+1440px and mobile 390px browser checks confirmed a contained table and no page overflow.
