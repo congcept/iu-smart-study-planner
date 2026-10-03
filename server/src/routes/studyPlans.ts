@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { CreateStudyPlanSchema, CreateSemesterSchema } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { requireAuth, requireUserIdAccess } from '../middleware/auth';
 import { requireStudyPlanAccess } from '../middleware/studyPlanAccess';
+import { decorateCourseDifficulties } from '../services/courseRatings';
 
 function isNotFoundError(error: unknown): boolean {
   return error instanceof PrismaClientKnownRequestError && error.code === 'P2025';
@@ -46,10 +47,17 @@ const SemesterUpdateSchema = SemesterInputSchema.partial().refine(
 );
 
 async function calculateSemesterTotals(courses: z.infer<typeof SemesterInputSchema>['courses']) {
-  const savedCourses = await prisma.course.findMany({
-    where: { id: { in: courses.map(({ courseId }) => courseId) } },
-    select: { id: true, credits: true, difficultyLevel: true },
-  });
+  const savedCourses = await prisma.$transaction(
+    async (tx) =>
+      decorateCourseDifficulties(
+        tx,
+        await tx.course.findMany({
+          where: { id: { in: courses.map(({ courseId }) => courseId) } },
+          select: { id: true, credits: true, avgRating: true, ratingCount: true },
+        }),
+      ),
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
   const knownIds = new Set(savedCourses.map(({ id }) => id));
   const missing = courses.flatMap(({ courseId }, index) =>
     knownIds.has(courseId)
@@ -66,7 +74,7 @@ async function calculateSemesterTotals(courses: z.infer<typeof SemesterInputSche
   return {
     totalCredits: savedCourses.reduce((sum, course) => sum + course.credits, 0),
     difficultyScore:
-      savedCourses.reduce((sum, course) => sum + course.difficultyLevel, 0) /
+      savedCourses.reduce((sum, course) => sum + course.ratingDifficulty, 0) /
       (savedCourses.length || 1),
   };
 }

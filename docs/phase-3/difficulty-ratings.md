@@ -169,3 +169,19 @@ missing prerequisites, oversized courses, partial plans, horizon limits and API 
 Build, types, lint and all 345 server/178 client tests pass. Completion here means all
 provided catalog courses were scheduled; curriculum elective/degree requirements and
 a verified academic calendar are still pending.
+
+
+## Saved semester difficulty
+
+Creating or replacing a saved semester's course list now averages the same Bayesian
+course projections used by workload analysis, resolved in one repeatable-read snapshot.
+Credits, course order and submitted positions stay authoritative. Empty lists keep zero
+totals, and invalid lists still fail before any semester is saved. Metadata-only edits
+preserve the prior cached estimate; later rating changes are reflected on a course-list
+save, not by silently rewriting existing plans.
+
+Seven additional real PostgreSQL cases check the hand-computed mean, workload agreement
+(accounting for display rounding), zero votes, rating changes, metadata-only edits,
+authorized reads and failed-save preservation. Existing semester validation expectations
+now use the shared zero-vote prior. Build, types, lint and all 352 server/178 client tests
+pass. Curriculum priors, client recommendations and multi-objective scoring remain pending.
