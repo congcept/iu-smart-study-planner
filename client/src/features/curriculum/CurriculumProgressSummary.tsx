@@ -4,6 +4,14 @@ import { Button } from '@/components/ui';
 import { getContextStudentProgress } from '@/lib/curriculumApi';
 
 type Props = { userId: string; curriculumId: string };
+const statusLabel = (status: string) =>
+  status === 'COMPLETED'
+    ? 'Completed'
+    : status === 'IN_PROGRESS'
+      ? 'In progress'
+      : status === 'PLANNED'
+        ? 'Planned'
+        : 'Dropped';
 export function CurriculumProgressSummary(props: Props) {
   return <ProgressSession key={JSON.stringify([props.userId, props.curriculumId])} {...props} />;
 }
@@ -98,6 +106,36 @@ function ProgressSession({ userId, curriculumId }: Props) {
                 No saved course selections in this curriculum yet.
               </p>
             )}
+            {data.completed.length + data.inProgress.length + data.planned.length > 0 && (
+              <div className="mt-4">
+                <h4 className="font-semibold text-gray-900">Current saved courses</h4>
+                <ul
+                  aria-label="Current saved course selections"
+                  className="mt-3 space-y-2 text-sm text-gray-700"
+                >
+                  {[...data.completed, ...data.inProgress, ...data.planned]
+                    .sort((a, b) => a.course.code.localeCompare(b.course.code))
+                    .map((record) => (
+                      <li
+                        key={record.id}
+                        className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 rounded-lg border border-gray-200 p-3"
+                      >
+                        <div className="min-w-0 flex-1 break-words">
+                          <p className="font-semibold text-gray-900">
+                            {record.course.code} · {record.course.name}
+                          </p>
+                          {record.electiveGroup && (
+                            <p className="mt-1 text-xs text-gray-600">
+                              Elective claim: {record.electiveGroup}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-700">{statusLabel(record.status)}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
             {data.historicalRecords.length > 0 && (
               <div className="mt-4">
                 <h4 className="font-semibold text-gray-900">
@@ -109,14 +147,7 @@ function ProgressSession({ userId, curriculumId }: Props) {
                 <ul className="mt-3 space-y-2 text-sm text-gray-700">
                   {data.historicalRecords.map((record) => (
                     <li key={record.id} className="break-words">
-                      {record.course.code} · {record.course.name} ·{' '}
-                      {record.status === 'COMPLETED'
-                        ? 'Completed'
-                        : record.status === 'IN_PROGRESS'
-                          ? 'In progress'
-                          : record.status === 'PLANNED'
-                            ? 'Planned'
-                            : 'Dropped'}
+                      {record.course.code} · {record.course.name} · {statusLabel(record.status)}
                       {record.electiveGroup && ` · ${record.electiveGroup}`}
                     </li>
                   ))}
