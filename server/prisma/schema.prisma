@@ -8,32 +8,33 @@ datasource db {
 }
 
 model Course {
-  id                String        @id @default(uuid())
-  code              String        @unique
-  name              String
-  credits           Int
-  difficultyLevel   Int           @map("difficulty_level") @db.SmallInt
-  avgRating         Float?        @map("avg_rating")
-  ratingCount       Int           @default(0) @map("rating_count")
-  description       String?
-  category          CourseCategory @default(REQUIRED)
-  semesterOffered   Semester[]    @default([FALL, SPRING])
-  academicYear      Int?          @map("academic_year")
-  academicSemester  Int?          @map("academic_semester")
-  electiveGroup     String?       @map("elective_group")
-  electiveSelectCount Int?        @map("elective_select_count")
-  
+  id                  String         @id @default(uuid())
+  code                String         @unique
+  name                String
+  credits             Int
+  difficultyLevel     Int            @map("difficulty_level") @db.SmallInt
+  avgRating           Float?         @map("avg_rating")
+  ratingCount         Int            @default(0) @map("rating_count")
+  description         String?
+  category            CourseCategory @default(REQUIRED)
+  semesterOffered     Semester[]     @default([FALL, SPRING])
+  academicYear        Int?           @map("academic_year")
+  academicSemester    Int?           @map("academic_semester")
+  electiveGroup       String?        @map("elective_group")
+  electiveSelectCount Int?           @map("elective_select_count")
+
   // Self-relation for prerequisites
   prerequisites     Prerequisite[] @relation("CoursePrerequisites")
   isPrerequisiteFor Prerequisite[] @relation("PrerequisiteFor")
-  
+
   // Student records
   studentRecords    StudentRecord[]
   gradeAttempts     GradeAttempt[]
   ratings           CourseRating[]
-  
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
+  curriculumCourses CurriculumCourse[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([code])
   @@index([category])
@@ -43,16 +44,16 @@ model Course {
 }
 
 model Prerequisite {
-  id              String   @id @default(uuid())
-  courseId        String   @map("course_id")
-  prerequisiteId  String   @map("prerequisite_id")
-  isCorequisite   Boolean  @default(false) @map("is_corequisite")
-  isStrict        Boolean  @default(true) @map("is_strict")
-  
-  course          Course   @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
-  prerequisite    Course   @relation("PrerequisiteFor", fields: [prerequisiteId], references: [id], onDelete: Cascade)
-  
-  createdAt       DateTime @default(now()) @map("created_at")
+  id             String  @id @default(uuid())
+  courseId       String  @map("course_id")
+  prerequisiteId String  @map("prerequisite_id")
+  isCorequisite  Boolean @default(false) @map("is_corequisite")
+  isStrict       Boolean @default(true) @map("is_strict")
+
+  course       Course @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite Course @relation("PrerequisiteFor", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([courseId, prerequisiteId])
   @@index([courseId])
@@ -60,49 +61,127 @@ model Prerequisite {
   @@map("prerequisites")
 }
 
+// Additive foundation only: legacy catalog placement/prerequisites remain active.
+// Totals and source provenance can stay unknown until a curriculum is verified.
+model Curriculum {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  school       String
+  degree       String
+  programUrl   String   @map("program_url")
+  totalCredits Int?     @map("total_credits")
+  isGpaPath    Boolean  @default(false) @map("is_gpa_path")
+  sourceLabel  String?  @map("source_label")
+  sourceUrl    String?  @map("source_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  courses CurriculumCourse[]
+  users   User[]
+
+  @@map("curriculums")
+}
+
+// Membership is unique; repeated elective appearances live in placements.
+model CurriculumCourse {
+  id           String @id @default(uuid())
+  curriculumId String @map("curriculum_id")
+  courseId     String @map("course_id")
+
+  curriculum        Curriculum               @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  course            Course                   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  placements        CurriculumPlacement[]
+  prerequisites     CurriculumPrerequisite[] @relation("CurriculumCoursePrerequisites")
+  isPrerequisiteFor CurriculumPrerequisite[] @relation("CurriculumPrerequisiteFor")
+
+  @@unique([curriculumId, courseId])
+  @@index([courseId])
+  @@map("curriculum_courses")
+}
+
+// Source order distinguishes occurrences, including repeated group claims.
+// Blank-code/free-elective requirements need a separate representation before backfill.
+model CurriculumPlacement {
+  id                  String  @id @default(uuid())
+  curriculumCourseId  String  @map("curriculum_course_id")
+  academicYear        Int?    @map("academic_year")
+  academicSemester    Int?    @map("academic_semester")
+  electiveGroup       String? @map("elective_group")
+  electiveSelectCount Int?    @map("elective_select_count")
+  sourceOrder         Int     @map("source_order")
+  sourceLabel         String? @map("source_label")
+
+  curriculumCourse CurriculumCourse @relation(fields: [curriculumCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumCourseId, sourceOrder])
+  @@map("curriculum_placements")
+}
+
+// Both endpoints must be members of the same curriculum. Preserved flags are
+// provenance only: every edge remains mandatory when context readers activate.
+model CurriculumPrerequisite {
+  id             String  @id @default(uuid())
+  curriculumId   String  @map("curriculum_id")
+  courseId       String  @map("course_id")
+  prerequisiteId String  @map("prerequisite_id")
+  isCorequisite  Boolean @default(false) @map("is_corequisite")
+  isStrict       Boolean @default(true) @map("is_strict")
+
+  course       CurriculumCourse @relation("CurriculumCoursePrerequisites", fields: [curriculumId, courseId], references: [curriculumId, courseId], onDelete: Cascade)
+  prerequisite CurriculumCourse @relation("CurriculumPrerequisiteFor", fields: [curriculumId, prerequisiteId], references: [curriculumId, courseId], onDelete: Cascade)
+
+  @@unique([curriculumId, courseId, prerequisiteId])
+  @@index([curriculumId, prerequisiteId])
+  @@map("curriculum_prerequisites")
+}
+
 model User {
-  id              String          @id @default(uuid())
-  studentId       String          @unique @map("student_id")
-  name            String
-  email           String          @unique
-  password        String?
-  passwordHash    String?         @map("password_hash")
-  role            UserRole        @default(STUDENT)
-  major           String?
-  enrollmentYear  Int?            @map("enrollment_year")
-  targetGraduationYear Int?       @map("target_graduation_year")
-  
+  id                   String   @id @default(uuid())
+  studentId            String   @unique @map("student_id")
+  name                 String
+  email                String   @unique
+  password             String?
+  passwordHash         String?  @map("password_hash")
+  role                 UserRole @default(STUDENT)
+  major                String?
+  enrollmentYear       Int?     @map("enrollment_year")
+  targetGraduationYear Int?     @map("target_graduation_year")
+  curriculumId         String?  @map("curriculum_id")
+
   // Relations
-  studentRecords  StudentRecord[]
-  gradeAttempts   GradeAttempt[]
-  ratings         CourseRating[]
+  studentRecords   StudentRecord[]
+  gradeAttempts    GradeAttempt[]
+  ratings          CourseRating[]
   ratingWriteLimit RatingWriteLimit?
-  studyPlans      StudyPlan[]
-  
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  studyPlans       StudyPlan[]
+  curriculum       Curriculum?       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([studentId])
   @@index([email])
+  @@index([curriculumId])
   @@map("users")
 }
 
 model StudentRecord {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  courseId    String    @map("course_id")
-  grade       String?   // e.g., "A", "B+", "C"
-  gradePoints Float?    @map("grade_points")
-  semester    String?   // e.g., "Fall 2023"
-  year        Int?
-  status      CourseStatus @default(COMPLETED)
-  electiveGroup String? @map("elective_group")
-  
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id            String       @id @default(uuid())
+  userId        String       @map("user_id")
+  courseId      String       @map("course_id")
+  grade         String? // e.g., "A", "B+", "C"
+  gradePoints   Float?       @map("grade_points")
+  semester      String? // e.g., "Fall 2023"
+  year          Int?
+  status        CourseStatus @default(COMPLETED)
+  electiveGroup String?      @map("elective_group")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, courseId])
   @@index([userId])
@@ -111,17 +190,17 @@ model StudentRecord {
 }
 
 model GradeAttempt {
-  id          String   @id @default(uuid())
-  userId      String   @map("user_id")
-  courseId    String   @map("course_id")
-  requestId   String   @map("request_id") @db.Uuid
-  score       Float
-  semester    Semester?
-  year        Int?
-  createdAt   DateTime @default(now()) @map("created_at")
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  courseId  String    @map("course_id")
+  requestId String    @map("request_id") @db.Uuid
+  score     Float
+  semester  Semester?
+  year      Int?
+  createdAt DateTime  @default(now()) @map("created_at")
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, requestId])
   @@index([courseId])
@@ -129,15 +208,15 @@ model GradeAttempt {
 }
 
 model CourseRating {
-  id          String   @id @default(uuid())
-  userId      String   @map("user_id")
-  courseId    String   @map("course_id")
-  rating      Int
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  courseId  String   @map("course_id")
+  rating    Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
   @@index([courseId])
@@ -154,40 +233,40 @@ model RatingWriteLimit {
 }
 
 model StudyPlan {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
+  id          String  @id @default(uuid())
+  userId      String  @map("user_id")
   name        String
   description String?
-  isActive    Boolean   @default(true) @map("is_active")
-  
+  isActive    Boolean @default(true) @map("is_active")
+
   // Relations
-  semesters   PlannedSemester[]
-  
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  semesters PlannedSemester[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
   @@map("study_plans")
 }
 
 model PlannedSemester {
-  id          String    @id @default(uuid())
-  studyPlanId String    @map("study_plan_id")
+  id          String   @id @default(uuid())
+  studyPlanId String   @map("study_plan_id")
   semester    Semester
   year        Int
-  
+
   // JSON field to store course IDs and their positions
-  courses     Json      // Array of { courseId: string, position: number }
-  
-  totalCredits Int      @default(0) @map("total_credits")
+  courses Json // Array of { courseId: string, position: number }
+
+  totalCredits    Int    @default(0) @map("total_credits")
   difficultyScore Float? @map("difficulty_score")
-  
-  studyPlan   StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  studyPlan StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([studyPlanId, semester, year])
   @@index([studyPlanId])
