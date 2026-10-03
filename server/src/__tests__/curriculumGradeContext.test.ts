@@ -128,6 +128,76 @@ describe('account-context grades (PostgreSQL)', () => {
     expect(response.body.data.completedCoursesWithoutNumericGrades).toEqual([courses.B]);
   });
 
+  it('returns the cookie owner and stored fork context on both read and append', async () => {
+    const expected = { userId: users[0], curriculumId: contexts[0], isGpaPath: true };
+    expect((await read()).body.data.scope).toEqual(expected);
+    expect((await append('A', 90)).body.data.scope).toEqual(expected);
+  });
+
+  it('reports a nonfork context with numeric scores and a null path', async () => {
+    const saved = await append('A', 90, randomUUID(), 1);
+    const refreshed = await read(1);
+    for (const response of [saved, refreshed]) {
+      expect(response.body.data.scope).toEqual({
+        userId: users[1],
+        curriculumId: contexts[1],
+        isGpaPath: false,
+      });
+      expect(response.body.data.summary).toMatchObject({ gpa100: 90, gpaPath: null });
+    }
+  });
+
+  it('retains the explicit legacy policy for an unassigned account', async () => {
+    const response = await append('A', 90, randomUUID(), 2);
+    expect(response.body.data.scope).toEqual({
+      userId: users[2],
+      curriculumId: null,
+      isGpaPath: true,
+    });
+    expect(response.body.data.summary.gpaPath).toBe('THESIS');
+  });
+
+  it('refreshes scope and eligible summary together after a stored context change', async () => {
+    await append('A', 90);
+    const outside = await historical('OUTSIDE', 40);
+    const previous = await history();
+    await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: contexts[1] } });
+    const response = await read();
+    expect(response.body.data.scope).toEqual({
+      userId: users[0],
+      curriculumId: contexts[1],
+      isGpaPath: false,
+    });
+    expect(response.body.data.summary).toMatchObject({
+      gpa100: 65,
+      gpaPath: null,
+      gradedCourseCount: 2,
+    });
+    expect(response.body.data.attempts).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: outside.id })]),
+    );
+    expect(await history()).toEqual(previous);
+  });
+
+  it('does not accept body scope claims or mutate a grade on rejected claims', async () => {
+    const response = await request(app)
+      .post(path)
+      .set('Cookie', cookie())
+      .send({
+        courseId: courses.A,
+        requestId: randomUUID(),
+        score: 90,
+        scope: { userId: users[1], curriculumId: contexts[1], isGpaPath: false },
+      });
+    expect(response.status).toBe(400);
+    expect(await history()).toEqual([]);
+    expect((await read()).body.data.scope).toEqual({
+      userId: users[0],
+      curriculumId: contexts[0],
+      isGpaPath: true,
+    });
+  });
+
   it('uses highest retakes and member credit weights while retaining lower attempts', async () => {
     await append('A', 40);
     await append('A', 80);

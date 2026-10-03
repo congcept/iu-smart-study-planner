@@ -4,7 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeDashboard } from '../GradeDashboard';
-vi.mock('../GradeEntry', () => ({ GradeEntry: () => null }));
+const entry = vi.hoisted(() => ({
+  onSaved: undefined as undefined | ((saved: StudentGradesDTO) => void),
+}));
+vi.mock('../GradeEntry', () => ({
+  GradeEntry: ({ onSaved }: { onSaved: (saved: StudentGradesDTO) => void }) => {
+    entry.onSaved = onSaved;
+    return null;
+  },
+}));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 const getGrades = vi.mocked(getStudentGrades);
 const empty: StudentGradesDTO = {
@@ -59,10 +67,91 @@ function deferred<T>() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  entry.onSaved = undefined;
   getGrades.mockResolvedValue(empty);
 });
 afterEach(cleanup);
 describe('numeric grade dashboard', () => {
+  const userId = '11111111-1111-4111-8111-111111111111';
+  const scope = { userId, curriculumId: '22222222-2222-4222-8222-222222222222', isGpaPath: true };
+  it('explains current-member GPA while preserving nonmember history without a highest marker', async () => {
+    const historical = {
+      ...scored.attempts[0],
+      id: 'historical',
+      requestId: 'historical',
+      courseId: 'outside',
+      score: 100,
+      course: { id: 'outside', code: 'OUTSIDE', name: 'Historical course', credits: 3 },
+    };
+    getGrades.mockResolvedValue({ ...scored, scope, attempts: [...scored.attempts, historical] });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('90.00');
+    expect(
+      screen.getByText(/GPA includes scored courses in your current reference curriculum/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('OUTSIDE').closest('tr')).not.toHaveTextContent('Highest');
+    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getAllByText('Highest', { exact: true })).toHaveLength(1);
+  });
+  it('displays numeric GPA for a nonfork context without inventing thesis eligibility', async () => {
+    getGrades.mockResolvedValue({
+      ...scored,
+      scope: { ...scope, isGpaPath: false },
+      summary: { ...scored.summary, gpaPath: null },
+    });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('90.00');
+    expect(
+      screen.getByText('This curriculum does not use a GPA-based thesis path.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /GPA/i })).not.toBeInTheDocument();
+  });
+  it('does not label a fork curriculum as having no GPA path', async () => {
+    getGrades.mockResolvedValue({ ...scored, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('90.00');
+    expect(screen.queryByText(/does not use a GPA-based thesis path/)).not.toBeInTheDocument();
+  });
+  it('rejects another cookie owner scope before rendering grades and recovers on retry', async () => {
+    getGrades
+      .mockResolvedValueOnce({
+        ...scored,
+        scope: { ...scope, userId: '33333333-3333-4333-8333-333333333333' },
+      })
+      .mockResolvedValueOnce({ ...scored, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByRole('alert');
+    expect(screen.queryByText('90.00')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    await screen.findByText('90.00');
+  });
+  it('keeps unassigned wording without claiming a reference curriculum', async () => {
+    getGrades.mockResolvedValue({ ...scored, scope: { ...scope, curriculumId: null } });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('90.00');
+    expect(screen.queryByText(/current reference curriculum/)).not.toBeInTheDocument();
+  });
+  it('does not reconcile a saved snapshot belonging to another cookie owner', async () => {
+    getGrades.mockResolvedValue({ ...empty, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('No scores yet');
+    act(() =>
+      entry.onSaved?.({
+        ...scored,
+        scope: { ...scope, userId: '33333333-3333-4333-8333-333333333333' },
+      }),
+    );
+    expect(screen.getByText('No scores yet')).toBeInTheDocument();
+    expect(screen.queryByText('90.00')).not.toBeInTheDocument();
+  });
+  it('reconciles an immutable grade save for the matching scoped owner', async () => {
+    getGrades.mockResolvedValue({ ...empty, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('No scores yet');
+    act(() => entry.onSaved?.({ ...scored, scope }));
+    expect(screen.getByText('90.00')).toBeInTheDocument();
+    expect(screen.queryByText('No scores yet')).not.toBeInTheDocument();
+  });
   it('shows a loading state before scores arrive', async () => {
     const pending = deferred<StudentGradesDTO>();
     getGrades.mockReturnValue(pending.promise);

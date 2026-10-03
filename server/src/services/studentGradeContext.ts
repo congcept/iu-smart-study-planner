@@ -49,6 +49,11 @@ export async function readStudentGradeSnapshot(
   // A high score cannot create a thesis/alternative eligibility rule in a nonfork curriculum.
   if (user.curriculum && !user.curriculum.isGpaPath) summary.gpaPath = null;
   return {
+    scope: {
+      userId,
+      curriculumId: user.curriculumId,
+      isGpaPath: user.curriculum?.isGpaPath ?? true,
+    },
     attempts: attempts.map((attempt) => ({
       id: attempt.id,
       requestId: attempt.requestId,

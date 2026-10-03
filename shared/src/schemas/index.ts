@@ -34,6 +34,24 @@ export const CategorySchema = z.enum([
 ]);
 export const SemesterSchema = z.enum(['FALL', 'SPRING', 'SUMMER']);
 
+export const StudentGradeScopeSchema = z
+  .object({
+    userId: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase()),
+    curriculumId: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase())
+      .nullable(),
+    isGpaPath: z.boolean(),
+  })
+  .strict()
+  .refine((scope) => scope.curriculumId !== null || scope.isGpaPath, {
+    message: 'Unassigned accounts retain the legacy GPA path policy',
+  });
+
 export const RateCourseSchema = z.object({ rating: z.number().int().min(1).max(5) }).strict();
 
 export const CourseRatingQuerySchema = z

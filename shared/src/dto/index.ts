@@ -74,6 +74,8 @@ export interface WorkloadScopeDTO {
 }
 
 export interface StudentGradesDTO {
+  /** Current server replies include scope; older persisted snapshots may omit it. */
+  scope?: { userId: string; curriculumId: string | null; isGpaPath: boolean };
   attempts: GradeAttemptDTO[];
   summary: {
     gpa100: number | null;

@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 701 server tests and 366 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 706 server tests and 382 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-03
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #62 are pushed/merged. The context-aware Planner client is ready for its own PR after verification. Saved-semester creation/course-list edits
+through PR #63 are pushed/merged. Grade summary scope metadata/copy is ready for its own PR after verification. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -279,8 +279,18 @@ and mobile browser checks with a disposable assigned account had no horizontal o
 subagents reached the account usage limit; this is not an independent review. See
 docs/phase-2/curriculum-planner-client.md. No assignment API, selector or data reset was used.
 
-Next: update the curriculum map and progress/cache hydration/types/renderers/scope copy
-and grade nonfork handling before assignment. Remaining legacy consumers expect flat
+Grade read/append summaries now expose validated current owner/context/GPA-fork metadata.
+The dashboard rejects another scoped owner and explains member-only GPA, preserved history,
+and nonfork policy. Five PostgreSQL, nine API and seven dashboard cases cover this increment.
+Build/types/zero-warning lint and 706 server / 382 client tests pass for the isolated snapshot.
+Desktop/mobile review of a disposable nonfork reference/account showed GPA 90 with all three
+attempts preserved, including an excluded historical 100; no horizontal page overflow.
+Review was inline after the account usage limit. See docs/phase-2/grade-summary-scope.md.
+
+Next: scope the grade-entry course picker (currently global) to placed account curriculum
+members, preserving immutable retry recovery. Then update the curriculum map and
+progress/cache hydration/types/renderers/scope copy and its grade nonfork handling before
+assignment. Remaining legacy consumers expect flat
 profile/recommendation fields; the Planner preview now consumes its contextual DTO.
 Preserve unrelated UI ownership. Assignment must
 validate transferred completions/claims/cached plans and isolate caches and pending handlers
@@ -558,7 +568,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 701 server tests and 366 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 706 server tests and 382 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
