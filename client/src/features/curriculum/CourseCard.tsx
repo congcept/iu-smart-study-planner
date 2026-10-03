@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import type { Course } from '@/types';
 import { playLockedSound } from '@/lib/sounds';
+import { CourseRatingBadge } from './CourseRatingBadge';
 
 interface CourseCardProps {
   course: Course;
@@ -123,6 +124,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       <h4 className="font-medium text-[10px] text-gray-900 leading-snug break-words">
         {course.name}
       </h4>
+
+      <CourseRatingBadge course={course} />
 
       {course.prerequisites.length > 0 && hovered && isLocked && (
         <div className="mt-1.5 bg-gray-50 rounded px-2 py-1.5 space-y-0.5">
