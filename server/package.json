@@ -15,7 +15,8 @@
     "db:studio": "prisma studio",
     "test": "jest",
     "test:watch": "jest --watch",
-    "verify:cs-reference": "ts-node src/scripts/verifyCsReference.ts"
+    "verify:cs-reference": "ts-node src/scripts/verifyCsReference.ts",
+    "inspect:cs-backfill": "ts-node src/scripts/inspectCsBackfill.ts"
   },
   "keywords": [
     "study-planner",
