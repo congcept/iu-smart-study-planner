@@ -1,10 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { sharedWorkspacePlugin } from './sharedWorkspacePlugin';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), sharedWorkspacePlugin()],
   // The linked shared workspace emits CommonJS; bundle it for browser imports.
   optimizeDeps: {
     include: ['@iu-study-planner/shared'],

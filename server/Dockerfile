@@ -33,4 +33,4 @@ WORKDIR /app/server
 EXPOSE 3001
 
 # Start the development server
-CMD ["npm", "run", "dev"]
+CMD ["npm", "--prefix", "/app", "run", "dev:backend"]

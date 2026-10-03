@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "dev": "npm run build:shared && concurrently --kill-others --names shared,server,client \"npm run dev --workspace=shared\" \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "dev:backend": "npm run build:shared && concurrently --kill-others --names shared,server \"npm run dev --workspace=shared\" \"npm run dev --workspace=server\"",
+    "dev:frontend": "npm run build:shared && concurrently --kill-others --names shared,client \"npm run dev --workspace=shared\" \"npm run dev --workspace=client -- --host\"",
     "install:all": "npm install",
     "build:shared": "npm run build --workspace=shared",
     "build:client": "npm run build:shared && npm run build --workspace=client",

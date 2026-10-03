@@ -17,6 +17,7 @@ npm run dev                                # Build shared, then run shared/clien
 ### Root (workspace)
 
 - `npm run dev` - Build shared first; start shared/client/server watchers together (5173/3001); Ctrl-C stops all watchers
+- `npm run dev:backend` / `npm run dev:frontend` - Build shared first, then watch shared plus one application (Docker development uses these paired watchers)
 - `npm run build` - Build shared, then client + server for production
 - `npm run lint` - Lint all packages (zero warnings allowed)
 - `npm run typecheck` - Type-check all packages (tsc --noEmit)
@@ -178,6 +179,9 @@ Local startup verification: root build and dev work without existing `shared/dis
 frontend/backend respond on separate test ports; one Ctrl-C stops all three watchers
 without leaving processes or listening ports. Docker images build from clean source,
 and backend curriculum reads work with the source bind mount and isolated shared output.
+Shared runtime edits now trigger backend reload and forced browser dependency re-optimization;
+two successive edits and clean interrupt shutdown passed in isolated root and split-app modes.
+Fresh Docker image defaults and two automatic runtime edits also passed in disposable containers.
 
 Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
@@ -186,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-03
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #55 are pushed/merged. This checkpoint makes saved-semester creation/course-list edits
+through PR #56 are pushed/merged. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -200,6 +204,17 @@ cases. Build, typecheck, zero-warning lint and 624 server / 310 client tests pas
 snapshot. Final review remains inline after the prior agent thread limit. No account assignment,
 selector, seed or data reset was used. Unrelated staged/interface changes remain preserved. The
 prior single nonreproducing workload HTTP failure remains recorded as a stability finding.
+
+This checkpoint fixes stale generated shared output during development. Root/split-app commands
+run a shared compiler; the backend watches emitted output and Vite re-optimizes linked CommonJS
+exports with debounced cleanup. Docker Compose/Dockerfile development commands adopt split-app
+watchers. Two successive shared runtime edits reached backend and browser automatically in both
+isolated modes; interrupt closed test listeners. Compose validation passed. The user's running
+5173/3001 app was not stopped/recreated; Docker command changes require application recreation; cached dependency volumes lacking concurrently
+need the documented build/renew command. The named PostgreSQL volume is retained.
+Fresh image defaults and two automatic shared runtime edits passed in disposable Docker containers
+that were then removed. Build/types/lint and 624 server / 310 client tests pass for this isolated snapshot. No schema/data
+change was made. See docs/phase-1/shared-development-reload.md for the verified scope.
 
 Next: context-scoped semester planning with context placements/edges/prior and GPA policy, plus
 explicit elective/free-elective handling before any graduation estimate. Legacy JSON slot

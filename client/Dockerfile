@@ -26,4 +26,4 @@ WORKDIR /app/client
 EXPOSE 5173
 
 # Start development server
-CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["npm", "--prefix", "/app", "run", "dev:frontend"]
