@@ -12,6 +12,7 @@ import { healthCheck } from './lib/api';
 import { CurriculumProgressMap } from './features/curriculum/CurriculumProgressMap';
 import { GradeDashboard } from './features/grades/GradeDashboard';
 import { RatingDashboard } from './features/ratings/RatingDashboard';
+import { PlannerDashboard } from './features/planner/PlannerDashboard';
 
 function AppShell() {
   const { user, status, sessionError, refresh, logout } = useAuth();
@@ -79,6 +80,7 @@ function AppShell() {
               </Link>
               <Link to="/grades" className="text-primary-700 underline">Grades</Link>
               <Link to="/ratings" className="text-primary-700 underline">Ratings</Link>
+              <Link to="/planner" className="inline-flex min-h-11 items-center text-primary-700 underline">Planner</Link>
               <span className="text-gray-600">{user.name}</span>
               <span className="rounded-full bg-primary-50 px-2 py-1 text-primary-700">
                 {user.role === 'ADMIN' ? 'School admin' : 'Student'}
@@ -134,6 +136,7 @@ function AppShell() {
                 <Route path="/curriculum" element={<CurriculumProgressMap userId={user?.id} />} />
                 <Route path="/grades" element={user ? <GradeDashboard key={user.id} userId={user.id} /> : null} />
                 <Route path="/ratings" element={user ? <RatingDashboard key={user.id} userId={user.id} /> : null} />
+                <Route path="/planner" element={user ? <PlannerDashboard key={user.id} userId={user.id} /> : null} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

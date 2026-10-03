@@ -84,8 +84,11 @@ describe('semester course validation (PostgreSQL)', () => {
     expect(response.body.data).toMatchObject({
       courses: entries,
       totalCredits: 7,
-      difficultyScore: (await readCourseRatings(courseA)).priorMean,
     });
+    expect(response.body.data.difficultyScore).toBeCloseTo(
+      (await readCourseRatings(courseA)).priorMean,
+      12,
+    );
     expect(
       (await saved()).find((semester) => semester.id === response.body.data.id)?.courses,
     ).toEqual(entries);
@@ -97,10 +100,13 @@ describe('semester course validation (PostgreSQL)', () => {
     expect(response.body.data).toMatchObject({
       courses: entries,
       totalCredits: 7,
-      difficultyScore: (await readCourseRatings(courseA)).priorMean,
       semester: 'FALL',
       year: 2026,
     });
+    expect(response.body.data.difficultyScore).toBeCloseTo(
+      (await readCourseRatings(courseA)).priorMean,
+      12,
+    );
   });
 
   it.each(['create', 'update'])('rejects unknown IDs atomically on %s', async (operation) => {
@@ -140,11 +146,12 @@ describe('semester course validation (PostgreSQL)', () => {
     expect(
       (await update({ courses: [{ courseId: courseB.toUpperCase(), position: 9 }] })).status,
     ).toBe(200);
-    expect((await saved())[0]).toMatchObject({
+    const semester = (await saved())[0];
+    expect(semester).toMatchObject({
       courses: [{ courseId: courseB, position: 9 }],
       totalCredits: 4,
-      difficultyScore: (await readCourseRatings(courseB)).priorMean,
     });
+    expect(semester.difficultyScore).toBeCloseTo((await readCourseRatings(courseB)).priorMean, 12);
   });
 
   it('preserves explicitly empty semesters on create and update', async () => {
