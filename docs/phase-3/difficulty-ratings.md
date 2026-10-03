@@ -125,3 +125,16 @@ Thirteen cases verify real API projections and cold starts, hand-computed worklo
 values, inverted seed/estimate rankings, difficulty constraints, warnings, nearby
 estimates and invalid limits. Full gates pass320 server/178 client tests. Semester
 planning, client scoring, saved-plan cached difficulty and curriculum priors follow.
+
+## Database-authoritative semester prerequisites
+
+The duplicated RULES array and code-based prerequisite/bonus/corequisite insertion
+logic are removed. Every database prerequisite is mandatory regardless of legacy flags.
+Candidate availability is calculated before filling a semester, so a planned parent
+only unlocks its dependents in a later slot. No code name invents a missing relationship.
+
+Eleven real PostgreSQL cases cover all flags, transitive chains, multiple parents, live
+relationship changes, absent dependencies, cycles, self-dependency and completed-course
+exclusion. Full gates pass331 server/178 client tests. The existing planning horizon
+and graduation heuristic remain; incomplete schedules need explicit reporting, and
+semester rating scoring follows separately.

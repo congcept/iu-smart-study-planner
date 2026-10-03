@@ -20,35 +20,6 @@ const INTENSITY_CONFIGS: Record<string, IntensityConfig> = {
   max: { maxCreditsPerSemester: 24, maxSemesters: 8, preferredMinCredits: 21 },
 };
 
-interface PlannerRule {
-  type: 'prereq' | 'recommended' | 'coreq';
-  from: string;
-  to: string;
-}
-
-const RULES: PlannerRule[] = [
-  { type: 'prereq', from: 'PH013IU', to: 'PH015IU' },
-  { type: 'prereq', from: 'MA001IU', to: 'MA003IU' },
-  { type: 'prereq', from: 'EN007IU', to: 'EN011IU' },
-  { type: 'prereq', from: 'MA003IU', to: 'MA026IU' },
-  { type: 'prereq', from: 'IT116IU', to: 'IT069IU' },
-  { type: 'prereq', from: 'IT116IU', to: 'IT153IU' },
-  { type: 'prereq', from: 'IT069IU', to: 'IT090IU' },
-  { type: 'prereq', from: 'IT069IU', to: 'IT093IU' },
-  { type: 'prereq', from: 'IT079IU', to: 'IT093IU' },
-  { type: 'prereq', from: 'IT091IU', to: 'IT134IU' },
-  { type: 'prereq', from: 'IT091IU', to: 'IT096IU' },
-  { type: 'recommended', from: 'IT116IU', to: 'IT091IU' },
-  { type: 'recommended', from: 'IT116IU', to: 'IT079IU' },
-  { type: 'recommended', from: 'IT153IU', to: 'IT159IU' },
-  { type: 'recommended', from: 'IT069IU', to: 'IT159IU' },
-  { type: 'recommended', from: 'IT069IU', to: 'IT024IU' },
-  { type: 'recommended', from: 'IT069IU', to: 'IT056IU' },
-  { type: 'recommended', from: 'IT069IU', to: 'IT160IU' },
-  { type: 'recommended', from: 'IT069IU', to: 'IT076IU' },
-  { type: 'recommended', from: 'IT079IU', to: 'IT094IU' },
-];
-
 interface SemesterSlot {
   year: number;
   semester: number;
@@ -108,7 +79,6 @@ class SemesterPlanner {
     intensityMode: string,
   ): PlanResult {
     const config = INTENSITY_CONFIGS[intensityMode] ?? INTENSITY_CONFIGS.normal;
-    const courseByCode = new Map(allCourses.map((c) => [c.code, c]));
 
     const remainingCourses = allCourses.filter((c) => !completedCourseIds.has(c.id));
     const totalRemainingCredits = remainingCourses.reduce((sum, c) => sum + c.credits, 0);
@@ -118,16 +88,15 @@ class SemesterPlanner {
 
     for (
       let slotIdx = 0;
-      slotIdx < config.maxSemesters && this.hasRemaining(remainingCourses, plannedIds, completedCourseIds, courseByCode);
+      slotIdx < config.maxSemesters &&
+      this.hasRemaining(remainingCourses, plannedIds, completedCourseIds);
       slotIdx++
     ) {
       const scrapedSem = this.scrapedSemesters[slotIdx % this.scrapedSemesters.length];
       const yearOffset = Math.floor(slotIdx / this.scrapedSemesters.length);
 
       const available = remainingCourses.filter(
-        (c) =>
-          !plannedIds.has(c.id) &&
-          this.areHardPrereqsMet(c, completedCourseIds, plannedIds, courseByCode),
+        (c) => !plannedIds.has(c.id) && this.arePrerequisitesMet(c, completedCourseIds, plannedIds),
       );
 
       const scored = available.map((course) => {
@@ -154,25 +123,6 @@ class SemesterPlanner {
         const unlockCount = course.isPrerequisiteFor?.length ?? 0;
         score += unlockCount * 10;
 
-        RULES.forEach((rule) => {
-          if (rule.to === course.code) {
-            const fromCourse = courseByCode.get(rule.from);
-            if (fromCourse && (completedCourseIds.has(fromCourse.id) || plannedIds.has(fromCourse.id))) {
-              if (rule.type === 'recommended') score += 20;
-              if (rule.type === 'coreq') score += 50;
-            }
-          }
-        });
-
-        RULES.forEach((rule) => {
-          if (rule.from === course.code) {
-            const toCourse = courseByCode.get(rule.to);
-            if (toCourse && (completedCourseIds.has(toCourse.id) || plannedIds.has(toCourse.id))) {
-              score += 5;
-            }
-          }
-        });
-
         return { course, score };
       });
 
@@ -187,20 +137,6 @@ class SemesterPlanner {
         semesterCourses.push(course);
         semesterCredits += course.credits;
         plannedIds.add(course.id);
-
-        RULES.filter((r) => r.type === 'coreq' && r.to === course.code).forEach((rule) => {
-          const coreqCourse = courseByCode.get(rule.from);
-          if (
-            coreqCourse &&
-            !completedCourseIds.has(coreqCourse.id) &&
-            !plannedIds.has(coreqCourse.id) &&
-            semesterCredits + coreqCourse.credits <= config.maxCreditsPerSemester + 2
-          ) {
-            semesterCourses.push(coreqCourse);
-            semesterCredits += coreqCourse.credits;
-            plannedIds.add(coreqCourse.id);
-          }
-        });
 
         if (semesterCredits >= config.preferredMinCredits) break;
       }
@@ -234,37 +170,26 @@ class SemesterPlanner {
     };
   }
 
-  private areHardPrereqsMet(
+  private arePrerequisitesMet(
     course: CourseWithPrereqs,
     completedIds: Set<string>,
     plannedIds: Set<string>,
-    courseByCode: Map<string, CourseWithPrereqs>,
   ): boolean {
-    const courseCode = course.code;
-    const metDb = course.prerequisites.every(
+    // All database relationships are mandatory, including legacy recommended/corequisite rows.
+    // Available candidates are computed before the slot is filled, so plannedIds here
+    // contains only courses assigned to earlier semesters.
+    return course.prerequisites.every(
       (p) => completedIds.has(p.prerequisiteId) || plannedIds.has(p.prerequisiteId),
     );
-
-    const metRules = RULES
-      .filter((r) => r.type === 'prereq' && r.to === courseCode)
-      .every((r) => {
-        const prereqCourse = courseByCode.get(r.from);
-        return prereqCourse && (completedIds.has(prereqCourse.id) || plannedIds.has(prereqCourse.id));
-      });
-
-    return metDb && metRules;
   }
 
   private hasRemaining(
     remaining: CourseWithPrereqs[],
     plannedIds: Set<string>,
     completedIds: Set<string>,
-    courseByCode: Map<string, CourseWithPrereqs>,
   ): boolean {
-    const unaccounted = remaining.filter(
-      (c) => !plannedIds.has(c.id) && !completedIds.has(c.id),
-    );
-    return unaccounted.some((c) => this.areHardPrereqsMet(c, completedIds, plannedIds, courseByCode));
+    const unaccounted = remaining.filter((c) => !plannedIds.has(c.id) && !completedIds.has(c.id));
+    return unaccounted.some((c) => this.arePrerequisitesMet(c, completedIds, plannedIds));
   }
 }
 
