@@ -108,7 +108,10 @@ export interface SemesterPlanningDTO {
   nextRecommendedIds: string[];
   stats: {
     totalRemainingCredits: number;
-    semestersToCompletion: number;
-    estimatedGraduationSemester: string;
+    planningComplete: boolean;
+    unplannedCourseIds: string[];
+    plannedSemesterCount: number;
+    semestersToCompletion: number | null;
+    estimatedGraduationSemester: string | null;
   };
 }
