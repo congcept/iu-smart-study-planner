@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
+import { decorateCourseDifficulties } from '../services/courseRatings';
 import { prisma } from '../db';
 import SemesterPlanner from '../services/semesterPlanner';
 
@@ -7,14 +9,21 @@ describe('database-authoritative semester prerequisites', () => {
   const prefix = `planner-prereqs-${randomUUID()}`;
   const ids = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
   const courses = () =>
-    prisma.course.findMany({
-      where: { id: { in: ids } },
-      include: {
-        prerequisites: { include: { prerequisite: true } },
-        isPrerequisiteFor: { include: { course: { select: { id: true } } } },
-      },
-      orderBy: { code: 'asc' },
-    });
+    prisma.$transaction(
+      async (tx) =>
+        decorateCourseDifficulties(
+          tx,
+          await tx.course.findMany({
+            where: { id: { in: ids } },
+            include: {
+              prerequisites: { include: { prerequisite: true } },
+              isPrerequisiteFor: { include: { course: { select: { id: true } } } },
+            },
+            orderBy: { code: 'asc' },
+          }),
+        ),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   beforeAll(async () => {
     await prisma.course.createMany({
       data: ids.map((id, index) => ({
@@ -52,14 +61,12 @@ describe('database-authoritative semester prerequisites', () => {
   });
   it('schedules a transitive chain in successive semesters', async () => {
     await prisma.prerequisite.createMany({
-      data: ids
-        .slice(1)
-        .map((courseId, index) => ({
-          courseId,
-          prerequisiteId: ids[index],
-          isStrict: false,
-          isCorequisite: index === 1,
-        })),
+      data: ids.slice(1).map((courseId, index) => ({
+        courseId,
+        prerequisiteId: ids[index],
+        isStrict: false,
+        isCorequisite: index === 1,
+      })),
     });
     expect(
       planner

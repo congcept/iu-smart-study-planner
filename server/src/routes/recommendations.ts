@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { CourseStatus, Semester, Prisma, Course, Prerequisite } from '@prisma/client';
+import { CourseStatus, Semester, Prisma } from '@prisma/client';
 import { AnalyzeWorkloadSchema } from '@iu-study-planner/shared';
 import WorkloadBalancer from '../services/workloadBalancer';
 import SemesterPlanner from '../services/semesterPlanner';
@@ -281,33 +281,24 @@ router.post('/plan-semester', async (req: Request, res: Response) => {
 
     const completedSet = new Set(completedCourseIds ?? []);
 
-    const allCourses = await prisma.course.findMany({
-      include: {
-        prerequisites: {
+    const allCourses = await prisma.$transaction(
+      async (tx) => {
+        const rows = await tx.course.findMany({
           include: {
-            prerequisite: true,
+            prerequisites: { include: { prerequisite: true } },
+            isPrerequisiteFor: { include: { course: { select: { id: true } } } },
           },
-        },
-        isPrerequisiteFor: {
-          include: {
-            course: {
-              select: { id: true },
-            },
-          },
-        },
+        });
+        return decorateCourseDifficulties(tx, rows);
       },
-    });
-
-    const coursesWithPrereqs = allCourses as (Course & {
-      prerequisites: (Prerequisite & { prerequisite?: Course })[];
-    })[];
-
-    const plan = semesterPlanner.plan(coursesWithPrereqs, completedSet, intensityMode);
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    const plan = semesterPlanner.plan(allCourses, completedSet, intensityMode);
 
     const courseById = new Map(allCourses.map((c) => [c.id, c]));
     const nextRecommendedCourses = plan.nextRecommendedIds
       .map((id) => courseById.get(id))
-      .filter(Boolean) as Course[];
+      .filter((course): course is (typeof allCourses)[number] => course !== undefined);
 
     return res.json({
       success: true,

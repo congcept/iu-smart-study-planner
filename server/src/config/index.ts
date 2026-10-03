@@ -12,6 +12,7 @@ interface Config {
   jwtExpiresIn: number;
   demoLoginEnabled: boolean;
   ratingWritesPerHour: number;
+  semesterDifficultyPenaltyWeight: number;
 }
 
 const duration = /^([1-9]\d*)(s|m|h|d)$/.exec(process.env.JWT_EXPIRES_IN || '7d');
@@ -38,8 +39,19 @@ if (
   throw new Error('RATING_WRITES_PER_HOUR must be an integer from 1 to 10000');
 }
 
+const semesterDifficultyPenaltyWeight = Number(
+  process.env.SEMESTER_DIFFICULTY_PENALTY_WEIGHT || '10',
+);
+if (
+  !Number.isFinite(semesterDifficultyPenaltyWeight) ||
+  semesterDifficultyPenaltyWeight < 0 ||
+  semesterDifficultyPenaltyWeight > 50
+)
+  throw new Error('SEMESTER_DIFFICULTY_PENALTY_WEIGHT must be between 0 and 50');
+
 const config: Config = {
   ratingWritesPerHour,
+  semesterDifficultyPenaltyWeight,
   port: parseInt(process.env.PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl:

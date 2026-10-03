@@ -96,3 +96,19 @@ export type AnalyzeWorkloadDTO = z.infer<typeof schemas.AnalyzeWorkloadSchema>;
 export type CourseStatus = z.infer<typeof schemas.CourseStatusSchema>;
 export type Category = z.infer<typeof schemas.CategorySchema>;
 export type Semester = z.infer<typeof schemas.SemesterSchema>;
+
+export interface SemesterPlanSlotDTO {
+  year: number;
+  semester: number;
+  recommendedCourseIds: string[];
+  totalCredits: number;
+}
+export interface SemesterPlanningDTO {
+  semesters: SemesterPlanSlotDTO[];
+  nextRecommendedIds: string[];
+  stats: {
+    totalRemainingCredits: number;
+    semestersToCompletion: number;
+    estimatedGraduationSemester: string;
+  };
+}
