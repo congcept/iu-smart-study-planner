@@ -41,7 +41,7 @@ Anonymous demo selections remain browser-local. On first signed-in hydration,
 pre-sync account cache is archived under `browser_progress_backup:<userId>` and
 offered as a JSON download. A marker distinguishes confirmed server cache from
 old browser-only selections. Guest selections are never copied into an account.
-The import API and account-scoped browser action are implemented; review/import controls remain the next slice.
+The import API, account-scoped browser action and explicit review/import controls are implemented.
 
 ## Archived selection import
 
@@ -103,4 +103,11 @@ Failures retain the archive and reload saved progress before another edit. If re
 also fails, editing remains blocked until reload succeeds. Account switches invalidate
 late responses and archive cleanup, including leaving and returning to the same account.
 
-The next UI increment adds course/claim review and explicit Import/Later controls.
+The curriculum notice expands into completed/planned course review with elective
+claims and saved-record precedence. Import requires explicit review and pauses planner
+edits during saving/recovery. Unknown courses, unavailable elective claims and missing
+mandatory prerequisites block submission without discarding the backup. Existing duplicate
+elective memberships are accepted in their original group. Later keeps the backup and
+Review remains available. The server still validates the complete batch, including cycles.
+Desktop/mobile layouts and the live import/refresh flow were verified with a simulated
+account; fixture pages are not shipped.

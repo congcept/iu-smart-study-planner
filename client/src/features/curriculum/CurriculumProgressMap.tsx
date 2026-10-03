@@ -5,6 +5,7 @@ import { playToggleSound, playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
 import { CourseCard } from './CourseCard';
 import { IntensitySlider } from './IntensitySlider';
+import { ArchivedProgressImport } from './ArchivedProgressImport';
 import { collectCompletedDependents } from './prerequisites';
 import { GraduationCap, BookOpen, Target, ListChecks, ChevronRight } from 'lucide-react';
 
@@ -55,8 +56,8 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   }, []);
 
   const { toggleCourseComplete, toggleCoursePlanned, completeToPlanned, loadProgress,
-    progressStatus, progressError, pendingCompletionIds, browserProgressBackup } = useAppStore();
-  const progressReady = !userId || progressStatus === 'ready';
+    progressStatus, progressError, pendingCompletionIds, progressImportStatus } = useAppStore();
+  const progressReady = !userId || (progressStatus === 'ready' && progressImportStatus !== 'importing');
 
   useEffect(() => {
     if (userId) void loadProgress();
@@ -485,7 +486,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     });
   }, [baseScale, clampPan]);
 
-  if (loading || (userId && ['idle', 'loading'].includes(progressStatus))) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
+  if (loading || (userId && progressImportStatus !== 'importing' && ['idle', 'loading'].includes(progressStatus))) return <div className="p-8 text-center text-gray-500">Loading curriculum...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
 
   if (userId && progressStatus === 'error') return (
@@ -497,19 +498,9 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
   return (
     <div className="space-y-5 overflow-hidden w-full max-w-full">
-      {userId && <p role="status" className="mb-3 text-sm text-gray-600">{pendingCompletionIds.size ? 'Saving progress…' : 'Progress saved'}</p>}
+      {userId && <p role="status" className="mb-3 text-sm text-gray-600">{progressImportStatus === 'importing' ? 'Importing earlier selections…' : pendingCompletionIds.size ? 'Saving progress…' : 'Progress saved'}</p>}
       {progressError && <p role="alert" className="mb-3 text-sm text-red-700">{progressError}</p>}
-      {browserProgressBackup && <div className="mb-3 text-sm text-gray-600">
-        Earlier browser selections were kept as a backup.{' '}
-        <button className="text-primary-700 underline" onClick={() => {
-          const url = URL.createObjectURL(new Blob([JSON.stringify(browserProgressBackup, null, 2)], { type: 'application/json' }));
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'iu-planner-browser-selections.json';
-          link.click();
-          URL.revokeObjectURL(url);
-        }}>Download earlier selections</button>
-      </div>}
+      {userId && <ArchivedProgressImport key={userId} userId={userId} courses={allCourses} />}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">
         <div className="flex items-center gap-3">
           <span className="text-base font-semibold text-gray-700">Recommendations</span>
@@ -648,7 +639,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                     return (
                       <CourseCard
-                        disabled={pendingCompletionIds.size > 0}
+                        disabled={!progressReady || pendingCompletionIds.size > 0}
                         key={course.id}
                         course={course}
                         isCompleted={isCompleted}
@@ -786,7 +777,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                     return (
                       <CourseCard
-                        disabled={pendingCompletionIds.size > 0}
+                        disabled={!progressReady || pendingCompletionIds.size > 0}
                         key={`${activeGroup.name}-${course.id}`}
                         course={course}
                         isCompleted={isCompleted}
