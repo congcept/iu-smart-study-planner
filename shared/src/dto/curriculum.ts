@@ -1,4 +1,10 @@
-import type { CourseDifficultyDTO, RecommendationStatsDTO, Semester } from './index';
+import type {
+  CourseDifficultyDTO,
+  CourseStatus,
+  GpaPath,
+  RecommendationStatsDTO,
+  Semester,
+} from './index';
 
 export interface CurriculumSummaryDTO {
   id: string;
@@ -67,6 +73,45 @@ export interface CurriculumRecommendationsDTO {
     curriculumId: string;
     usage: 'REFERENCE_ONLY';
     categoryPersonalizationAvailable: false;
+    ratingPrior: CurriculumDetailDTO['ratingPrior'];
+  };
+}
+
+export interface ContextStudentRecordDTO {
+  id: string;
+  userId: string;
+  courseId: string;
+  status: CourseStatus;
+  grade: string | null;
+  gradePoints: number | null;
+  electiveGroup: string | null;
+  semester: string | null;
+  year: number | null;
+  createdAt: string;
+  updatedAt: string;
+  course: CurriculumCourseDTO;
+}
+
+export interface ContextStudentProgressDTO {
+  completed: ContextStudentRecordDTO[];
+  inProgress: ContextStudentRecordDTO[];
+  planned: ContextStudentRecordDTO[];
+  historicalRecords: (Omit<ContextStudentRecordDTO, 'course'> & {
+    course: Pick<CurriculumCourseDTO, 'id' | 'code' | 'name' | 'credits'>;
+  })[];
+  available: CurriculumCourseDTO[];
+  progress: {
+    totalCourses: number;
+    completedCourses: number;
+    totalCredits: number | null;
+    completedCredits: number;
+    percentage: null;
+  };
+  scope: {
+    curriculumId: string;
+    usage: 'REFERENCE_ONLY';
+    degreeProgressAvailable: false;
+    gpaPath: GpaPath | null;
     ratingPrior: CurriculumDetailDTO['ratingPrior'];
   };
 }

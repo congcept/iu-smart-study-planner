@@ -14,6 +14,7 @@ import { requireAdmin, requireAuth, requireUserAccess } from '../middleware/auth
 import { PUBLIC_USER_SELECT } from '../services/authService';
 import { readStudentProgress } from '../services/studentProgress';
 import { importStudentProgress } from '../services/importStudentProgress';
+import { readStudentProgressView } from '../services/studentProgressView';
 
 async function findUserByIdentifier(identifier: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
@@ -335,82 +336,13 @@ function handleRecordError(error: unknown, res: Response) {
 // Get user's progress summary
 router.get('/:id/progress', requireUserAccess, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-
-    const user = await findUserByIdentifier(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-    }
-
-    const records = await prisma.studentRecord.findMany({
-      where: { userId: user.id },
-      include: {
-        course: {
-          include: {
-            prerequisites: {
-              include: {
-                prerequisite: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const allCourses = await prisma.course.findMany({
-      include: {
-        prerequisites: true,
-      },
-    });
-
-    // Categorize courses
-    const completedCourseIds = new Set(
-      records.filter((r) => r.status === CourseStatus.COMPLETED).map((r) => r.courseId),
-    );
-
-    const inProgressCourseIds = new Set(
-      records.filter((r) => r.status === CourseStatus.IN_PROGRESS).map((r) => r.courseId),
-    );
-
-    const availableCourses = allCourses.filter((course) => {
-      if (completedCourseIds.has(course.id) || inProgressCourseIds.has(course.id)) {
-        return false;
-      }
-      // Check if all prerequisites are completed
-      return course.prerequisites.every((prereq) => completedCourseIds.has(prereq.prerequisiteId));
-    });
-
-    const totalCredits = allCourses.reduce((sum, course) => sum + degreeCredits(course), 0);
-    const completedCredits = records
-      .filter((r) => r.status === CourseStatus.COMPLETED)
-      .reduce((sum, r) => sum + degreeCredits(r.course), 0);
-    const percentage = totalCredits > 0 ? Math.round((completedCredits / totalCredits) * 100) : 0;
-
-    return res.json({
-      success: true,
-      data: {
-        completed: records.filter((r) => r.status === CourseStatus.COMPLETED),
-        inProgress: records.filter((r) => r.status === CourseStatus.IN_PROGRESS),
-        planned: records.filter((r) => r.status === CourseStatus.PLANNED),
-        available: availableCourses,
-        progress: {
-          totalCourses: allCourses.length,
-          completedCourses: completedCourseIds.size,
-          totalCredits,
-          completedCredits,
-          percentage,
-        },
-      },
-    });
+    return res.json({ success: true, data: await readStudentProgressView(req.params.id) });
   } catch (error) {
+    if (error instanceof StudentRecordError) {
+      return res.status(error.status).json({ success: false, error: error.message });
+    }
     console.error('Error fetching progress:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch progress',
-    });
+    return res.status(500).json({ success: false, error: 'Failed to fetch progress' });
   }
 });
 

@@ -13,12 +13,11 @@ export class RecommendationContextError extends Error {
 }
 
 /** Context placements, edges and grades are supplied from a single database snapshot. */
-export function recommendCurriculumCourses(
+export function resolveCurriculumAvailability(
   context: CurriculumDetailDTO,
   records: readonly { courseId: string; status: CourseStatus }[],
   attempts: readonly NumericGradeAttempt[],
-  constraints: { semester?: Semester; maxCredits: number; maxDifficulty: number },
-): CurriculumRecommendationsDTO {
+) {
   const memberIds = new Set(context.courses.map(({ id }) => id));
   const gpaPath = context.isGpaPath
     ? calculateGradeSummary(
@@ -66,6 +65,16 @@ export function recommendCurriculumCourses(
         !takenIds.has(course.id) &&
         (parents.get(course.id) ?? []).every((parent) => completedIds.has(parent)),
     );
+  return { available, gpaPath };
+}
+
+export function recommendCurriculumCourses(
+  context: CurriculumDetailDTO,
+  records: readonly { courseId: string; status: CourseStatus }[],
+  attempts: readonly NumericGradeAttempt[],
+  constraints: { semester?: Semester; maxCredits: number; maxDifficulty: number },
+): CurriculumRecommendationsDTO {
+  const { available, gpaPath } = resolveCurriculumAvailability(context, records, attempts);
   const filtered = constraints.semester
     ? available.filter(({ semesterOffered }) => semesterOffered.includes(constraints.semester!))
     : available;
