@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 769 server tests and 482 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 780 server tests and 501 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #70 are pushed/merged. The completion/import scope contract is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #71 are pushed/merged. The scoped progress snapshot and adapter are verified in this branch; GitHub records their merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -385,8 +385,26 @@ pass on the owned isolated source: 769 server / 482 client tests. Review is inli
 requested subagents remain unavailable due account usage limits. Details:
 `docs/phase-2/progress-write-scope.md`.
 
-Next: expose validated cookie-owner/context progress snapshots, connect those preconditions to
-the progress store, and add rating-write scope checks,
+A new protected `GET /api/users/me/progress/snapshot` returns explicit cookie owner/context
+and active completed/planned selections from one RepeatableRead transaction. No query override
+is accepted. Assigned membership filters active selections without erasing nonmember records;
+unassigned scope is explicit null. The strict shared schema and client adapter normalize UUIDs,
+reject other owners, case-equivalent duplicate course identities, completed/planned overlap and
+unexpected metadata, while preserving historical elective claim text exactly. Legacy progress
+endpoints remain unchanged. The adapter is ready for store integration; it is not activated in
+the current editable store yet. No account assignment or assigned editing is enabled.
+
+Eleven added PostgreSQL cases and nineteen adapter cases cover ownership, null/empty snapshots,
+query validation, cookie access, unchanged history and concurrent context snapshot consistency.
+Build/types/zero-warning lint and 780 server / 501 client tests pass on the isolated owned source.
+An initial full run returned one 401 in the existing administrator uppercase-UUID read test;
+its focused 11-case rerun passed, followed by a passing complete rerun with unchanged source.
+Cause remains unconfirmed; retain this stability finding alongside the prior workload failure.
+Review is inline because prior subagents reached account usage limits. Details:
+`docs/phase-2/scoped-progress-snapshot.md`.
+
+Next: use the scoped snapshot for store hydration/recovery, retain owner/context in the cache,
+connect confirmed completion/import preconditions, and add rating-write scope checks,
 then adopt context-aware completion mutation/cache handling before enabling editing. Keep completion
 editing gated until progress/cache hydration/types and pending mutations/claims are isolated
 by owner and context. The old GPA hook is retained only within the confirmed-null legacy map.
@@ -668,7 +686,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 769 server tests and 482 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 780 server tests and 501 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

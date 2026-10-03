@@ -11,12 +11,23 @@ import { prisma } from '../db';
 import { StudentRecordError, updateStudentRecord } from '../services/studentRecords';
 import { requireAdmin, requireAuth, requireUserAccess } from '../middleware/auth';
 import { PUBLIC_USER_SELECT } from '../services/authService';
-import { readStudentProgress } from '../services/studentProgress';
+import { readScopedStudentProgress, readStudentProgress } from '../services/studentProgress';
 import { importStudentProgress } from '../services/importStudentProgress';
 import { readStudentProgressView } from '../services/studentProgressView';
 import { readStudentProfileView, readStudentRecordsView } from '../services/studentAccountViews';
 
 const router = Router();
+
+router.get('/me/progress/snapshot', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({}).strict().parse(req.query);
+    return res.json({ success: true, data: await readScopedStudentProgress(req.userId) });
+  } catch (error) {
+    return handleRecordError(error, res);
+  }
+});
 
 // Place session-scoped routes before legacy identifier routes.
 router.get('/me/ratings', requireAuth, async (req, res) => {

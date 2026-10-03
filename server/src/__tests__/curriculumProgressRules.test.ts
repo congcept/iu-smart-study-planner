@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import request from 'supertest';
+import { ScopedStudentProgressSchema } from '@iu-study-planner/shared';
 import app, { prisma } from '../index';
 import { AUTH_COOKIE_NAME, issueToken } from '../services/authService';
+import { readScopedStudentProgress } from '../services/studentProgress';
 
 describe('account-context completion and import (PostgreSQL)', () => {
   const prefix = `context-progress-${randomUUID()}`;
@@ -342,6 +345,105 @@ describe('account-context completion and import (PostgreSQL)', () => {
           : { completedIds: { [courses.A]: null }, plannedIds: [courses.F] }),
         expectedScope,
       });
+
+  const snapshot = (index = 0) =>
+    request(app).get('/api/users/me/progress/snapshot').set('Cookie', cookie(index));
+
+  it('returns validated owner/context and active progress together without rewriting history', async () => {
+    await seedCompletion('A');
+    await seedCompletion('D');
+    await prisma.studentRecord.create({
+      data: {
+        userId: users[0],
+        courseId: courses.E,
+        status: 'COMPLETED',
+        electiveGroup: '  Historical claim  ',
+        grade: 'A',
+        gradePoints: 4,
+      },
+    });
+    await complete('F', 'PLANNED');
+    const before = await records();
+    const response = await snapshot();
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      scope: { userId: users[0], curriculumId: contexts[0] },
+      progress: {
+        completedIds: { [courses.A]: null, [courses.E]: '  Historical claim  ' },
+        plannedIds: [courses.F],
+      },
+    });
+    expect(ScopedStudentProgressSchema.safeParse(response.body.data).success).toBe(true);
+    expect(await records()).toEqual(before);
+  });
+
+  it('returns explicit null scope and global legacy selections for an unassigned owner', async () => {
+    await seedCompletion('D', 2);
+    const response = await snapshot(2);
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({
+      scope: { userId: users[2], curriculumId: null },
+      progress: { completedIds: { [courses.D]: null }, plannedIds: [] },
+    });
+  });
+
+  it('keeps snapshot selections and context isolated between cookie accounts', async () => {
+    await seedCompletion('A');
+    await seedCompletion('D', 1);
+    expect((await snapshot()).body.data.progress.completedIds).toEqual({ [courses.A]: null });
+    expect((await snapshot(1)).body.data).toEqual({
+      scope: { userId: users[1], curriculumId: contexts[1] },
+      progress: { completedIds: { [courses.D]: null }, plannedIds: [] },
+    });
+  });
+
+  it('returns an empty validated snapshot without inferring a course or completion', async () => {
+    const response = await snapshot();
+    expect(response.body.data).toEqual({
+      scope: { userId: users[0], curriculumId: contexts[0] },
+      progress: { completedIds: {}, plannedIds: [] },
+    });
+    expect(ScopedStudentProgressSchema.safeParse(response.body.data).success).toBe(true);
+  });
+
+  it.each([{ userId: users[1] }, { curriculumId: contexts[1] }, { unknown: 'value' }])(
+    'rejects snapshot query overrides %j',
+    async (query) => {
+      expect((await snapshot().query(query)).status).toBe(400);
+      expect(await records()).toEqual([]);
+    },
+  );
+
+  it.each(['absent', 'malformed'])('requires a valid cookie for snapshots (%s)', async (kind) => {
+    const read = request(app).get('/api/users/me/progress/snapshot');
+    if (kind === 'malformed') read.set('Cookie', `${AUTH_COOKIE_NAME}=invalid`);
+    expect((await read).status).toBe(401);
+  });
+
+  it('does not read scope and selections from different contexts during a concurrent change', async () => {
+    await seedCompletion('A');
+    await seedCompletion('D');
+    const before = await records();
+    await prisma.$transaction(
+      async (tx) => {
+        const previous = await readScopedStudentProgress(users[0], tx);
+        await prisma.user.update({ where: { id: users[0] }, data: { curriculumId: contexts[1] } });
+        expect(await readScopedStudentProgress(users[0], tx)).toEqual(previous);
+        expect(previous.scope.curriculumId).toBe(contexts[0]);
+        expect(previous.progress.completedIds).toEqual({ [courses.A]: null });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    expect((await snapshot()).body.data).toEqual({
+      scope: { userId: users[0], curriculumId: contexts[1] },
+      progress: { completedIds: { [courses.A]: null, [courses.D]: null }, plannedIds: [] },
+    });
+    expect(await records()).toEqual(before);
+  });
+
+  it('does not invent a null context for a missing database owner', async () => {
+    await expect(readScopedStudentProgress(randomUUID())).rejects.toMatchObject({ status: 404 });
+  });
 
   it.each(['complete', 'progress'] as const)(
     'accepts matching assigned scope for %s without storing the claim on progress records',
