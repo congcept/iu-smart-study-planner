@@ -11,7 +11,7 @@ credits returns null rather than zero. Precision is preserved so display roundin
 change eligibility at 70. Unknown courses and invalid scores/credits are rejected.
 
 Twenty-one calculator tests cover hand-computed weighted retakes and boundary cases.
-Retake storage is implemented; authenticated APIs are the next increment. The existing manual GPA-path
+Retake storage and authenticated numeric grade APIs are implemented. The existing manual GPA-path
 toggle is not yet driven by the new numeric summary, and legacy profile GPA remains on
 its old scale until the grade dashboard is activated.
 
@@ -28,3 +28,23 @@ not backfill numeric scores or change legacy completion, claims, gradePoints or 
 Apply with prisma migrate deploy, then regenerate Prisma in the host and Docker backend.
 Twenty-three real PostgreSQL tests cover constraints, concurrent retries, isolation,
 metadata preservation, and history surviving uncompletion. No seed reset is required.
+
+## Current-account grade APIs
+
+GET /api/users/me/grades returns rich attempt history, the unrounded numeric summary,
+and completedCoursesWithoutNumericGrades for GPA-eligible completed courses missing
+numeric coverage. Reads use one repeatable-read snapshot; legacy letters never become
+zero or guessed percentages. POST on the same path accepts only courseId, requestId,
+score, optional semester and year. UUIDs normalize to lowercase, score is finite0–100,
+and year is 2000–2100. A success returns the full current-account grade snapshot.
+
+Ownership comes from the cookie. Unknown courses return404, conflicting retry payloads
+409, and malformed/extra fields400. Attempts may record failed scores without completing
+a course; progress still requires mandatory prerequisites through the completion API.
+Grade writes do not change completion, elective claims or legacy grade metadata.
+
+Thirty-eight PostgreSQL API tests cover strict inputs, account isolation, role/session
+access, request-origin protection, retries, GPA/coverage and preservation. The running
+Docker API also passed a simulated40→90 retake and70 in a second course: weighted GPA
+81.42857142857143, three immutable attempts, and identical progress before/after.
+Grade entry/dashboard and automatic GPA-path activation remain separate UI increments.
