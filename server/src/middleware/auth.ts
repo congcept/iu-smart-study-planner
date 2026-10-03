@@ -59,6 +59,8 @@ export const requireUserAccess: RequestHandler[] = [
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       req.params.id,
     );
+    // Keep authorization and downstream legacy queries on the same canonical UUID.
+    if (isUuid) req.params.id = req.params.id.toLowerCase();
     if (
       req.userRole !== 'ADMIN' &&
       req.params.id !== req.userId &&
@@ -74,6 +76,9 @@ export const requireUserAccess: RequestHandler[] = [
 export const requireUserIdAccess: RequestHandler[] = [
   requireAuth,
   (req, res, next) => {
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.userId)) {
+      req.params.userId = req.params.userId.toLowerCase();
+    }
     if (req.userRole !== 'ADMIN' && req.params.userId !== req.userId) {
       return res.status(403).json({ success: false, error: 'Access forbidden' });
     }

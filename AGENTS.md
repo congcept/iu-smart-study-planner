@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 690 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 701 server tests and 310 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-03
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #60 are pushed/merged. Additive session curriculum metadata is ready for its own PR after verification. Saved-semester creation/course-list edits
+through PR #61 are pushed/merged. Canonical UUID owner access is ready for its own PR after verification. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -258,15 +258,21 @@ Eight PostgreSQL cases and existing auth/demo regressions pass; independent revi
 no blocking source issue. Build/types/zero-warning lint and 690 server / 310 client tests
 pass for this isolated snapshot. See docs/phase-2/session-curriculum-context.md.
 
-Next: normalize UUID identifiers at owner access guards (readers already normalize, but
-uppercase owner IDs currently reject before reaching them). Then update client hydration/
-types/renderer/scope copy and nonfork handling before assignment. Legacy clients expect
-flat fields and cannot consume contextual profile, recommendations or preview DTOs yet.
-Preserve unrelated UI ownership. Assignment must validate transferred completions/claims/
-cached plans and isolate caches and pending handlers by account and context. Full degree
-planning requires verified elective/degree/offering rules. Signed IT/DS reconciliation
-precedes the selector. Required school-admin resources/allocation/dashboard, deployment
-and thesis remain outstanding.
+Owner access guards now normalize UUID-shaped id/userId parameters before comparison
+and downstream database queries. Uppercase UUIDs resolve consistently without allowing
+student-ID aliases to impersonate another primary key; non-UUID aliases remain exact-case,
+and direct userId routes still reject aliases. Eleven PostgreSQL cases plus auth/access
+coverage pass 36 focused cases, including writes and unchanged saved histories. Independent
+review found no blocker. Build/types/zero-warning lint and 701 server / 310 client tests pass
+for the exact isolated snapshot. No schema, assignment, source or seed change was made.
+
+Next: update client hydration/types/renderer/scope copy and nonfork handling before
+assignment. Legacy clients expect flat fields and cannot consume contextual profile,
+recommendations or preview DTOs yet. Preserve unrelated UI ownership. Assignment must
+validate transferred completions/claims/cached plans and isolate caches and pending handlers
+by account and context. Full degree planning requires verified elective/degree/offering
+rules. Signed IT/DS reconciliation precedes the selector. Required school-admin resources/
+allocation/dashboard, deployment and thesis remain outstanding.
 
 Changes since the previous checkpoint:
 

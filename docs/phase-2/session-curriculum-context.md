@@ -21,6 +21,8 @@ assignment inputs, same-token freshness, context deletion, role/account isolatio
 sessions, demo preservation and password privacy. Existing auth/demo regressions and an
 independent review cover the affected flows.
 
-The review also identified an older identifier inconsistency: readers normalize uppercase
-UUIDs, while owner access guards compare them case-sensitively. Documentation now describes
-the existing limitation; guard normalization is a separate small increment.
+The review identified an older identifier inconsistency, now fixed separately: owner access
+guards normalize UUID casing before checking ownership and before downstream database reads.
+Student-ID aliases remain case-sensitive, UUID-shaped aliases retain primary-key precedence,
+and direct user-ID routes still do not accept student aliases. Eleven PostgreSQL cases plus
+auth/access coverage verify the fix (36 focused cases); independent review found no blocker.
