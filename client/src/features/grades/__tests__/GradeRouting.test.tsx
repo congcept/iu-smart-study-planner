@@ -37,7 +37,13 @@ beforeEach(() => {
   vi.mocked(api.getDemoLoginStatus).mockResolvedValue({ enabled: false });
   vi.mocked(getStudentGrades).mockResolvedValue({
     attempts: [],
-    summary: { gpa100: null, gradedCredits: 0, gradedCourseCount: 0, courseScores: [] },
+    summary: {
+      gpa100: null,
+      gpaPath: null,
+      gradedCredits: 0,
+      gradedCourseCount: 0,
+      courseScores: [],
+    },
     completedCoursesWithoutNumericGrades: [],
   });
   window.history.replaceState({}, '', '/grades');

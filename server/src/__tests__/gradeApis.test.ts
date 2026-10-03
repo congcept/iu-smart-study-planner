@@ -120,9 +120,51 @@ describe('numeric grade APIs (PostgreSQL)', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({
       attempts: [],
-      summary: { gpa100: null, gradedCredits: 0, gradedCourseCount: 0, courseScores: [] },
+      summary: {
+        gpa100: null,
+        gpaPath: null,
+        gradedCredits: 0,
+        gradedCourseCount: 0,
+        courseScores: [],
+      },
       completedCoursesWithoutNumericGrades: [courseA, courseB].sort(),
     });
+  });
+
+  it('returns a server path at and just above the threshold on append and read', async () => {
+    const boundary = await append(input({ score: 70 }));
+    expect(boundary.body.data.summary.gpaPath).toBe('ALTERNATIVE');
+    const above = await append(input({ score: 70.004 }));
+    expect(above.body.data.summary.gpaPath).toBe('THESIS');
+    expect((await read()).body.data.summary.gpaPath).toBe('THESIS');
+  });
+
+  it('preserves exact decimal boundary policy through PostgreSQL and API serialization', async () => {
+    // Fixture credits: A=3, B=4. Weighted sum (93.32*3 + 52.51*4) = 490 exactly.
+    await append(input({ score: 93.32 }));
+    const response = await append(input({ courseId: courseB, score: 52.51 }));
+    expect(response.body.data.summary.gpa100).toBe(70);
+    expect(response.body.data.summary.gpaPath).toBe('ALTERNATIVE');
+    expect((await read()).body.data.summary.gpaPath).toBe('ALTERNATIVE');
+  });
+
+  it('keeps highest-retake policy and changes paths when another scored course lowers GPA', async () => {
+    await append(input({ score: 80 }));
+    const lowerRetake = await append(input({ score: 20 }));
+    expect(lowerRetake.body.data.summary.gpaPath).toBe('THESIS');
+    const anotherCourse = await append(input({ courseId: courseB, score: 40 }));
+    expect(anotherCourse.body.data.summary.gpaPath).toBe('ALTERNATIVE');
+    expect((await read()).body.data.summary.gpaPath).toBe('ALTERNATIVE');
+  });
+
+  it('isolates GPA paths to the cookie account, ignoring another user query', async () => {
+    await append(input({ score: 0 }));
+    const owner = await request(app)
+      .get(`${path}?userId=${otherId}`)
+      .set('Cookie', cookie(ownerId));
+    expect(owner.body.data.summary.gpaPath).toBe('ALTERNATIVE');
+    expect((await read(otherId)).body.data.summary.gpaPath).toBe('THESIS');
+    expect((await read(adminId)).body.data.summary.gpaPath).toBeNull();
   });
 
   it('includes score zero and preserves every existing progress/grade/claim field', async () => {

@@ -7,7 +7,13 @@ const get = vi.mocked(apiClient.get);
 const post = vi.mocked(apiClient.post);
 const data: StudentGradesDTO = {
   attempts: [],
-  summary: { gpa100: null, gradedCredits: 0, gradedCourseCount: 0, courseScores: [] },
+  summary: {
+    gpa100: null,
+    gpaPath: null,
+    gradedCredits: 0,
+    gradedCourseCount: 0,
+    courseScores: [],
+  },
   completedCoursesWithoutNumericGrades: [],
 };
 const input = {
