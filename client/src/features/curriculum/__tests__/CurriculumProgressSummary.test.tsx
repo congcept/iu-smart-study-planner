@@ -21,6 +21,72 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('read-only curriculum progress summary', () => {
+  it('shows current course identities, saved statuses and elective claims without controls', async () => {
+    const data = contextProgress();
+    data.planned = [
+      {
+        ...data.completed[0],
+        id: otherReferenceId,
+        courseId: otherReferenceId,
+        course: {
+          ...data.completed[0].course,
+          id: otherReferenceId,
+          code: 'AA001',
+          name: 'Scoped planned course',
+        },
+        status: 'PLANNED',
+        electiveGroup: 'Group B',
+      },
+    ];
+    const id = '77777777-7777-4777-8777-777777777777';
+    data.inProgress = [
+      {
+        ...data.completed[0],
+        id,
+        courseId: id,
+        course: { ...data.completed[0].course, id, code: 'ZZ001', name: 'Scoped active course' },
+        status: 'IN_PROGRESS',
+        electiveGroup: null,
+      },
+    ];
+    data.progress.totalCourses = 3;
+    getProgress.mockResolvedValue(data);
+    render(<CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />);
+    const list = await screen.findByRole('list', { name: 'Current saved course selections' });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent('AA001 · Scoped planned course');
+    expect(rows[0]).toHaveTextContent('Planned');
+    expect(rows[0]).toHaveTextContent('Elective claim: Group B');
+    expect(rows[1]).toHaveTextContent('MA001IU · Scoped Calculus');
+    expect(rows[1]).toHaveTextContent('Completed');
+    expect(rows[1]).toHaveTextContent('Elective claim: Group A');
+    expect(rows[2]).toHaveTextContent('ZZ001 · Scoped active course');
+    expect(rows[2]).toHaveTextContent('In progress');
+    expect(within(list).queryByRole('button')).not.toBeInTheDocument();
+  });
+  it('withholds old course states during reload and after an owner change', async () => {
+    const { rerender } = render(
+      <CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />,
+    );
+    await screen.findByRole('list', { name: 'Current saved course selections' });
+    const old = deferred<ContextStudentProgressDTO>();
+    getProgress.mockReturnValueOnce(old.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Reload progress' }));
+    expect(
+      screen.queryByRole('list', { name: 'Current saved course selections' }),
+    ).not.toBeInTheDocument();
+    const next = contextProgress();
+    next.scope.userId = otherReferenceId;
+    next.completed = [];
+    next.progress.completedCourses = 0;
+    next.progress.completedCredits = 0;
+    getProgress.mockResolvedValue(next);
+    rerender(<CurriculumProgressSummary userId={otherReferenceId} curriculumId={referenceId} />);
+    await screen.findByText('No saved course selections in this curriculum yet.');
+    await act(async () => old.resolve(contextProgress()));
+    expect(screen.queryByText('MA001IU · Scoped Calculus')).not.toBeInTheDocument();
+  });
   it('shows member totals with no degree percentage or mutation controls', async () => {
     render(<CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />);
     await screen.findByText('Earned credits');
