@@ -70,3 +70,12 @@ Ten real PostgreSQL tests verify API consistency, cold starts, metadata preserva
 one aggregate query for fifty courses, duplicate placements and concurrent snapshot
 isolation. Full build, type, lint and test gates pass301 server/143 client tests.
 The seed difficultyLevel remains intact; badges and scoring consumers are next.
+
+## Curriculum badges
+
+Course cards show the server estimate to one decimal and the real vote count. Zero
+votes say No ratings yet; accessible copy explains the shared mean and that higher
+scores mean greater difficulty. Rows without valid projection metadata render no badge.
+Completion, prerequisite hover and sidebar scale behavior are unchanged. Desktop/mobile
+browser inspection passed; ten client cases cover counts, cold starts and missing/invalid
+metadata. Full gates pass301 server/153 client tests. Rating entry is next.
