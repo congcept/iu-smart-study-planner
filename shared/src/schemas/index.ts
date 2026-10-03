@@ -242,3 +242,10 @@ export const CreateSemesterSchema = z.object({
     }),
   ),
 });
+
+export const PlanSemesterSchema = z
+  .object({
+    intensityMode: z.enum(['low', 'normal', 'high', 'max']),
+    completedCourseIds: z.array(z.string()).optional(),
+  })
+  .strict();
