@@ -48,19 +48,25 @@ function snapshot(
   if (!parsed.success) throw new Error('Stored simulation resource metadata could not be verified');
   return parsed.data;
 }
-export async function readResources(actorId: string, input: ResourceScopeDTO) {
+export async function readResources(
+  actorId: string,
+  input: ResourceScopeDTO,
+  transaction?: Prisma.TransactionClient,
+) {
   const scope = ResourceScopeSchema.parse(input);
-  return prisma.$transaction(
-    async (tx) => {
-      await authorize(tx, actorId);
-      const context = await curriculum(tx, scope.curriculumId);
-      const row = await tx.schoolResource.findUnique({
-        where: { curriculumId_semester_year: scope },
+  const read = async (tx: Prisma.TransactionClient) => {
+    await authorize(tx, actorId);
+    const context = await curriculum(tx, scope.curriculumId);
+    const row = await tx.schoolResource.findUnique({
+      where: { curriculumId_semester_year: scope },
+    });
+    return snapshot(scope, context, row);
+  };
+  return transaction
+    ? read(transaction)
+    : prisma.$transaction(read, {
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
       });
-      return snapshot(scope, context, row);
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-  );
 }
 export async function upsertResources(actorId: string, input: UpsertResourcesDTO) {
   const { expectedRevision, ...fields } = UpsertResourcesSchema.parse(input);

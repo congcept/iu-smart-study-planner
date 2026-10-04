@@ -205,9 +205,10 @@ export async function readEligibleCohortDemand(
   actorId: string,
   inputScope: ResourceScopeDTO,
   transaction?: Prisma.TransactionClient,
+  inputPolicy: EligibleCohortDemandPolicyDTO = config.cohortDemandPolicy,
 ): Promise<EligibleCohortDemandSnapshotDTO> {
   const scope = ResourceScopeSchema.parse(inputScope);
-  const parsedPolicy = EligibleCohortDemandPolicySchema.safeParse(config.cohortDemandPolicy);
+  const parsedPolicy = EligibleCohortDemandPolicySchema.safeParse(inputPolicy);
   if (!parsedPolicy.success)
     throw new Error('Eligible cohort recommendation policy could not be verified');
   const policy = Object.freeze(parsedPolicy.data);
