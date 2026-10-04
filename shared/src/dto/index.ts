@@ -143,6 +143,15 @@ export type SimulationCapacitySnapshotDTO = z.infer<
   typeof schemas.SimulationCapacitySnapshotSchema
 >;
 export type SimulationResourcePolicyDTO = z.infer<typeof schemas.SimulationResourcePolicySchema>;
+export type SimulationAllocationPolicyDTO = z.infer<
+  typeof schemas.SimulationAllocationPolicySchema
+>;
+export type SimulationAllocationRosterDTO = z.infer<
+  typeof schemas.SimulationAllocationRosterSchema
+>;
+export type SimulationAllocationResultDTO = z.infer<
+  typeof schemas.SimulationAllocationResultSchema
+>;
 export type SimulationResourceEnvelopeDTO = z.infer<
   typeof schemas.SimulationResourceEnvelopeSchema
 >;

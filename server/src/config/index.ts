@@ -2,9 +2,11 @@ import dotenv from 'dotenv';
 import path from 'path';
 import type {
   EligibleCohortDemandPolicyDTO,
+  SimulationAllocationPolicyDTO,
   SimulationResourcePolicyDTO,
 } from '@iu-study-planner/shared';
 import { readCohortDemandPolicy } from './cohortDemand';
+import { readSimulationAllocationPolicy } from './simulationAllocation';
 import { readSimulationResourcePolicy } from './simulationResources';
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -23,6 +25,7 @@ interface Config {
   recommendationGradeDifficultyTolerance: number;
   simulationResourcePolicy: SimulationResourcePolicyDTO;
   cohortDemandPolicy: EligibleCohortDemandPolicyDTO;
+  simulationAllocationPolicy: SimulationAllocationPolicyDTO;
 }
 
 const duration = /^([1-9]\d*)(s|m|h|d)$/.exec(process.env.JWT_EXPIRES_IN || '7d');
@@ -78,6 +81,7 @@ if (
   throw new Error('RECOMMENDATION_GRADE_DIFFICULTY_TOLERANCE must be between 0 and 4');
 
 const config: Config = {
+  simulationAllocationPolicy: readSimulationAllocationPolicy(process.env),
   cohortDemandPolicy: readCohortDemandPolicy(process.env),
   simulationResourcePolicy: readSimulationResourcePolicy(process.env),
   recommendationGradeFitWeight,
