@@ -135,6 +135,10 @@ export type PlannedDemandSnapshotDTO = z.infer<typeof schemas.PlannedDemandSnaps
 export type SimulationCapacitySnapshotDTO = z.infer<
   typeof schemas.SimulationCapacitySnapshotSchema
 >;
+export type SimulationResourcePolicyDTO = z.infer<typeof schemas.SimulationResourcePolicySchema>;
+export type SimulationResourceEnvelopeDTO = z.infer<
+  typeof schemas.SimulationResourceEnvelopeSchema
+>;
 export type AnalyzeWorkloadDTO = z.infer<typeof schemas.AnalyzeWorkloadSchema>;
 
 export type CourseStatus = z.infer<typeof schemas.CourseStatusSchema>;

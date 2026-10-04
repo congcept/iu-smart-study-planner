@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import type { SimulationResourcePolicyDTO } from '@iu-study-planner/shared';
+import { readSimulationResourcePolicy } from './simulationResources';
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
@@ -15,6 +17,7 @@ interface Config {
   semesterDifficultyPenaltyWeight: number;
   recommendationGradeFitWeight: number;
   recommendationGradeDifficultyTolerance: number;
+  simulationResourcePolicy: SimulationResourcePolicyDTO;
 }
 
 const duration = /^([1-9]\d*)(s|m|h|d)$/.exec(process.env.JWT_EXPIRES_IN || '7d');
@@ -70,6 +73,7 @@ if (
   throw new Error('RECOMMENDATION_GRADE_DIFFICULTY_TOLERANCE must be between 0 and 4');
 
 const config: Config = {
+  simulationResourcePolicy: readSimulationResourcePolicy(process.env),
   recommendationGradeFitWeight,
   recommendationGradeDifficultyTolerance,
   ratingWritesPerHour,
