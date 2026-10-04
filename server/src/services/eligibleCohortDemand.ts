@@ -27,6 +27,17 @@ export interface EligibleCohortDemandStudent {
   attempts: readonly { courseId: string; score: number | null }[];
 }
 
+/** Internal allocator input; never include this identity-bearing projection in API replies. */
+export interface EligibleCohortDemandChoices {
+  studentId: string;
+  candidates: { courseId: string; ratingDifficulty: number }[];
+}
+
+export interface EligibleCohortDemandWithChoices {
+  demand: EligibleCohortDemandSnapshotDTO;
+  choices: EligibleCohortDemandChoices[];
+}
+
 const uuid = z
   .string()
   .uuid()
@@ -72,13 +83,13 @@ function verifiedContext(context: CurriculumDetailDTO): CurriculumDetailDTO {
   };
 }
 
-/** Pure aggregate; no student identity or per-student recommendation leaves this projection. */
-export function projectEligibleCohortDemand(
+/** Internal pure projection derives aggregate and allocator choices from the same eligible union. */
+export function projectEligibleCohortDemandWithChoices(
   inputScope: ResourceScopeDTO,
   inputContext: CurriculumDetailDTO,
   inputStudents: readonly EligibleCohortDemandStudent[],
   inputPolicy: EligibleCohortDemandPolicyDTO,
-): EligibleCohortDemandSnapshotDTO {
+): EligibleCohortDemandWithChoices {
   const parsedScope = ResourceScopeSchema.safeParse(inputScope);
   const parsedPolicy = EligibleCohortDemandPolicySchema.safeParse(inputPolicy);
   const parsedStudents = studentsSchema.safeParse(inputStudents);
@@ -110,6 +121,7 @@ export function projectEligibleCohortDemand(
   let ignoredNonmemberPlannedSelectionCount = 0;
   let ineligibleMemberPlannedSelectionCount = 0;
   let unresolvedGpaStudentCount = 0;
+  const choices: EligibleCohortDemandChoices[] = [];
 
   for (const student of parsedStudents.data) {
     let studentContext = context;
@@ -132,6 +144,7 @@ export function projectEligibleCohortDemand(
       );
     }
     const availableIds = new Set(availability.available.map(({ id }) => id));
+    const availableById = new Map(availability.available.map((course) => [course.id, course]));
     const plannedIds = new Set<string>();
     for (const record of student.records) {
       if (record.status !== 'PLANNED') continue;
@@ -151,10 +164,13 @@ export function projectEligibleCohortDemand(
     if (plannedIds.size > 0) eligiblePlannedStudentCount++;
     if (recommendedIds.size > 0) recommendedStudentCount++;
     if (demandIds.size > 0) demandStudentCount++;
+    const candidates: EligibleCohortDemandChoices['candidates'] = [];
     for (const id of demandIds) {
       const course = courseById.get(id);
-      if (!course || !availableIds.has(id))
+      const availableCourse = availableById.get(id);
+      if (!course || !availableCourse)
         throw new Error('Eligible cohort recommendation is not an available member');
+      candidates.push({ courseId: id, ratingDifficulty: availableCourse.ratingDifficulty });
       const planned = plannedIds.has(id);
       const recommended = recommendedIds.has(id);
       if (planned) course.eligiblePlannedStudentCount++;
@@ -162,6 +178,10 @@ export function projectEligibleCohortDemand(
       if (planned && recommended) course.overlapStudentCount++;
       course.demandStudentCount++;
     }
+    choices.push({
+      studentId: student.id,
+      candidates: candidates.sort((left, right) => left.courseId.localeCompare(right.courseId)),
+    });
   }
   const projected = EligibleCohortDemandSnapshotSchema.safeParse({
     kind: 'SIMULATION',
@@ -197,16 +217,31 @@ export function projectEligibleCohortDemand(
     courses,
   });
   if (!projected.success) throw new Error('Eligible cohort demand could not be verified');
-  return projected.data;
+  return { demand: projected.data, choices };
+}
+
+/** Public aggregate excludes student identities and per-student choices. */
+export function projectEligibleCohortDemand(
+  inputScope: ResourceScopeDTO,
+  inputContext: CurriculumDetailDTO,
+  inputStudents: readonly EligibleCohortDemandStudent[],
+  inputPolicy: EligibleCohortDemandPolicyDTO,
+): EligibleCohortDemandSnapshotDTO {
+  return projectEligibleCohortDemandWithChoices(
+    inputScope,
+    inputContext,
+    inputStudents,
+    inputPolicy,
+  ).demand;
 }
 
 /** Actor, reference, cohort and history share one read-only consistent database snapshot. */
-export async function readEligibleCohortDemand(
+export async function readEligibleCohortDemandWithChoices(
   actorId: string,
   inputScope: ResourceScopeDTO,
   transaction?: Prisma.TransactionClient,
   inputPolicy: EligibleCohortDemandPolicyDTO = config.cohortDemandPolicy,
-): Promise<EligibleCohortDemandSnapshotDTO> {
+): Promise<EligibleCohortDemandWithChoices> {
   const scope = ResourceScopeSchema.parse(inputScope);
   const parsedPolicy = EligibleCohortDemandPolicySchema.safeParse(inputPolicy);
   if (!parsedPolicy.success)
@@ -253,11 +288,27 @@ export async function readEligibleCohortDemand(
       if (!student) throw new Error('Stored eligible cohort grade has an unknown owner');
       student.attempts.push({ courseId, score });
     }
-    return projectEligibleCohortDemand(scope, context, students, policy);
+    return projectEligibleCohortDemandWithChoices(scope, context, students, policy);
   };
   return transaction
     ? read(transaction)
     : prisma.$transaction(read, {
         isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
       });
+}
+
+/** Public reader preserves the aggregate response and captures policy before the first await. */
+export async function readEligibleCohortDemand(
+  actorId: string,
+  inputScope: ResourceScopeDTO,
+  transaction?: Prisma.TransactionClient,
+  inputPolicy: EligibleCohortDemandPolicyDTO = config.cohortDemandPolicy,
+): Promise<EligibleCohortDemandSnapshotDTO> {
+  const result = await readEligibleCohortDemandWithChoices(
+    actorId,
+    inputScope,
+    transaction,
+    inputPolicy,
+  );
+  return result.demand;
 }

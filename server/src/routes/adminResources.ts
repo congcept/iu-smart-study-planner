@@ -9,6 +9,8 @@ import { readSimulationResourceEnvelope } from '../services/schoolResourceEnvelo
 import { readEligibleCohortDemand } from '../services/eligibleCohortDemand';
 import { readCohortResourceSnapshot } from '../services/cohortResourceSnapshot';
 
+import { readAllocationPreview } from '../services/allocationPreview';
+
 const router = Router();
 const QuerySchema = ResourceScopeSchema.extend({
   year: z
@@ -31,6 +33,16 @@ function failure(
   console.error('Resource configuration error:', error);
   return res.status(500).json({ success: false, error: fallback });
 }
+router.get('/allocation-preview', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const scope = QuerySchema.parse(req.query);
+    return res.json({ success: true, data: await readAllocationPreview(req.userId, scope) });
+  } catch (error) {
+    return failure(error, res, 'Could not load allocation preview');
+  }
+});
 router.get('/cohort-resource-snapshot', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
