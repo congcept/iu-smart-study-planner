@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 export { ContextStudentProgressSchema } from './contextStudentProgress';
-export { CurriculumDetailSchema } from './curriculumDetail';
+export {
+  CurriculumDetailSchema,
+  CurriculumSummarySchema,
+  CurriculumReferencesSchema,
+} from './curriculumDetail';
 export { CurriculumSemesterPreviewSchema } from './curriculumSemesterPreview';
 
 export const PaginationQuerySchema = z.object({

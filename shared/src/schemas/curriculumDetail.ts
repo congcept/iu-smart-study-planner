@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CurriculumDetailDTO } from '../dto/curriculum';
+import type { CurriculumDetailDTO, CurriculumSummaryDTO } from '../dto/curriculum';
 import { CurriculumCourseSchema } from './curriculumSemesterPreview';
 
 const uuid = z.string().uuid();
@@ -10,9 +10,9 @@ const webUrl = z
   .refine((value) => /^https?:\/\//i.test(value));
 
 /** Public reference metadata never proves degree eligibility or calendar offerings. */
-export const CurriculumDetailSchema = z
+export const CurriculumSummarySchema = z
   .object({
-    id: uuid,
+    id: uuid.transform((id) => id.toLowerCase()),
     code: z.string().min(1),
     name: z.string().min(1),
     school: z.string().min(1),
@@ -23,41 +23,52 @@ export const CurriculumDetailSchema = z
     sourceLabel: z.string().nullable(),
     sourceUrl: webUrl.nullable(),
     usage: z.literal('REFERENCE_ONLY'),
-    courses: z.array(CurriculumCourseSchema),
-    requirements: z.array(
-      z
-        .object({
-          id: uuid,
-          kind: z.literal('FREE_ELECTIVE'),
-          name: z.string().min(1),
-          credits: count,
-          academicYear: z.number().int().positive().safe().nullable(),
-          academicSemester: z.number().int().min(1).max(3).nullable(),
-          sourceOrder: count,
-          sourceLabel: z.string().nullable(),
-        })
-        .strict(),
-    ),
-    prerequisites: z.array(
-      z
-        .object({
-          id: uuid,
-          courseId: uuid,
-          prerequisiteId: uuid,
-          isStrict: z.boolean(),
-          isCorequisite: z.boolean(),
-          mandatory: z.literal(true),
-        })
-        .strict(),
-    ),
-    ratingPrior: z
-      .object({
-        mean: z.number().finite().min(1).max(5),
-        source: z.enum(['CURRICULUM_RATINGS', 'CURRICULUM_SEED']),
-      })
-      .strict()
-      .nullable(),
   })
+  .strict() satisfies z.ZodType<CurriculumSummaryDTO>;
+
+export const CurriculumReferencesSchema = z
+  .array(CurriculumSummarySchema)
+  .refine(
+    (references) => new Set(references.map((reference) => reference.id)).size === references.length,
+    'Duplicate curriculum reference identifiers',
+  );
+
+export const CurriculumDetailSchema = CurriculumSummarySchema.extend({
+  courses: z.array(CurriculumCourseSchema),
+  requirements: z.array(
+    z
+      .object({
+        id: uuid,
+        kind: z.literal('FREE_ELECTIVE'),
+        name: z.string().min(1),
+        credits: count,
+        academicYear: z.number().int().positive().safe().nullable(),
+        academicSemester: z.number().int().min(1).max(3).nullable(),
+        sourceOrder: count,
+        sourceLabel: z.string().nullable(),
+      })
+      .strict(),
+  ),
+  prerequisites: z.array(
+    z
+      .object({
+        id: uuid,
+        courseId: uuid,
+        prerequisiteId: uuid,
+        isStrict: z.boolean(),
+        isCorequisite: z.boolean(),
+        mandatory: z.literal(true),
+      })
+      .strict(),
+  ),
+  ratingPrior: z
+    .object({
+      mean: z.number().finite().min(1).max(5),
+      source: z.enum(['CURRICULUM_RATINGS', 'CURRICULUM_SEED']),
+    })
+    .strict()
+    .nullable(),
+})
   .strict()
   .superRefine((detail, ctx) => {
     const unique = (ids: string[]) =>
