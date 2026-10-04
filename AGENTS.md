@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 804 server tests and 549 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 820 server tests and 581 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #73 are pushed/merged. Rating write scope protection is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #74 are pushed/merged. Private scoped rating reads are verified in this branch; GitHub records their merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -436,9 +436,23 @@ owned snapshot. Both running local application ports respond; isolated shared ou
 without container/data recreation. No schema migration, seed, selector or assignment change.
 See `docs/phase-2/rating-write-scope.md`.
 
-Next: private scoped rating snapshots, consistent contextual rating choices and durable UI
-retry binding, then planner read adoption and context-keyed caches before assigned editing.
-Keep verified curriculum and assignment gates closed.
+A protected `/users/me/ratings/snapshot` now returns the cookie owner's explicit context and all
+personal global votes from one RepeatableRead snapshot. Strict empty query validation prevents
+scope overrides; missing owners never become verified empty results. Historical votes survive
+uncompletion and empty/current assignments without implying membership or eligibility. The strict
+shared schema/adapter normalizes UUIDs, rejects duplicate/extra/malformed or legacy responses and
+validates expected owner before returning data. Legacy `/me/ratings` arrays remain unchanged.
+The adapter is ready; the screen still needs consistent eligible-course hydration and scoped retries.
+
+Sixteen new PostgreSQL and thirty-two adapter cases pass, including private owner/role access,
+unchanged history and a provided RepeatableRead snapshot across committed context/vote changes.
+Independent review found no blocking issue. Build/types/zero-warning lint and 820 server / 581 client
+tests pass for the isolated owned snapshot. No UI activation, assignment, migration or seed change.
+See `docs/phase-2/scoped-own-ratings.md`.
+
+Next: consistent contextual rating course choices and durable UI retry scope binding, then planner
+read adoption and context-keyed caches before assigned editing. Keep verified curriculum and
+assignment gates closed.
 
 Changes since the previous checkpoint:
 
@@ -710,7 +724,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 804 server tests and 549 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 820 server tests and 581 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
