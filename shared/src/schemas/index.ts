@@ -418,16 +418,42 @@ export const UpdateStudyPlanSchema = z
     message: 'At least one field must be provided',
   });
 
-export const CreateSemesterSchema = z.object({
-  semester: SemesterSchema,
-  year: z.number().int(),
-  courses: z.array(
-    z.object({
-      courseId: z.string().uuid(),
-      position: z.number().int(),
-    }),
-  ),
-});
+export const CreateSemesterSchema = z
+  .object({
+    semester: SemesterSchema,
+    year: z.number().int(),
+    courses: z
+      .array(
+        z
+          .object({
+            courseId: z
+              .string()
+              .uuid()
+              .transform((id) => id.toLowerCase()),
+            position: z.number().int(),
+          })
+          .strict(),
+      )
+      .superRefine((courses, ctx) => {
+        const seen = new Set<string>();
+        courses.forEach(({ courseId }, index) => {
+          if (seen.has(courseId))
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [index, 'courseId'],
+              message: 'A course may appear only once in a semester',
+            });
+          seen.add(courseId);
+        });
+      }),
+    expectedScope: AccountWriteScopeSchema.optional(),
+  })
+  .strict();
+
+export const UpdateSemesterSchema = CreateSemesterSchema.partial().refine(
+  (data) => data.semester !== undefined || data.year !== undefined || data.courses !== undefined,
+  { message: 'At least one semester field must be provided' },
+);
 
 export const PlanSemesterSchema = z
   .object({

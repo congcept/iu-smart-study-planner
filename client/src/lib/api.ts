@@ -1,5 +1,9 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { CurriculumSemesterPreviewSchema } from '@iu-study-planner/shared';
+import {
+  CurriculumSemesterPreviewSchema,
+  CreateSemesterSchema,
+  UpdateSemesterSchema,
+} from '@iu-study-planner/shared';
 import type {
   ApiResponse,
   AuthResponseDTO,
@@ -276,7 +280,10 @@ export const addSemesterToPlan = async (
   planId: string,
   semesterData: CreateSemesterDTO,
 ): Promise<ApiResponse<unknown>> => {
-  const response = await apiClient.post(`/study-plans/${planId}/semesters`, semesterData);
+  const response = await apiClient.post(
+    `/study-plans/${planId}/semesters`,
+    CreateSemesterSchema.parse(semesterData),
+  );
   return response.data;
 };
 
@@ -287,7 +294,7 @@ export const updateSemester = async (
 ): Promise<ApiResponse<unknown>> => {
   const response = await apiClient.put(
     `/study-plans/${planId}/semesters/${semesterId}`,
-    semesterData,
+    UpdateSemesterSchema.parse(semesterData),
   );
   return response.data;
 };

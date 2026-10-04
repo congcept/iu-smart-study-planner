@@ -1,6 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import type { CreateSemesterDTO } from '@iu-study-planner/shared';
+import {
+  CreateSemesterSchema,
+  UpdateSemesterSchema,
+  type CreateSemesterDTO,
+  type AccountWriteScopeDTO,
+} from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { decorateCourseDifficulties } from './courseRatings';
 
@@ -103,21 +108,39 @@ async function calculateTotals(
   };
 }
 
+function assertExpectedScope(
+  expected: AccountWriteScopeDTO | undefined,
+  plan: { userId: string; user: { curriculumId: string | null } },
+) {
+  if (
+    expected &&
+    (expected.userId !== plan.userId || expected.curriculumId !== plan.user.curriculumId)
+  )
+    throw new PlannedSemesterError('Plan owner context changed; reload before saving', 409);
+}
+
 /** Owner context, membership, prior, authorization and save share one serializable snapshot. */
-export function createPlannedSemester(planId: string, actorId: string, data: CreateSemesterDTO) {
+export async function createPlannedSemester(
+  planId: string,
+  actorId: string,
+  data: CreateSemesterDTO,
+) {
+  const { expectedScope, ...fields } = CreateSemesterSchema.parse(data);
   return writeSnapshot(async (tx) => {
     const plan = await authorizePlan(tx, planId, actorId);
-    const totals = await calculateTotals(tx, data.courses, plan.user.curriculumId);
-    return tx.plannedSemester.create({ data: { studyPlanId: planId, ...data, ...totals } });
+    assertExpectedScope(expectedScope, plan);
+    const totals = await calculateTotals(tx, fields.courses, plan.user.curriculumId);
+    return tx.plannedSemester.create({ data: { studyPlanId: planId, ...fields, ...totals } });
   });
 }
 
-export function updatePlannedSemester(
+export async function updatePlannedSemester(
   planId: string,
   semesterId: string,
   actorId: string,
   data: Partial<CreateSemesterDTO>,
 ) {
+  const { expectedScope, ...fields } = UpdateSemesterSchema.parse(data);
   return writeSnapshot(async (tx) => {
     const plan = await authorizePlan(tx, planId, actorId);
     const semester = await tx.plannedSemester.findFirst({
@@ -125,9 +148,13 @@ export function updatePlannedSemester(
       select: { id: true },
     });
     if (!semester) throw new PlannedSemesterError('Semester not found', 404);
-    const totals = data.courses
-      ? await calculateTotals(tx, data.courses, plan.user.curriculumId)
+    assertExpectedScope(expectedScope, plan);
+    const totals = fields.courses
+      ? await calculateTotals(tx, fields.courses, plan.user.curriculumId)
       : {};
-    return tx.plannedSemester.update({ where: { id: semester.id }, data: { ...data, ...totals } });
+    return tx.plannedSemester.update({
+      where: { id: semester.id },
+      data: { ...fields, ...totals },
+    });
   });
 }
