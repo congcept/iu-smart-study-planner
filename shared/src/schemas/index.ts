@@ -125,6 +125,62 @@ export const ScopedOwnCourseRatingsSchema = z
   })
   .strict();
 
+const RatingCourseChoiceSchema = z
+  .object({
+    id: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase()),
+    code: z.string().min(1),
+    name: z.string().min(1),
+    avgRating: z.number().finite().min(1).max(5).nullable(),
+    ratingCount: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+    ratingDifficulty: z.number().finite().min(1).max(5),
+    ratingPriorMean: z.number().finite().min(1).max(5),
+    ratingPriorSource: z.enum([
+      'GLOBAL_RATINGS',
+      'GLOBAL_SEED',
+      'CURRICULUM_RATINGS',
+      'CURRICULUM_SEED',
+    ]),
+    yourRating: z.number().int().min(1).max(5).nullable(),
+    membership: z.enum(['CURRENT_CURRICULUM', 'OTHER_HISTORY', 'UNASSIGNED']),
+  })
+  .strict()
+  .refine(
+    (course) =>
+      (course.avgRating === null) === (course.ratingCount === 0) &&
+      (course.yourRating === null || course.ratingCount > 0),
+    'Rating evidence is inconsistent',
+  );
+
+export const RatingCourseChoicesSchema = z
+  .object({
+    scope: AccountWriteScopeSchema,
+    courses: z
+      .array(RatingCourseChoiceSchema)
+      .refine(
+        (courses) =>
+          new Set(courses.map(({ id }) => id)).size === courses.length &&
+          new Set(courses.map(({ code }) => code)).size === courses.length,
+        'Rating course identities must be unique',
+      ),
+  })
+  .strict()
+  .refine(
+    ({ scope, courses }) =>
+      courses.every((course) => {
+        const global =
+          course.ratingPriorSource === 'GLOBAL_RATINGS' ||
+          course.ratingPriorSource === 'GLOBAL_SEED';
+        return scope.curriculumId === null
+          ? course.membership === 'UNASSIGNED' && global
+          : (course.membership === 'CURRENT_CURRICULUM' && !global) ||
+              (course.membership === 'OTHER_HISTORY' && global);
+      }),
+    'Rating course membership and prior must match account scope',
+  );
+
 export const CourseRatingQuerySchema = z
   .object({
     curriculumId: z

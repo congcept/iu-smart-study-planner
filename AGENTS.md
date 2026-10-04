@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 820 server tests and 581 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 841 server tests and 648 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #74 are pushed/merged. Private scoped rating reads are verified in this branch; GitHub records their merge status. Saved-semester creation/course-list edits
+through PR #75 are pushed/merged. Completed rating course choices are verified in this branch; GitHub records their merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -450,7 +450,20 @@ Independent review found no blocking issue. Build/types/zero-warning lint and 82
 tests pass for the isolated owned snapshot. No UI activation, assignment, migration or seed change.
 See `docs/phase-2/scoped-own-ratings.md`.
 
-Next: consistent contextual rating course choices and durable UI retry scope binding, then planner
+Completed rating course choices now share one RepeatableRead owner/context snapshot with current
+completion eligibility, minimal metadata, personal votes and consistent estimates. Current members
+use contextual priors; completed nonmember history and unassigned accounts use global priors.
+PT and unplaced members remain eligible; planned records, numeric attempts and votes alone do not.
+Repeated placements produce one choice. Empty assigned contexts retain their scope without global
+membership fallback. Strict schema/adapter checks include owner, duplicates, rating evidence and
+membership/prior consistency. The screen has not yet adopted this reader.
+
+Twenty-one new PostgreSQL and sixty-seven adapter cases pass. Independent review found no
+blocking issue. Build/types/zero-warning lint and 841 server / 648 client tests pass for the
+isolated snapshot. No assignment, migration, seed or history writes.
+See `docs/phase-2/rating-course-choices.md`.
+
+Next: Ratings screen adoption and durable UI retry scope binding, then planner
 read adoption and context-keyed caches before assigned editing. Keep verified curriculum and
 assignment gates closed.
 
@@ -724,7 +737,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 820 server tests and 581 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 841 server tests and 648 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
