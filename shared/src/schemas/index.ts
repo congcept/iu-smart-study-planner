@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createPlannedDemandSnapshotSchema } from './plannedDemand';
 
 export { ContextStudentProgressSchema } from './contextStudentProgress';
 export {
@@ -536,6 +537,8 @@ export const ResourcesSnapshotSchema = z
         snapshot.resource.year === snapshot.year),
     'Resource configuration must match its curriculum and semester',
   );
+
+export const PlannedDemandSnapshotSchema = createPlannedDemandSnapshotSchema(ResourceScopeSchema);
 
 export const PlanSemesterSchema = z
   .object({
