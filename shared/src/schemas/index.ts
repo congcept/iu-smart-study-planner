@@ -4,6 +4,7 @@ import { createPlannedDemandSnapshotSchema } from './plannedDemand';
 import { createEligibleCohortDemandSnapshotSchema } from './eligibleCohortDemand';
 import { createSimulationCapacitySnapshotSchema } from './simulationCapacity';
 import { createSimulationResourceEnvelopeSchema } from './simulationResourceEnvelope';
+import { createSimulationAllocationResultSchema } from './simulationAllocation';
 
 export { ContextStudentProgressSchema } from './contextStudentProgress';
 export {
@@ -14,6 +15,10 @@ export {
 export { CurriculumSemesterPreviewSchema } from './curriculumSemesterPreview';
 export { SimulationResourcePolicySchema } from './simulationResourceEnvelope';
 export { EligibleCohortDemandPolicySchema } from './eligibleCohortDemand';
+export {
+  SimulationAllocationPolicySchema,
+  SimulationAllocationRosterSchema,
+} from './simulationAllocation';
 
 export const PaginationQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
@@ -556,6 +561,9 @@ export const SimulationResourceEnvelopeSchema = createSimulationResourceEnvelope
 );
 export const CohortResourceSnapshotSchema = createCohortResourceSnapshotSchema(
   EligibleCohortDemandSnapshotSchema,
+  SimulationResourceEnvelopeSchema,
+);
+export const SimulationAllocationResultSchema = createSimulationAllocationResultSchema(
   SimulationResourceEnvelopeSchema,
 );
 
