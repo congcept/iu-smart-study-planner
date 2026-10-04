@@ -5,10 +5,16 @@ import type {
   PlannedDemandSnapshotDTO,
   ResourcesSnapshotDTO,
   ResourceScopeDTO,
+  SimulationCapacitySnapshotDTO,
   UpsertResourcesDTO,
 } from '@iu-study-planner/shared';
 import { getSession } from '@/lib/api';
-import { getPlannedDemand, getResources, saveResources } from '@/lib/adminResourcesApi';
+import {
+  getPlannedDemand,
+  getSimulationCapacity,
+  getResources,
+  saveResources,
+} from '@/lib/adminResourcesApi';
 import { getCurriculumReference, getCurriculumReferences } from '@/lib/curriculumApi';
 import {
   curriculumReference,
@@ -23,6 +29,7 @@ vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/adminResourcesApi', () => ({
   getResources: vi.fn(),
   saveResources: vi.fn(),
+  getSimulationCapacity: vi.fn(),
   getPlannedDemand: vi.fn(),
 }));
 vi.mock('@/lib/curriculumApi', () => ({
@@ -64,7 +71,7 @@ const resources = (values = payload(), revision = 1): ResourcesSnapshotDTO => ({
     updatedAt: '2026-10-04T01:00:00.000Z',
   },
 });
-const demand = (resourceRevision = 1, count = 2): PlannedDemandSnapshotDTO => ({
+const plannedDemand = (resourceRevision = 1, count = 2): PlannedDemandSnapshotDTO => ({
   kind: 'SIMULATION',
   usage: 'REFERENCE_ONLY',
   scope,
@@ -87,6 +94,28 @@ const demand = (resourceRevision = 1, count = 2): PlannedDemandSnapshotDTO => ({
       plannedStudentCount: count,
       supply: null,
       utilization: null,
+    },
+  ],
+});
+const demand = (resourceRevision = 1, count = 2): SimulationCapacitySnapshotDTO => ({
+  kind: 'SIMULATION',
+  usage: 'REFERENCE_ONLY',
+  model: 'EXPLICIT_COURSE_CAPACITY_ONLY',
+  plannedSelections: plannedDemand(resourceRevision, count),
+  resources: { professors: 5, classrooms: 6, labRooms: 2, maxStudentsPerSection: 40 },
+  classroomSeatProxy: { basis: 'ONE_SIMULTANEOUS_CLASSROOM_SECTION_PER_ROOM', seats: 240 },
+  ignoredNonmemberOverrideCount: 0,
+  labClassificationAvailable: false,
+  teachingLoadValidated: false,
+  allocationValidated: false,
+  courses: [
+    {
+      id: memberId,
+      code: 'MA001IU',
+      declaredSeatCapacity: null,
+      capacityBasis: 'UNSPECIFIED',
+      plannedSelectionsPerDeclaredSeat: null,
+      excessPlannedSelections: null,
     },
   ],
 });
@@ -134,7 +163,7 @@ beforeEach(() => {
   vi.mocked(getCurriculumReferences).mockResolvedValue([summary]);
   vi.mocked(getCurriculumReference).mockResolvedValue(detail);
   vi.mocked(getResources).mockResolvedValue(resources());
-  vi.mocked(getPlannedDemand).mockResolvedValue(demand());
+  vi.mocked(getSimulationCapacity).mockResolvedValue(demand());
   vi.mocked(saveResources).mockImplementation(async (values) => resources(values, 2));
 });
 afterEach(() => {
@@ -147,13 +176,13 @@ describe('planned selections and resource form integration', () => {
   it('reloads counts without replacing unsaved resource edits or writing a recovery journal', async () => {
     await mount();
     fireEvent.change(professors(), { target: { value: '17' } });
-    const pending = deferred<PlannedDemandSnapshotDTO>();
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(pending.promise);
+    const pending = deferred<SimulationCapacitySnapshotDTO>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(pending.promise);
     fireEvent.click(reloadDemand());
     expect(professors()).toHaveValue(17);
     expect(professors()).toBeEnabled();
     expect(within(report()).queryByRole('table')).not.toBeInTheDocument();
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(2));
     await act(async () => pending.resolve(demand(1, 3)));
     expect(await within(report()).findByRole('cell', { name: '3' })).toBeInTheDocument();
     expect(professors()).toHaveValue(17);
@@ -162,6 +191,7 @@ describe('planned selections and resource form integration', () => {
     expect(sessionStorage.setItem).not.toHaveBeenCalled();
     expect(sessionStorage.removeItem).not.toHaveBeenCalled();
     expect(storage.size).toBe(0);
+    expect(getPlannedDemand).not.toHaveBeenCalled();
   });
 
   it('keeps a lost-save journal and locked resource fields intact when counts are reloaded', async () => {
@@ -176,7 +206,7 @@ describe('planned selections and resource form integration', () => {
     );
     expect(professors()).toBeDisabled();
     expect(professors()).toHaveValue(17);
-    vi.mocked(getPlannedDemand).mockResolvedValueOnce(demand(1, 3));
+    vi.mocked(getSimulationCapacity).mockResolvedValueOnce(demand(1, 3));
     fireEvent.click(reloadDemand());
     await within(report()).findByRole('cell', { name: '3' });
     expect(storage.get(journalKey)).toBe(preserved);
@@ -184,26 +214,27 @@ describe('planned selections and resource form integration', () => {
     expect(sessionStorage.removeItem).not.toHaveBeenCalled();
     expect(professors()).toBeDisabled();
     expect(professors()).toHaveValue(17);
-    expect(getPlannedDemand).toHaveBeenCalledTimes(2);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(2);
     expect(getResources).toHaveBeenCalledTimes(2);
     expect(saveResources).toHaveBeenCalledExactlyOnceWith(payload({ professors: 17 }));
     expect(screen.getByRole('button', { name: 'Check saved settings' })).toBeEnabled();
+    expect(getPlannedDemand).not.toHaveBeenCalled();
   });
 
   it('refreshes counts only after the resource read confirms the new saved revision', async () => {
     await mount();
     const confirmation = deferred<ResourcesSnapshotDTO>();
-    const refreshedDemand = deferred<PlannedDemandSnapshotDTO>();
+    const refreshedDemand = deferred<SimulationCapacitySnapshotDTO>();
     vi.mocked(getResources).mockReturnValueOnce(confirmation.promise);
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(refreshedDemand.promise);
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(refreshedDemand.promise);
     fireEvent.change(professors(), { target: { value: '17' } });
     fireEvent.click(saveButton());
     await waitFor(() => expect(getResources).toHaveBeenCalledTimes(2));
-    expect(getPlannedDemand).toHaveBeenCalledTimes(1);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(1);
     expect(storage.has(journalKey)).toBe(true);
     await act(async () => confirmation.resolve(resources(payload({ professors: 17 }), 2)));
     await screen.findByText('Simulation settings saved and confirmed.');
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(2));
     expect(within(report()).queryByRole('table')).not.toBeInTheDocument();
     expect(within(report()).getByRole('status')).toHaveTextContent(
       'Loading current planned selections',
@@ -215,8 +246,9 @@ describe('planned selections and resource form integration', () => {
     expect(professors()).toBeEnabled();
     expect(saveResources).toHaveBeenCalledExactlyOnceWith(payload({ professors: 17 }));
     expect(getResources).toHaveBeenLastCalledWith(scope);
-    expect(getPlannedDemand).toHaveBeenLastCalledWith(scope);
+    expect(getSimulationCapacity).toHaveBeenLastCalledWith(scope);
     expect(storage.has(journalKey)).toBe(false);
     expect(sessionStorage.removeItem).toHaveBeenCalledExactlyOnceWith(journalKey);
+    expect(getPlannedDemand).not.toHaveBeenCalled();
   });
 });
