@@ -2,6 +2,7 @@ import {
   ResourceScopeSchema,
   UpsertResourcesSchema,
   ResourcesSnapshotSchema,
+  PlannedDemandSnapshotSchema,
   type ResourceScopeDTO,
   type UpsertResourcesDTO,
   type ResourcesSnapshotDTO,
@@ -44,4 +45,19 @@ export async function saveResources(input: UpsertResourcesDTO) {
       'Could not confirm the simulation resource save. Reload to check its revision.',
     );
   return saved;
+}
+
+export async function getPlannedDemand(input: ResourceScopeDTO) {
+  const scope = ResourceScopeSchema.parse(input);
+  const response = await apiClient.get<ApiResponse<unknown>>('/admin/demand', { params: scope });
+  const parsed = PlannedDemandSnapshotSchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    parsed.data.scope.curriculumId !== scope.curriculumId ||
+    parsed.data.scope.semester !== scope.semester ||
+    parsed.data.scope.year !== scope.year
+  )
+    throw new Error('Could not verify simulated planned selections. Reload to try again.');
+  return parsed.data;
 }
