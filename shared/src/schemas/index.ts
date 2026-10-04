@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createPlannedDemandSnapshotSchema } from './plannedDemand';
+import { createSimulationCapacitySnapshotSchema } from './simulationCapacity';
 
 export { ContextStudentProgressSchema } from './contextStudentProgress';
 export {
@@ -539,6 +540,9 @@ export const ResourcesSnapshotSchema = z
   );
 
 export const PlannedDemandSnapshotSchema = createPlannedDemandSnapshotSchema(ResourceScopeSchema);
+export const SimulationCapacitySnapshotSchema = createSimulationCapacitySnapshotSchema(
+  PlannedDemandSnapshotSchema,
+);
 
 export const PlanSemesterSchema = z
   .object({

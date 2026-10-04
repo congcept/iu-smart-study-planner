@@ -3,6 +3,7 @@ import {
   UpsertResourcesSchema,
   ResourcesSnapshotSchema,
   PlannedDemandSnapshotSchema,
+  SimulationCapacitySnapshotSchema,
   type ResourceScopeDTO,
   type UpsertResourcesDTO,
   type ResourcesSnapshotDTO,
@@ -59,5 +60,20 @@ export async function getPlannedDemand(input: ResourceScopeDTO) {
     parsed.data.scope.year !== scope.year
   )
     throw new Error('Could not verify simulated planned selections. Reload to try again.');
+  return parsed.data;
+}
+
+export async function getSimulationCapacity(input: ResourceScopeDTO) {
+  const scope = ResourceScopeSchema.parse(input);
+  const response = await apiClient.get<ApiResponse<unknown>>('/admin/capacity', { params: scope });
+  const parsed = SimulationCapacitySnapshotSchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    parsed.data.plannedSelections.scope.curriculumId !== scope.curriculumId ||
+    parsed.data.plannedSelections.scope.semester !== scope.semester ||
+    parsed.data.plannedSelections.scope.year !== scope.year
+  )
+    throw new Error('Could not verify simulation capacity. Reload to try again.');
   return parsed.data;
 }
