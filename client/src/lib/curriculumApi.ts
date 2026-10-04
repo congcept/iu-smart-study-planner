@@ -1,11 +1,21 @@
 import {
   CurriculumDetailSchema,
+  CurriculumReferencesSchema,
   ContextStudentProgressSchema,
   type ContextStudentProgressDTO,
   type ApiResponse,
   type CurriculumDetailDTO,
+  type CurriculumSummaryDTO,
 } from '@iu-study-planner/shared';
 import apiClient from './api';
+
+export async function getCurriculumReferences(): Promise<CurriculumSummaryDTO[]> {
+  const response = await apiClient.get<ApiResponse<unknown>>('/curricula');
+  const parsed = CurriculumReferencesSchema.safeParse(response.data?.data);
+  if (response.data?.success !== true || !parsed.success)
+    throw new Error('Could not verify curriculum references.');
+  return parsed.data;
+}
 
 export async function getCurriculumReference(curriculumId: string): Promise<CurriculumDetailDTO> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(curriculumId))

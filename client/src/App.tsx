@@ -14,6 +14,8 @@ import { AccountCurriculum } from './features/curriculum/AccountCurriculum';
 import { GradeDashboard } from './features/grades/GradeDashboard';
 import { RatingDashboard } from './features/ratings/RatingDashboard';
 import { PlannerDashboard } from './features/planner/PlannerDashboard';
+import { AdminGuard } from './features/admin/AdminGuard';
+import { AdminResourceDashboard } from './features/admin/AdminResourceDashboard';
 
 function AppShell() {
   const { user, status, sessionError, refresh, logout } = useAuth();
@@ -82,6 +84,9 @@ function AppShell() {
               <Link to="/grades" className="text-primary-700 underline">Grades</Link>
               <Link to="/ratings" className="text-primary-700 underline">Ratings</Link>
               <Link to="/planner" className="inline-flex min-h-11 items-center text-primary-700 underline">Planner</Link>
+              {user.role === 'ADMIN' && (
+                <Link to="/admin" className="inline-flex min-h-11 items-center text-primary-700 underline">Simulation resources</Link>
+              )}
               <span className="text-gray-600">{user.name}</span>
               <span className="rounded-full bg-primary-50 px-2 py-1 text-primary-700">
                 {user.role === 'ADMIN' ? 'School admin' : 'Student'}
@@ -138,6 +143,9 @@ function AppShell() {
                 <Route path="/grades" element={user ? <GradeDashboard key={user.id} userId={user.id} /> : null} />
                 <Route path="/ratings" element={user ? <RatingDashboard key={user.id} userId={user.id} /> : null} />
                 <Route path="/planner" element={user ? <PlannerDashboard key={user.id} userId={user.id} /> : null} />
+                <Route element={<AdminGuard />}>
+                  <Route path="/admin" element={user ? <AdminResourceDashboard key={user.id} userId={user.id} /> : null} />
+                </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
