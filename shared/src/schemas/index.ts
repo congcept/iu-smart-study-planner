@@ -102,6 +102,29 @@ export const RateCourseSchema = z
   })
   .strict();
 
+// Global vote history is preserved; current scope does not imply course eligibility.
+export const ScopedOwnCourseRatingsSchema = z
+  .object({
+    scope: AccountWriteScopeSchema,
+    ratings: z
+      .array(
+        z
+          .object({
+            courseId: z
+              .string()
+              .uuid()
+              .transform((id) => id.toLowerCase()),
+            rating: z.number().int().min(1).max(5),
+          })
+          .strict(),
+      )
+      .refine(
+        (votes) => new Set(votes.map(({ courseId }) => courseId)).size === votes.length,
+        'Personal votes must have unique course identities',
+      ),
+  })
+  .strict();
+
 export const CourseRatingQuerySchema = z
   .object({
     curriculumId: z

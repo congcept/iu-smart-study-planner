@@ -11,6 +11,7 @@ import { prisma } from '../db';
 import { StudentRecordError, updateStudentRecord } from '../services/studentRecords';
 import { requireAdmin, requireAuth, requireUserAccess } from '../middleware/auth';
 import { PUBLIC_USER_SELECT } from '../services/authService';
+import { readScopedOwnRatings } from '../services/ownCourseRatings';
 import { readScopedStudentProgress, readStudentProgress } from '../services/studentProgress';
 import { importStudentProgress } from '../services/importStudentProgress';
 import { readStudentProgressView } from '../services/studentProgressView';
@@ -24,6 +25,17 @@ router.get('/me/progress/snapshot', requireAuth, async (req, res) => {
   try {
     z.object({}).strict().parse(req.query);
     return res.json({ success: true, data: await readScopedStudentProgress(req.userId) });
+  } catch (error) {
+    return handleRecordError(error, res);
+  }
+});
+
+router.get('/me/ratings/snapshot', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({}).strict().parse(req.query);
+    return res.json({ success: true, data: await readScopedOwnRatings(req.userId) });
   } catch (error) {
     return handleRecordError(error, res);
   }
