@@ -4,14 +4,16 @@ import type {
   AuthUserDTO,
   PlannedDemandSnapshotDTO,
   ResourceScopeDTO,
+  SimulationCapacitySnapshotDTO,
 } from '@iu-study-planner/shared';
 import { getSession } from '@/lib/api';
-import { getPlannedDemand, saveResources } from '@/lib/adminResourcesApi';
+import { getPlannedDemand, getSimulationCapacity, saveResources } from '@/lib/adminResourcesApi';
 import { referenceSession } from '@/test/fixtures/curriculumReference';
 import { PlannedDemandPanel } from '../PlannedDemandPanel';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/adminResourcesApi', () => ({
+  getSimulationCapacity: vi.fn(),
   getPlannedDemand: vi.fn(),
   saveResources: vi.fn(),
 }));
@@ -22,7 +24,9 @@ const curriculumId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const otherCurriculumId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const scope: ResourceScopeDTO = { curriculumId, semester: 'FALL', year: 2026 };
 const session = (id = ownerId): AuthUserDTO => ({ ...referenceSession(null, id), role: 'ADMIN' });
-const snapshot = (changes: Partial<PlannedDemandSnapshotDTO> = {}): PlannedDemandSnapshotDTO => ({
+const plannedSnapshot = (
+  changes: Partial<PlannedDemandSnapshotDTO> = {},
+): PlannedDemandSnapshotDTO => ({
   kind: 'SIMULATION',
   usage: 'REFERENCE_ONLY',
   scope,
@@ -57,6 +61,36 @@ const snapshot = (changes: Partial<PlannedDemandSnapshotDTO> = {}): PlannedDeman
   ],
   ...changes,
 });
+const snapshot = (
+  changes: Partial<PlannedDemandSnapshotDTO> = {},
+): SimulationCapacitySnapshotDTO => {
+  const plannedSelections = plannedSnapshot(changes);
+  const saved = plannedSelections.resourceRevision !== null;
+  return {
+    kind: 'SIMULATION',
+    usage: 'REFERENCE_ONLY',
+    model: 'EXPLICIT_COURSE_CAPACITY_ONLY',
+    plannedSelections,
+    resources: saved
+      ? { professors: 5, classrooms: 2, labRooms: 1, maxStudentsPerSection: 40 }
+      : null,
+    classroomSeatProxy: saved
+      ? { basis: 'ONE_SIMULTANEOUS_CLASSROOM_SECTION_PER_ROOM', seats: 80 }
+      : null,
+    ignoredNonmemberOverrideCount: saved ? 1 : 0,
+    labClassificationAvailable: false,
+    teachingLoadValidated: false,
+    allocationValidated: false,
+    courses: plannedSelections.courses.map((course) => ({
+      id: course.id,
+      code: course.code,
+      declaredSeatCapacity: null,
+      capacityBasis: 'UNSPECIFIED',
+      plannedSelectionsPerDeclaredSeat: null,
+      excessPlannedSelections: null,
+    })),
+  };
+};
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -77,13 +111,14 @@ const ready = async () => {
 const expectNoReport = () => {
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.queryByText(/students in the current assigned cohort/)).not.toBeInTheDocument();
-  expect(screen.queryByText(/Supply and utilization are unknown/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Eligibility, recommendation demand/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/80.*classroom|classroom.*80/i)).not.toBeInTheDocument();
 };
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(session());
-  vi.mocked(getPlannedDemand).mockResolvedValue(snapshot());
+  vi.mocked(getSimulationCapacity).mockResolvedValue(snapshot());
 });
 afterEach(() => {
   cleanup();
@@ -97,11 +132,12 @@ describe('readonly current planned selections panel', () => {
     mount();
     expect(screen.getByRole('status')).toHaveTextContent('Loading current planned selections');
     expect(reloadButton()).toBeDisabled();
-    expect(getPlannedDemand).not.toHaveBeenCalled();
+    expect(getSimulationCapacity).not.toHaveBeenCalled();
     await act(async () => auth.resolve(session()));
     await ready();
     expect(getSession).toHaveBeenCalledTimes(1);
-    expect(getPlannedDemand).toHaveBeenCalledExactlyOnceWith(scope);
+    expect(getSimulationCapacity).toHaveBeenCalledExactlyOnceWith(scope);
+    expect(getPlannedDemand).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -113,7 +149,7 @@ describe('readonly current planned selections panel', () => {
     mount();
     await ready();
     expect(screen.getByRole('alert')).toHaveTextContent('Your admin session changed');
-    expect(getPlannedDemand).not.toHaveBeenCalled();
+    expect(getSimulationCapacity).not.toHaveBeenCalled();
     expectNoReport();
   });
 
@@ -124,7 +160,7 @@ describe('readonly current planned selections panel', () => {
     fireEvent.click(reloadButton());
     await screen.findByRole('table');
     expect(getSession).toHaveBeenCalledTimes(2);
-    expect(getPlannedDemand).toHaveBeenCalledTimes(1);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -137,12 +173,12 @@ describe('readonly current planned selections panel', () => {
       '2 students have member-course selections, totaling 3 planned selections',
     );
     const programming = within(table).getByRole('row', { name: /IT001IU\s*Programming 2/ });
-    expect(within(programming).getByRole('cell')).toHaveTextContent('2');
+    expect(within(programming).getAllByRole('cell')[0]).toHaveTextContent('2');
     expect(within(table).getByRole('row', { name: /MA001IU\s*Calculus 1/ })).toBeInTheDocument();
     expect(screen.getByText(/1 selections outside the current curriculum/)).toBeInTheDocument();
     expect(screen.getByText(/selections are not filtered to that term/)).toBeInTheDocument();
-    expect(screen.getByText(/Supply and utilization are unknown/)).toHaveTextContent(
-      'Eligibility, recommendation demand and official offerings have not been validated',
+    expect(screen.getByText(/Eligibility, recommendation demand/)).toHaveTextContent(
+      'official offerings',
     );
     expect(saveResources).not.toHaveBeenCalled();
     expect(storageWrite).not.toHaveBeenCalled();
@@ -152,21 +188,21 @@ describe('readonly current planned selections panel', () => {
   it('clears verified rows and evidence during reload, failure, and retry', async () => {
     mount();
     await screen.findByRole('table');
-    const pending = deferred<PlannedDemandSnapshotDTO>();
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(pending.promise);
+    const pending = deferred<SimulationCapacitySnapshotDTO>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(pending.promise);
     fireEvent.click(reloadButton());
     expectNoReport();
     expect(reloadButton()).toBeDisabled();
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(2));
     await act(async () => pending.reject(new Error('Offline')));
     expect(screen.getByRole('alert')).toHaveTextContent('Could not verify planned selections');
     expectNoReport();
-    const retry = deferred<PlannedDemandSnapshotDTO>();
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(retry.promise);
+    const retry = deferred<SimulationCapacitySnapshotDTO>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(retry.promise);
     fireEvent.click(reloadButton());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expectNoReport();
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(3));
     await act(async () => retry.resolve(snapshot()));
     await screen.findByRole('table');
     expect(getSession).toHaveBeenCalledTimes(3);
@@ -180,7 +216,7 @@ describe('readonly current planned selections panel', () => {
     await ready();
     expect(screen.getByRole('alert')).toHaveTextContent('Your admin session changed');
     expectNoReport();
-    expect(getPlannedDemand).toHaveBeenCalledTimes(1);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(1);
   });
 
   it('offers retry after session verification fails without reading private demand', async () => {
@@ -188,7 +224,7 @@ describe('readonly current planned selections panel', () => {
     mount();
     await ready();
     expect(screen.getByRole('alert')).toHaveTextContent('Could not verify planned selections');
-    expect(getPlannedDemand).not.toHaveBeenCalled();
+    expect(getSimulationCapacity).not.toHaveBeenCalled();
     fireEvent.click(reloadButton());
     await screen.findByRole('table');
   });
@@ -197,16 +233,16 @@ describe('readonly current planned selections panel', () => {
     mount();
     await screen.findByRole('table');
     const auth = deferred<AuthUserDTO>();
-    const report = deferred<PlannedDemandSnapshotDTO>();
+    const report = deferred<SimulationCapacitySnapshotDTO>();
     vi.mocked(getSession).mockReturnValueOnce(auth.promise);
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(report.promise);
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(report.promise);
     fireEvent.click(reloadButton());
     fireEvent.click(reloadButton());
     fireEvent.click(reloadButton());
     expect(getSession).toHaveBeenCalledTimes(2);
-    expect(getPlannedDemand).toHaveBeenCalledTimes(1);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(1);
     await act(async () => auth.resolve(session()));
-    expect(getPlannedDemand).toHaveBeenCalledTimes(2);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(2);
     fireEvent.click(reloadButton());
     expect(getSession).toHaveBeenCalledTimes(2);
     await act(async () => report.resolve(snapshot()));
@@ -218,8 +254,8 @@ describe('readonly current planned selections panel', () => {
     async (dimension) => {
       const view = mount();
       await screen.findByRole('table');
-      const pending = deferred<PlannedDemandSnapshotDTO>();
-      vi.mocked(getPlannedDemand).mockReturnValueOnce(pending.promise);
+      const pending = deferred<SimulationCapacitySnapshotDTO>();
+      vi.mocked(getSimulationCapacity).mockReturnValueOnce(pending.promise);
       const next: ResourceScopeDTO = {
         ...scope,
         ...(dimension === 'curriculum' ? { curriculumId: otherCurriculumId } : {}),
@@ -228,12 +264,12 @@ describe('readonly current planned selections panel', () => {
       };
       view.rerender(<PlannedDemandPanel userId={ownerId} scope={next} resourceRevision={3} />);
       expectNoReport();
-      await waitFor(() => expect(getPlannedDemand).toHaveBeenLastCalledWith(next));
+      await waitFor(() => expect(getSimulationCapacity).toHaveBeenLastCalledWith(next));
       await act(async () =>
         pending.resolve(
           snapshot({
             scope: next,
-            curriculum: { ...snapshot().curriculum, id: next.curriculumId },
+            curriculum: { ...plannedSnapshot().curriculum, id: next.curriculumId },
           }),
         ),
       );
@@ -242,19 +278,19 @@ describe('readonly current planned selections panel', () => {
   );
 
   it('ignores an obsolete scenario A response after switching to B and back to A', async () => {
-    const oldA = deferred<PlannedDemandSnapshotDTO>();
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(oldA.promise);
+    const oldA = deferred<SimulationCapacitySnapshotDTO>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(oldA.promise);
     const view = mount();
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(1));
     const b = { ...scope, year: 2027 };
-    vi.mocked(getPlannedDemand).mockResolvedValueOnce(snapshot({ scope: b }));
+    vi.mocked(getSimulationCapacity).mockResolvedValueOnce(snapshot({ scope: b }));
     view.rerender(<PlannedDemandPanel userId={ownerId} scope={b} resourceRevision={3} />);
     await screen.findByRole('table');
     view.rerender(<PlannedDemandPanel userId={ownerId} scope={scope} resourceRevision={3} />);
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(3));
     await screen.findByRole('table');
     const stale = snapshot();
-    stale.courses[0].name = 'Obsolete course evidence';
+    stale.plannedSelections.courses[0].name = 'Obsolete course evidence';
     await act(async () => oldA.resolve(stale));
     expect(screen.queryByText('Obsolete course evidence')).not.toBeInTheDocument();
     expect(screen.getByText('Programming')).toBeInTheDocument();
@@ -268,23 +304,23 @@ describe('readonly current planned selections panel', () => {
     view.rerender(<PlannedDemandPanel userId={otherOwnerId} scope={scope} resourceRevision={3} />);
     await screen.findByRole('table');
     view.rerender(<PlannedDemandPanel userId={ownerId} scope={scope} resourceRevision={3} />);
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(2));
     await screen.findByRole('table');
     await act(async () => oldAuth.resolve(session()));
-    expect(getPlannedDemand).toHaveBeenCalledTimes(2);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('ignores an obsolete owner A report after switching to B and back to A', async () => {
-    const oldReport = deferred<PlannedDemandSnapshotDTO>();
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(oldReport.promise);
+    const oldReport = deferred<SimulationCapacitySnapshotDTO>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(oldReport.promise);
     const view = mount();
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(1));
     vi.mocked(getSession).mockResolvedValueOnce(session(otherOwnerId));
     view.rerender(<PlannedDemandPanel userId={otherOwnerId} scope={scope} resourceRevision={3} />);
     await screen.findByRole('table');
     view.rerender(<PlannedDemandPanel userId={ownerId} scope={scope} resourceRevision={3} />);
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(3));
     await screen.findByRole('table');
     await act(async () => oldReport.reject(new Error('Obsolete owner failure')));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -294,35 +330,45 @@ describe('readonly current planned selections panel', () => {
   it('normalizes owner and curriculum UUIDs before comparing the session and requesting demand', async () => {
     vi.mocked(getSession).mockResolvedValue(session(ownerId.toUpperCase()));
     const value = snapshot();
-    vi.mocked(getPlannedDemand).mockResolvedValue({
+    vi.mocked(getSimulationCapacity).mockResolvedValue({
       ...value,
-      scope: { ...scope, curriculumId: curriculumId.toUpperCase() },
-      curriculum: { ...value.curriculum, id: curriculumId.toUpperCase() },
+      plannedSelections: {
+        ...value.plannedSelections,
+        scope: { ...scope, curriculumId: curriculumId.toUpperCase() },
+        curriculum: { ...value.plannedSelections.curriculum, id: curriculumId.toUpperCase() },
+        courses: value.plannedSelections.courses.map((course) => ({
+          ...course,
+          id: course.id.toUpperCase(),
+        })),
+      },
       courses: value.courses.map((course) => ({ ...course, id: course.id.toUpperCase() })),
     });
     mount(ownerId.toUpperCase(), { ...scope, curriculumId: curriculumId.toUpperCase() });
     await screen.findByRole('table');
-    expect(getPlannedDemand).toHaveBeenCalledExactlyOnceWith(scope);
+    expect(getSimulationCapacity).toHaveBeenCalledExactlyOnceWith(scope);
   });
 
   it.each([
     [
       'unvalidated supply',
-      { courses: snapshot().courses.map((course) => ({ ...course, supply: 40 })) },
+      { courses: plannedSnapshot().courses.map((course) => ({ ...course, supply: 40 })) },
     ],
     ['fabricated recommendations', { recommendationDemandAvailable: true }],
     ['private student data', { students: [{ id: otherOwnerId }] }],
     ['inconsistent totals', { plannedSelectionCount: 99 }],
     [
       'duplicate course identity',
-      { courses: [snapshot().courses[0], snapshot().courses[0]], plannedSelectionCount: 4 },
+      {
+        courses: [plannedSnapshot().courses[0], plannedSnapshot().courses[0]],
+        plannedSelectionCount: 4,
+      },
     ],
     ['missing resource revision', { resourceRevision: undefined }],
   ])('rejects %s and displays no partial report', async (_label, changes) => {
-    vi.mocked(getPlannedDemand).mockResolvedValue({
+    vi.mocked(getSimulationCapacity).mockResolvedValue({
       ...snapshot(),
-      ...changes,
-    } as unknown as PlannedDemandSnapshotDTO);
+      plannedSelections: { ...plannedSnapshot(), ...changes },
+    } as unknown as SimulationCapacitySnapshotDTO);
     mount();
     await ready();
     expect(screen.getByRole('alert')).toHaveTextContent('Could not verify planned selections');
@@ -334,10 +380,10 @@ describe('readonly current planned selections panel', () => {
     { ...scope, semester: 'SPRING' as const },
     { ...scope, year: 2027 },
   ])('rejects a valid report for a different scenario %j', async (wrongScope) => {
-    vi.mocked(getPlannedDemand).mockResolvedValue(
+    vi.mocked(getSimulationCapacity).mockResolvedValue(
       snapshot({
         scope: wrongScope,
-        curriculum: { ...snapshot().curriculum, id: wrongScope.curriculumId },
+        curriculum: { ...plannedSnapshot().curriculum, id: wrongScope.curriculumId },
       }),
     );
     mount();
@@ -351,17 +397,17 @@ describe('readonly current planned selections panel', () => {
     await ready();
     expect(screen.getByRole('alert')).toHaveTextContent('Could not verify planned selections');
     expect(getSession).not.toHaveBeenCalled();
-    expect(getPlannedDemand).not.toHaveBeenCalled();
+    expect(getSimulationCapacity).not.toHaveBeenCalled();
   });
 
   it('renders explicit zero counts for member courses when the assigned cohort is empty', async () => {
-    vi.mocked(getPlannedDemand).mockResolvedValue(
+    vi.mocked(getSimulationCapacity).mockResolvedValue(
       snapshot({
         cohortStudentCount: 0,
         plannedStudentCount: 0,
         plannedSelectionCount: 0,
         ignoredNonmemberSelectionCount: 0,
-        courses: snapshot().courses.map((course) => ({ ...course, plannedStudentCount: 0 })),
+        courses: plannedSnapshot().courses.map((course) => ({ ...course, plannedStudentCount: 0 })),
       }),
     );
     mount();
@@ -374,7 +420,7 @@ describe('readonly current planned selections panel', () => {
   });
 
   it('shows an empty reference with assigned students without borrowing global course rows', async () => {
-    vi.mocked(getPlannedDemand).mockResolvedValue(
+    vi.mocked(getSimulationCapacity).mockResolvedValue(
       snapshot({ courses: [], plannedStudentCount: 0, plannedSelectionCount: 0 }),
     );
     mount();
@@ -391,9 +437,9 @@ describe('readonly current planned selections panel', () => {
 
   it('keeps a zero-count current member course in the report without deriving placement or demand', async () => {
     const value = snapshot();
-    value.courses[1].plannedStudentCount = 0;
-    value.plannedSelectionCount = 2;
-    vi.mocked(getPlannedDemand).mockResolvedValue(value);
+    value.plannedSelections.courses[1].plannedStudentCount = 0;
+    value.plannedSelections.plannedSelectionCount = 2;
+    vi.mocked(getSimulationCapacity).mockResolvedValue(value);
     mount();
     const table = await screen.findByRole('table');
     expect(within(table).getByRole('row', { name: /MA001IU\s*Calculus 0/ })).toBeInTheDocument();
@@ -407,37 +453,180 @@ describe('readonly current planned selections panel', () => {
   ])(
     'warns when form resource revision %s differs from report revision %s',
     async (formRevision, reportRevision) => {
-      vi.mocked(getPlannedDemand).mockResolvedValue(snapshot({ resourceRevision: reportRevision }));
+      vi.mocked(getSimulationCapacity).mockResolvedValue(
+        snapshot({ resourceRevision: reportRevision }),
+      );
       mount(ownerId, scope, formRevision);
       await screen.findByRole('table');
       expect(screen.getByRole('status')).toHaveTextContent(
-        'Resource settings changed since the form loaded',
+        'The report uses a different saved resource revision from the form',
       );
       expect(screen.getByRole('status')).toHaveTextContent('it replaces unsaved edits');
+      expect(screen.getByRole('status')).toHaveTextContent('leaves your form edits unchanged');
       expect(saveResources).not.toHaveBeenCalled();
     },
   );
 
   it('accepts no saved settings without treating unknown capacity as zero', async () => {
-    vi.mocked(getPlannedDemand).mockResolvedValue(snapshot({ resourceRevision: null }));
+    vi.mocked(getSimulationCapacity).mockResolvedValue(snapshot({ resourceRevision: null }));
     mount(ownerId, scope, null);
     await screen.findByRole('table');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(screen.getByText(/Supply and utilization are unknown/)).toBeInTheDocument();
+    expect(screen.getByText(/Eligibility, recommendation demand/)).toBeInTheDocument();
+    expect(screen.getByText(/No saved resource settings/)).toHaveTextContent(
+      'classroom proxy are unknown',
+    );
     expect(screen.queryByText(/0%/)).not.toBeInTheDocument();
   });
 
   it('rechecks demand when confirmed resource revision changes and clears the old proof', async () => {
     const view = mount();
     await screen.findByRole('table');
-    const report = deferred<PlannedDemandSnapshotDTO>();
-    vi.mocked(getPlannedDemand).mockReturnValueOnce(report.promise);
+    const report = deferred<SimulationCapacitySnapshotDTO>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(report.promise);
     view.rerender(<PlannedDemandPanel userId={ownerId} scope={scope} resourceRevision={4} />);
     expectNoReport();
-    await waitFor(() => expect(getPlannedDemand).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSimulationCapacity).toHaveBeenCalledTimes(2));
     await act(async () => report.resolve(snapshot({ resourceRevision: 4 })));
     await screen.findByRole('table');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(getSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows unknown declared seats and excess without converting the classroom proxy into course supply', async () => {
+    mount();
+    const table = await screen.findByRole('table');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Course', 'Students planned', 'Declared seats', 'Above limit']);
+    const row = within(table).getByRole('row', { name: /IT001IU\s*Programming/ });
+    expect(
+      within(row)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['2', 'Unknown', 'Unknown']);
+    expect(screen.queryByText(/\d+%/)).not.toBeInTheDocument();
+    expect(
+      within(table).queryByRole('columnheader', { name: /utilization|supply/i }),
+    ).not.toBeInTheDocument();
+    expect(getPlannedDemand).not.toHaveBeenCalled();
+  });
+
+  it('provides a named keyboard-focusable region for the full course comparison table', async () => {
+    mount();
+    const comparison = await screen.findByRole('region', { name: 'Course seat comparison' });
+    expect(comparison).toHaveAttribute('tabindex', '0');
+    comparison.focus();
+    expect(comparison).toHaveFocus();
+    const table = within(comparison).getByRole('table', {
+      name: 'Current planned selections and declared seats',
+    });
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(4);
+    expect(within(table).getAllByRole('cell', { name: 'Unknown' })).toHaveLength(4);
+    expect(
+      screen.getByText('Scroll the course table horizontally to see every column.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows an explicit zero seat limit and its excess separately from an unspecified course', async () => {
+    const value = snapshot();
+    value.courses[0] = {
+      ...value.courses[0],
+      declaredSeatCapacity: 0,
+      capacityBasis: 'EXPLICIT_COURSE_OVERRIDE',
+      plannedSelectionsPerDeclaredSeat: null,
+      excessPlannedSelections: 2,
+    };
+    vi.mocked(getSimulationCapacity).mockResolvedValue(value);
+    mount();
+    const table = await screen.findByRole('table');
+    const zero = within(table).getByRole('row', { name: /IT001IU\s*Programming/ });
+    const unknown = within(table).getByRole('row', { name: /MA001IU\s*Calculus/ });
+    expect(
+      within(zero)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['2', '0', '2']);
+    expect(
+      within(unknown)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['1', 'Unknown', 'Unknown']);
+    expect(screen.queryByText(/Infinity|NaN|\d+%/)).not.toBeInTheDocument();
+  });
+
+  it('shows declared positive seats and excess using the same snapshot as current selections', async () => {
+    const value = snapshot();
+    value.courses[0] = {
+      ...value.courses[0],
+      declaredSeatCapacity: 1,
+      capacityBasis: 'EXPLICIT_COURSE_OVERRIDE',
+      plannedSelectionsPerDeclaredSeat: 2,
+      excessPlannedSelections: 1,
+    };
+    value.courses[1] = {
+      ...value.courses[1],
+      declaredSeatCapacity: 40,
+      capacityBasis: 'EXPLICIT_COURSE_OVERRIDE',
+      plannedSelectionsPerDeclaredSeat: 1 / 40,
+      excessPlannedSelections: 0,
+    };
+    vi.mocked(getSimulationCapacity).mockResolvedValue(value);
+    mount();
+    const table = await screen.findByRole('table');
+    const excess = within(table).getByRole('row', { name: /IT001IU\s*Programming/ });
+    const spare = within(table).getByRole('row', { name: /MA001IU\s*Calculus/ });
+    expect(
+      within(excess)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['2', '1', '1']);
+    expect(
+      within(spare)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['1', '40', '0']);
+    expect(getSimulationCapacity).toHaveBeenCalledTimes(1);
+    expect(getPlannedDemand).not.toHaveBeenCalled();
+  });
+
+  it('describes the classroom proxy separately and reports excluded historical overrides', async () => {
+    mount();
+    await screen.findByRole('table');
+    const proxy = screen.getByText(/80.*classroom|classroom.*80/i);
+    expect(proxy).toHaveTextContent(/one simultaneous section per room/i);
+    expect(proxy).toHaveTextContent(/not semester supply/i);
+    expect(proxy).toHaveTextContent(/not assigned to individual courses/i);
+    expect(screen.getByText(/1.*override.*outside|1.*outside.*override/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/allocation.*not.*validated|not.*validated.*allocation/i),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ['mismatched course rows', { courses: [...snapshot().courses].reverse() }],
+    [
+      'fabricated room proxy',
+      { classroomSeatProxy: { basis: 'ONE_SIMULTANEOUS_CLASSROOM_SECTION_PER_ROOM', seats: 999 } },
+    ],
+    ['allocation claim', { allocationValidated: true }],
+    [
+      'inconsistent course diagnostics',
+      {
+        courses: [{ ...snapshot().courses[0], excessPlannedSelections: 0 }, snapshot().courses[1]],
+      },
+    ],
+  ])('rejects %s without showing count or capacity evidence', async (_label, changes) => {
+    vi.mocked(getSimulationCapacity).mockResolvedValue({
+      ...snapshot(),
+      ...changes,
+    } as unknown as SimulationCapacitySnapshotDTO);
+    mount();
+    await ready();
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not verify planned selections');
+    expectNoReport();
+    expect(screen.queryByText(/80.*classroom|classroom.*80/i)).not.toBeInTheDocument();
   });
 });
