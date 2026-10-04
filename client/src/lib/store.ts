@@ -1,9 +1,16 @@
 import { create } from 'zustand';
 import { isAxiosError } from 'axios';
 import { UpsertProgressSchema } from '@iu-study-planner/shared';
-import type { ApiResponse, CompleteCourseDTO, StudentProgressDTO } from '@iu-study-planner/shared';
+import type {
+  AccountWriteScopeDTO,
+  ApiResponse,
+  CompleteCourseDTO,
+  ScopedStudentProgressDTO,
+  StudentProgressDTO,
+} from '@iu-study-planner/shared';
 import type { AppState } from '../types';
-import { getCurrentStudentProgress, importStudentProgress, saveCourseProgress } from './api';
+import { importStudentProgress, saveCourseProgress } from './api';
+import { getScopedStudentProgress } from './scopedProgressApi';
 import { playCompleteSound, playUncompleteSound, playPlanSound, playUnplanSound } from './sounds';
 
 const STORAGE_KEY = 'completed_courses';
@@ -89,16 +96,43 @@ function importErrorMessage(error: unknown) {
   return courses.length ? `${message} Related courses: ${courses.join(', ')}.` : message;
 }
 
+// The legacy map is editable only after an owner-scoped snapshot confirms no assignment.
+class ProgressScopeChangedError extends Error {}
+
+function legacyProgress(snapshot: ScopedStudentProgressDTO, userId: string): StudentProgressDTO {
+  if (snapshot.scope.userId !== userId || snapshot.scope.curriculumId !== null) {
+    const message = 'Your curriculum changed. Reload your curriculum to review saved progress.';
+    useAppStore.setState((state) => ({
+      progressScope: null,
+      completedIds: {},
+      plannedIds: [],
+      progressStatus: 'error',
+      progressError: message,
+      completionVersion: state.completionVersion + 1,
+    }));
+    throw new ProgressScopeChangedError(message);
+  }
+  return snapshot.progress;
+}
+
+function editableScope(state: AppState): AccountWriteScopeDTO | null {
+  return state.progressScope?.userId === state.progressOwnerId &&
+    state.progressScope.curriculumId === null
+    ? state.progressScope
+    : null;
+}
+
 async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []) {
   const state = useAppStore.getState();
   if (
     state.pendingCompletionIds.size ||
-    (state.progressOwnerId && state.progressStatus !== 'ready')
+    (state.progressOwnerId && (state.progressStatus !== 'ready' || !editableScope(state)))
   )
     return;
   const userId = state.progressOwnerId;
+  const expectedScope = editableScope(state);
   const version = ownerVersion;
-  loadVersion++;
+  const request = ++loadVersion;
   const before = { completedIds: state.completedIds, plannedIds: state.plannedIds };
   const completedIds = { ...state.completedIds };
   const plannedIds = state.plannedIds.filter((id) => id !== data.courseId);
@@ -125,7 +159,9 @@ async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []
     return;
   }
   const isCurrent = () =>
-    ownerVersion === version && useAppStore.getState().progressOwnerId === userId;
+    ownerVersion === version &&
+    loadVersion === request &&
+    useAppStore.getState().progressOwnerId === userId;
   const reconcile = (progress: StudentProgressDTO) => {
     cacheProgress(progress, userId);
     useAppStore.setState((current) => ({
@@ -135,19 +171,25 @@ async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []
     }));
   };
   try {
-    const confirmed = await saveCourseProgress(data);
+    await saveCourseProgress({ ...data, expectedScope: expectedScope! });
     if (!isCurrent()) return;
-    reconcile(confirmed);
+    const snapshot = await getScopedStudentProgress(userId);
+    if (!isCurrent()) return;
+    reconcile(legacyProgress(snapshot, userId));
     useAppStore.setState({ pendingCompletionIds: new Set(), progressStatus: 'ready' });
   } catch (error) {
     if (!isCurrent()) return;
+    if (error instanceof ProgressScopeChangedError) {
+      useAppStore.setState({ pendingCompletionIds: new Set() });
+      return;
+    }
     reconcile(before);
     useAppStore.setState({ progressError: progressErrorMessage(error) });
     // A lost response may follow a committed write. Recover before another edit.
     try {
-      const confirmed = await getCurrentStudentProgress();
+      const snapshot = await getScopedStudentProgress(userId);
       if (!isCurrent()) return;
-      reconcile(confirmed);
+      reconcile(legacyProgress(snapshot, userId));
       useAppStore.setState({ progressStatus: 'ready' });
     } catch {
       if (isCurrent()) useAppStore.setState({ progressStatus: 'error' });
@@ -167,6 +209,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
   completionVersion: 0,
   progressOwnerId: null,
+  progressScope: null,
   progressStatus: 'ready',
   progressError: null,
   browserProgressBackup: null,
@@ -193,6 +236,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ? state
         : {
             progressOwnerId: userId,
+            progressScope: null,
             progressStatus: userId ? 'idle' : 'ready',
             progressError: null,
             browserProgressBackup: null,
@@ -213,12 +257,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     const version = ownerVersion;
     const request = ++loadVersion;
-    const previous = { completedIds: get().completedIds, plannedIds: get().plannedIds };
+    const previous = { completedIds: loadCompletedIds(userId), plannedIds: loadPlannedIds(userId) };
     const isCurrent = () => ownerVersion === version && loadVersion === request;
-    set({ progressStatus: 'loading', progressError: null });
+    set({ progressScope: null, progressStatus: 'loading', progressError: null });
     try {
-      const progress = await getCurrentStudentProgress();
+      const snapshot = await getScopedStudentProgress(userId);
       if (!isCurrent()) return;
+      const progress = legacyProgress(snapshot, userId);
       let browserProgressBackup = get().browserProgressBackup;
       let browserProgressBackupError = get().browserProgressBackupError;
       try {
@@ -257,6 +302,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       cacheProgress(progress, userId);
       set((state) => ({
         ...progress,
+        progressScope: snapshot.scope,
         browserProgressBackup,
         browserProgressBackupError,
         progressStatus: 'ready',
@@ -272,6 +318,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (
       !userId ||
       state.progressStatus !== 'ready' ||
+      !editableScope(state) ||
       state.pendingCompletionIds.size ||
       !state.browserProgressBackup
     )
@@ -304,9 +351,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       progressImportError: null,
     });
     try {
-      const progress = await importStudentProgress(result.data);
+      await importStudentProgress({ ...result.data, expectedScope: editableScope(state)! });
       if (!isCurrent()) return;
-      reconcile(progress);
+      const snapshot = await getScopedStudentProgress(userId);
+      if (!isCurrent()) return;
+      reconcile(legacyProgress(snapshot, userId));
       try {
         localStorage.removeItem(`browser_progress_backup:${userId}`);
       } catch {
@@ -321,13 +370,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       if (!isCurrent()) return;
       const message = importErrorMessage(error);
+      if (error instanceof ProgressScopeChangedError) {
+        set({ progressImportStatus: 'error', progressImportError: message });
+        return;
+      }
       set({ progressImportError: message, progressError: message });
       // The POST may have committed before its response was lost. Keep the archive
       // for an explicit additive retry, and recover before permitting more edits.
       try {
-        const progress = await getCurrentStudentProgress();
+        const snapshot = await getScopedStudentProgress(userId);
         if (!isCurrent()) return;
-        reconcile(progress);
+        reconcile(legacyProgress(snapshot, userId));
         set({ progressStatus: 'ready', progressImportStatus: 'error' });
       } catch {
         if (isCurrent()) set({ progressStatus: 'error', progressImportStatus: 'error' });

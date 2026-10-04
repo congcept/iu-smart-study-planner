@@ -53,7 +53,7 @@ npm run dev                                # Build shared, then run shared/clien
   - `completedIds`: `Record<string, string | null>` — maps courseId → electiveGroup name (or null for non-elective)
   - `plannedIds`: `string[]`
   - `progressStatus` gates editing until server hydration succeeds; one mutation is pending at a time
-  - Server responses reconcile the full snapshot; failures roll back and reload before another edit
+  - Signed-in legacy editing requires a verified null curriculum scope; completion/import sends its precondition and reconciles only through a fresh scoped snapshot. Assigned contexts remain read-only; failures recover before another edit
   - Old account-local selections are archived under `browser_progress_backup:<userId>` before first server hydration; guest selections are never imported
 - **API**: Express backend with Zod validation, returns `{ success, data?, error? }`
 - **Auth**: JWT in an httpOnly cookie — NOT localStorage. `cookie-parser` on the server, `credentials: 'include'` on the client
@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 780 server tests and 501 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 780 server tests and 534 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #71 are pushed/merged. The scoped progress snapshot and adapter are verified in this branch; GitHub records their merge status. Saved-semester creation/course-list edits
+through PR #72 are pushed/merged. Scoped store activation is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -391,8 +391,7 @@ is accepted. Assigned membership filters active selections without erasing nonme
 unassigned scope is explicit null. The strict shared schema and client adapter normalize UUIDs,
 reject other owners, case-equivalent duplicate course identities, completed/planned overlap and
 unexpected metadata, while preserving historical elective claim text exactly. Legacy progress
-endpoints remain unchanged. The adapter is ready for store integration; it is not activated in
-the current editable store yet. No account assignment or assigned editing is enabled.
+endpoints remain unchanged. The adapter is now consumed by the legacy store for hydration, confirmation and recovery; assigned progress is withheld from that editable store. No account assignment or assigned editing is enabled.
 
 Eleven added PostgreSQL cases and nineteen adapter cases cover ownership, null/empty snapshots,
 query validation, cookie access, unchanged history and concurrent context snapshot consistency.
@@ -403,18 +402,27 @@ Cause remains unconfirmed; retain this stability finding alongside the prior wor
 Review is inline because prior subagents reached account usage limits. Details:
 `docs/phase-2/scoped-progress-snapshot.md`.
 
-Next: use the scoped snapshot for store hydration/recovery, retain owner/context in the cache,
-connect confirmed completion/import preconditions, and add rating-write scope checks,
-then adopt context-aware completion mutation/cache handling before enabling editing. Keep completion
-editing gated until progress/cache hydration/types and pending mutations/claims are isolated
-by owner and context. The old GPA hook is retained only within the confirmed-null legacy map.
-Do not enable assignment yet. Remaining legacy consumers expect flat
-profile/recommendation fields; the Planner preview now consumes its contextual DTO.
-Preserve unrelated UI ownership. Assignment must
-validate transferred completions/claims/cached plans and isolate caches and pending handlers
-by account and context. Full degree planning requires verified elective/degree/offering
-rules. Signed IT/DS reconciliation precedes the selector. Required school-admin resources/
-allocation/dashboard, deployment and thesis remain outstanding.
+The legacy progress store now activates only matching scoped snapshots with explicit null
+curriculum. Hydration, post-save confirmation and lost-response recovery share this guard.
+Completion/import sends the confirmed expectedScope; flat POST snapshots never publish cached
+progress or retire archives. Assigned contexts clear active legacy selections and lock editing,
+without replacing the null-context account cache/archive or marking it confirmed. Owner/load
+versions isolate late follow-up reads across logout and A→B→A. Existing owner-only cache keys
+are intentionally restricted to null context; assigned cache activation remains deferred.
+First-null hydration reads the original disk cache even after an assigned snapshot cleared the
+visible store, preserving its import opportunity. Guests and denied-storage behavior are retained.
+
+Thirty-three added client regressions and retained synchronization/component cases pass;
+independent source review found no blocking issue. Build, typecheck, zero-warning lint and
+780 server / 534 client tests pass for the isolated owned snapshot (the last two new client
+assertions were followed by fresh client types/lint/full tests). Local browser review saved one
+simulated completion, rejected an action after assigning that disposable account to a reference,
+and confirmed the same completion/4 credits on reload. Disposable fixtures/listeners were removed;
+the user's running app was retained. No production assignment/selector/schema/seed change.
+See `docs/phase-2/progress-store-scope.md`.
+
+Next: scope rating writes and private rating/planner readers, then design context-keyed cache
+activation before enabling assigned editing. Keep verified curriculum and assignment gates closed.
 
 Changes since the previous checkpoint:
 
@@ -686,7 +694,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 780 server tests and 501 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 780 server tests and 534 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

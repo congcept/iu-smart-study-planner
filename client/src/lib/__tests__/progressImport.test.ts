@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError, AxiosHeaders } from 'axios';
-import type { StudentProgressDTO } from '@iu-study-planner/shared';
-import { getCurrentStudentProgress, importStudentProgress, saveCourseProgress } from '../api';
+import type { ScopedStudentProgressDTO, StudentProgressDTO } from '@iu-study-planner/shared';
+import { importStudentProgress, saveCourseProgress } from '../api';
+import { getScopedStudentProgress } from '../scopedProgressApi';
 import { useAppStore } from '../store';
 
 vi.mock('../api', () => ({
-  getCurrentStudentProgress: vi.fn(),
   importStudentProgress: vi.fn(),
   saveCourseProgress: vi.fn(),
 }));
+vi.mock('../scopedProgressApi', () => ({ getScopedStudentProgress: vi.fn() }));
 vi.mock('../sounds', () => ({
   playCompleteSound: vi.fn(),
   playUncompleteSound: vi.fn(),
@@ -28,9 +29,13 @@ const merged: StudentProgressDTO = {
   completedIds: { [existing]: 'Group 1', [completed]: 'Group 2' },
   plannedIds: [planned],
 };
-const getProgress = vi.mocked(getCurrentStudentProgress);
+const getProgress = vi.mocked(getScopedStudentProgress);
 const importProgress = vi.mocked(importStudentProgress);
 const saveProgress = vi.mocked(saveCourseProgress);
+
+function scoped(progress: StudentProgressDTO, userId = 'alice'): ScopedStudentProgressDTO {
+  return { scope: { userId, curriculumId: null }, progress };
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -47,7 +52,7 @@ function snapshot() {
 }
 async function signIn(archive = JSON.stringify(backup)) {
   localStorage.setItem('browser_progress_backup:alice', archive);
-  getProgress.mockResolvedValueOnce(initial);
+  getProgress.mockResolvedValueOnce(scoped(initial));
   useAppStore.getState().setProgressOwner('alice');
   await useAppStore.getState().loadProgress();
 }
@@ -64,6 +69,7 @@ beforeEach(() => {
     completedIds: {},
     plannedIds: [],
     progressOwnerId: null,
+    progressScope: null,
     progressStatus: 'ready',
     pendingCompletionIds: new Set(),
     browserProgressBackup: null,
@@ -81,10 +87,14 @@ describe('explicit account-owned archive imports', () => {
     const request = deferred<StudentProgressDTO>();
     importProgress.mockReturnValueOnce(request.promise);
     const importing = useAppStore.getState().importBrowserProgress();
-    expect(importProgress).toHaveBeenCalledWith(backup);
+    expect(importProgress).toHaveBeenCalledWith({
+      ...backup,
+      expectedScope: { userId: 'alice', curriculumId: null },
+    });
     expect(snapshot()).toEqual(initial);
     expect(useAppStore.getState().progressImportStatus).toBe('importing');
     expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
+    getProgress.mockResolvedValueOnce(scoped(merged));
     request.resolve(merged);
     await importing;
     expect(snapshot()).toEqual(merged);
@@ -95,7 +105,48 @@ describe('explicit account-owned archive imports', () => {
     expect(JSON.parse(localStorage.getItem('completed_courses:alice')!)).toEqual(
       merged.completedIds,
     );
-    expect(getProgress).toHaveBeenCalledTimes(1);
+    expect(getProgress).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the archive while the POST succeeded but the scoped confirmation is still pending', async () => {
+    await signIn();
+    const confirmation = deferred<ScopedStudentProgressDTO>();
+    getProgress.mockReturnValueOnce(confirmation.promise);
+    importProgress.mockResolvedValueOnce({ completedIds: { unverified: null }, plannedIds: [] });
+    const importing = useAppStore.getState().importBrowserProgress();
+    await vi.waitFor(() => expect(getProgress).toHaveBeenCalledTimes(2));
+    expect(snapshot()).toEqual(initial);
+    expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
+    expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
+    expect(useAppStore.getState().progressImportStatus).toBe('importing');
+    confirmation.resolve(scoped(merged));
+    await importing;
+    expect(snapshot()).toEqual(merged);
+    expect(useAppStore.getState().browserProgressBackup).toBeNull();
+  });
+
+  it('retains its archive and locks legacy edits when post-import confirmation detects a new curriculum', async () => {
+    await signIn();
+    importProgress.mockResolvedValueOnce(merged);
+    getProgress.mockResolvedValueOnce({
+      scope: { userId: 'alice', curriculumId: '00000000-0000-4000-8000-000000000004' },
+      progress: merged,
+    });
+    await useAppStore.getState().importBrowserProgress();
+    expect(snapshot()).toEqual({ completedIds: {}, plannedIds: [] });
+    expect(useAppStore.getState().progressScope).toBeNull();
+    expect(useAppStore.getState().progressStatus).toBe('error');
+    expect(useAppStore.getState().progressImportStatus).toBe('error');
+    expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
+    expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
+    expect(JSON.parse(localStorage.getItem('completed_courses:alice')!)).toEqual(
+      initial.completedIds,
+    );
+    await useAppStore.getState().importBrowserProgress();
+    await useAppStore.getState().toggleCoursePlanned(planned);
+    expect(importProgress).toHaveBeenCalledTimes(1);
+    expect(saveProgress).not.toHaveBeenCalled();
+    expect(getProgress).toHaveBeenCalledTimes(2);
   });
 
   it('blocks duplicate imports, normal course edits, and reloads while importing', async () => {
@@ -111,6 +162,7 @@ describe('explicit account-owned archive imports', () => {
     expect(importProgress).toHaveBeenCalledTimes(1);
     expect(saveProgress).not.toHaveBeenCalled();
     expect(getProgress).toHaveBeenCalledTimes(1);
+    getProgress.mockResolvedValueOnce(scoped(merged));
     request.resolve(merged);
     await importing;
   });
@@ -122,26 +174,28 @@ describe('explicit account-owned archive imports', () => {
     const saving = useAppStore.getState().toggleCoursePlanned(planned);
     await useAppStore.getState().importBrowserProgress();
     expect(importProgress).not.toHaveBeenCalled();
+    getProgress.mockResolvedValueOnce(scoped(initial));
     save.resolve({ ...initial, uncompletedCourseIds: [] });
     await saving;
-    const load = deferred<StudentProgressDTO>();
+    const load = deferred<ScopedStudentProgressDTO>();
     getProgress.mockReturnValueOnce(load.promise);
     const loading = useAppStore.getState().loadProgress();
     await useAppStore.getState().importBrowserProgress();
     expect(importProgress).not.toHaveBeenCalled();
-    load.resolve(initial);
+    load.resolve(scoped(initial));
     await loading;
   });
 
   it('invalidates an older reload that finishes after a newer hydration and successful import', async () => {
     await signIn();
-    const older = deferred<StudentProgressDTO>();
-    getProgress.mockReturnValueOnce(older.promise).mockResolvedValueOnce(initial);
+    const older = deferred<ScopedStudentProgressDTO>();
+    getProgress.mockReturnValueOnce(older.promise).mockResolvedValueOnce(scoped(initial));
     const staleLoad = useAppStore.getState().loadProgress();
     await useAppStore.getState().loadProgress();
     importProgress.mockResolvedValueOnce(merged);
+    getProgress.mockResolvedValueOnce(scoped(merged));
     await useAppStore.getState().importBrowserProgress();
-    older.resolve(initial);
+    older.resolve(scoped(initial));
     await staleLoad;
     expect(snapshot()).toEqual(merged);
     expect(useAppStore.getState().browserProgressBackup).toBeNull();
@@ -150,7 +204,7 @@ describe('explicit account-owned archive imports', () => {
 
   it('recovers a lost POST response, retains the backup, and permits an explicit additive retry', async () => {
     await signIn();
-    const recovery = deferred<StudentProgressDTO>();
+    const recovery = deferred<ScopedStudentProgressDTO>();
     importProgress.mockRejectedValueOnce(new Error('Connection lost'));
     getProgress.mockReturnValueOnce(recovery.promise);
     const importing = useAppStore.getState().importBrowserProgress();
@@ -161,7 +215,7 @@ describe('explicit account-owned archive imports', () => {
     expect(importProgress).toHaveBeenCalledTimes(1);
     expect(saveProgress).not.toHaveBeenCalled();
     expect(getProgress).toHaveBeenCalledTimes(2);
-    recovery.resolve(merged);
+    recovery.resolve(scoped(merged));
     await importing;
     expect(snapshot()).toEqual(merged);
     expect(useAppStore.getState().progressImportStatus).toBe('error');
@@ -170,8 +224,12 @@ describe('explicit account-owned archive imports', () => {
     expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
     expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
     importProgress.mockResolvedValueOnce(merged);
+    getProgress.mockResolvedValueOnce(scoped(merged));
     await useAppStore.getState().importBrowserProgress();
-    expect(importProgress).toHaveBeenNthCalledWith(2, backup);
+    expect(importProgress).toHaveBeenNthCalledWith(2, {
+      ...backup,
+      expectedScope: { userId: 'alice', curriculumId: null },
+    });
     expect(useAppStore.getState().progressImportError).toBeNull();
     expect(useAppStore.getState().browserProgressBackup).toBeNull();
   });
@@ -188,7 +246,7 @@ describe('explicit account-owned archive imports', () => {
     await useAppStore.getState().toggleCoursePlanned(planned);
     expect(importProgress).toHaveBeenCalledTimes(1);
     expect(saveProgress).not.toHaveBeenCalled();
-    getProgress.mockResolvedValueOnce(initial);
+    getProgress.mockResolvedValueOnce(scoped(initial));
     await useAppStore.getState().loadProgress();
     expect(useAppStore.getState().progressStatus).toBe('ready');
     expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
@@ -215,6 +273,32 @@ describe('explicit account-owned archive imports', () => {
     },
   );
 
+  it.each(['logout', 'switch', 'switch back'] as const)(
+    'ignores a late scoped import confirmation GET after %s and preserves its archive',
+    async (change) => {
+      await signIn();
+      const confirmation = deferred<ScopedStudentProgressDTO>();
+      importProgress.mockResolvedValueOnce(merged);
+      getProgress.mockReturnValueOnce(confirmation.promise);
+      const importing = useAppStore.getState().importBrowserProgress();
+      await vi.waitFor(() => expect(getProgress).toHaveBeenCalledTimes(2));
+      useAppStore.getState().setProgressOwner(change === 'logout' ? null : 'bob');
+      if (change === 'switch back') useAppStore.getState().setProgressOwner('alice');
+      const current = snapshot();
+      const status = useAppStore.getState().progressStatus;
+      confirmation.resolve(scoped(merged));
+      await importing;
+      expect(snapshot()).toEqual(current);
+      expect(useAppStore.getState().progressStatus).toBe(status);
+      expect(useAppStore.getState().progressScope).toBeNull();
+      expect(useAppStore.getState().progressImportStatus).toBe('idle');
+      expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
+      expect(JSON.parse(localStorage.getItem('completed_courses:alice')!)).toEqual(
+        initial.completedIds,
+      );
+    },
+  );
+
   it('does not recover a failed import for an account that signed out', async () => {
     await signIn();
     const request = deferred<StudentProgressDTO>();
@@ -229,14 +313,14 @@ describe('explicit account-owned archive imports', () => {
 
   it('ignores a recovery response after switching accounts', async () => {
     await signIn();
-    const recovery = deferred<StudentProgressDTO>();
+    const recovery = deferred<ScopedStudentProgressDTO>();
     importProgress.mockRejectedValueOnce(new Error('Connection lost'));
     getProgress.mockReturnValueOnce(recovery.promise);
     const importing = useAppStore.getState().importBrowserProgress();
     await vi.waitFor(() => expect(getProgress).toHaveBeenCalledTimes(2));
     useAppStore.getState().setProgressOwner('bob');
     const current = snapshot();
-    recovery.resolve(merged);
+    recovery.resolve(scoped(merged));
     await importing;
     expect(snapshot()).toEqual(current);
     expect(useAppStore.getState().progressImportStatus).toBe('idle');
@@ -303,7 +387,7 @@ describe('explicit account-owned archive imports', () => {
       },
     };
     importProgress.mockRejectedValueOnce(error);
-    getProgress.mockResolvedValueOnce(initial);
+    getProgress.mockResolvedValueOnce(scoped(initial));
     await useAppStore.getState().importBrowserProgress();
     expect(useAppStore.getState().progressImportError).toBe(
       'Cannot import without all prerequisites Related courses: MA001IU: Calculus 1.',
@@ -334,11 +418,12 @@ describe('explicit account-owned archive imports', () => {
       },
     });
     try {
-      getProgress.mockResolvedValueOnce(initial);
+      getProgress.mockResolvedValueOnce(scoped(initial));
       await useAppStore.getState().loadProgress();
       expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
       expect(useAppStore.getState().progressStatus).toBe('ready');
       importProgress.mockResolvedValueOnce(merged);
+      getProgress.mockResolvedValueOnce(scoped(merged));
       await useAppStore.getState().importBrowserProgress();
       expect(snapshot()).toEqual(merged);
       expect(useAppStore.getState().progressImportStatus).toBe('success');
@@ -362,11 +447,12 @@ describe('explicit account-owned archive imports', () => {
       },
     });
     importProgress.mockResolvedValueOnce(merged);
+    getProgress.mockResolvedValueOnce(scoped(merged));
     await useAppStore.getState().importBrowserProgress();
     expect(snapshot()).toEqual(merged);
     expect(useAppStore.getState().progressImportStatus).toBe('success');
     expect(useAppStore.getState().progressImportError).toBeNull();
     expect(useAppStore.getState().progressStatus).toBe('ready');
-    expect(getProgress).toHaveBeenCalledTimes(1);
+    expect(getProgress).toHaveBeenCalledTimes(2);
   });
 });
