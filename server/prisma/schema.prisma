@@ -80,6 +80,7 @@ model Curriculum {
   courses      CurriculumCourse[]
   users        User[]
   requirements CurriculumRequirement[]
+  resources    SchoolResource[]
 
   @@map("curriculums")
 }
@@ -159,6 +160,28 @@ model CurriculumPrerequisite {
   @@map("curriculum_prerequisites")
 }
 
+// Simulation configuration only; it does not represent a real offering or allocation.
+model SchoolResource {
+  id                    String     @id @default(uuid())
+  curriculumId          String     @map("curriculum_id")
+  semester              Semester
+  year                  Int
+  professors            Int        @default(0)
+  classrooms            Int        @default(0)
+  labRooms              Int        @default(0) @map("lab_rooms")
+  maxStudentsPerSection Int        @default(40) @map("max_students_per_section")
+  courseOverrides       Json       @default("{}") @map("course_overrides")
+  revision              Int        @default(1)
+  updatedBy             String?    @map("updated_by")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+  curriculum            Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  updatedByUser         User?      @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@unique([curriculumId, semester, year])
+  @@map("school_resources")
+}
+
 model User {
   id                   String   @id @default(uuid())
   studentId            String   @unique @map("student_id")
@@ -178,6 +201,7 @@ model User {
   ratings          CourseRating[]
   ratingWriteLimit RatingWriteLimit?
   studyPlans       StudyPlan[]
+  updatedResources SchoolResource[]
   curriculum       Curriculum?       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
