@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import {
   RateCourseSchema,
+  type AccountWriteScopeDTO,
   type CourseDifficultyDTO,
   type CourseRatingsDTO,
   type SubmittedCourseRatingDTO,
@@ -118,8 +119,9 @@ export async function submitCourseRating(
   userId: string,
   courseId: string,
   rating: number,
+  expectedScope?: AccountWriteScopeDTO,
 ): Promise<SubmittedCourseRatingDTO> {
-  const value = RateCourseSchema.parse({ rating }).rating;
+  const { rating: value, expectedScope: scope } = RateCourseSchema.parse({ rating, expectedScope });
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       return await prisma.$transaction(
@@ -129,6 +131,17 @@ export async function submitCourseRating(
             { id: string; curriculumId: string | null }[]
           >`SELECT id, curriculum_id AS "curriculumId" FROM users WHERE id=${userId} FOR NO KEY UPDATE`;
           if (owners.length === 0) throw new CourseRatingError(401, 'Authentication required');
+          // Scope binds this vote to the context the caller reviewed, never assigns a context.
+          // Check unchanged retries too: their returned estimate must not silently change scope.
+          if (
+            scope &&
+            (scope.userId !== owners[0].id.toLowerCase() ||
+              scope.curriculumId !== (owners[0].curriculumId?.toLowerCase() ?? null))
+          )
+            throw new CourseRatingError(
+              409,
+              'Your account or curriculum changed. Reload ratings before saving changes',
+            );
           const course = await tx.course.findUnique({
             where: { id: courseId },
             select: { id: true },
@@ -184,7 +197,13 @@ export async function submitCourseRating(
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') continue;
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2034' ||
+          // Raw row-lock queries wrap PostgreSQL serialization failures as P2010.
+          (error.code === 'P2010' && error.meta?.code === '40001'))
+      )
+        continue;
       throw error;
     }
   }

@@ -45,7 +45,10 @@ router.post('/:id/rate', requireAuth, async (req, res) => {
   try {
     const id = courseIdSchema.parse(req.params.id);
     const data = RateCourseSchema.parse(req.body);
-    return res.json({ success: true, data: await submitCourseRating(req.userId, id, data.rating) });
+    return res.json({
+      success: true,
+      data: await submitCourseRating(req.userId, id, data.rating, data.expectedScope),
+    });
   } catch (error) {
     return handleError(error, res);
   }
