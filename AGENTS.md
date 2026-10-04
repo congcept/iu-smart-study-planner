@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 841 server tests and 677 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 862 server tests and 708 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #76 are pushed/merged. Scoped Ratings screen integration is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #77 are pushed/merged. Saved-semester intent scope is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -478,8 +478,20 @@ pass for the exact isolated snapshot. Desktop/mobile browser verification saved 
 a stale context update and cleared only the local retry; fixtures/listeners/tab were cleaned up.
 See `docs/phase-2/rating-screen-scope.md`. No assignment, seed, migration or assigned completion editing.
 
-Next: saved-semester intent scope preconditions, then required school-admin resource persistence
-and demand/allocation in small increments. Planner context read adoption is already shipped.
+Saved-semester create/update now accept strict optional plan-owner expectedScope, compared inside
+the existing Serializable authorization/membership/prior/save snapshot. Shared-course membership,
+empty lists and metadata-only writes cannot silently rebind a scoped request after owner context
+changes. Admin intent uses the plan owner; auth/nested-resource precedence remains. Scope is stripped
+before persistence. Shared schemas consolidate existing strict UUID/duplicate/order validation;
+routes, adapters and async direct-service boundaries reuse them. Matching metadata-only edits keep
+historical cached selections/totals; omitted scope preserves legacy compatibility. There is no
+current production UI caller of these semester adapters.
+
+Twenty-one new PostgreSQL and thirty-one adapter cases pass. Independent review found no blocking
+issue. Build/types/zero-warning lint and 862 server / 708 client tests pass for the exact isolated
+snapshot. No assignment, migration, seed or history reset. See `docs/phase-2/saved-semester-write-scope.md`.
+
+Next: required school-admin simulation resource persistence, then demand/allocation in small increments. Planner context read adoption is already shipped.
 Context-keyed caches remain necessary before assigned editing. Keep verified curriculum and
 assignment gates closed.
 
@@ -753,7 +765,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 841 server tests and 677 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 862 server tests and 708 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

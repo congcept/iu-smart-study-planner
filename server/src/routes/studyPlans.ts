@@ -2,7 +2,11 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
-import { CreateStudyPlanSchema, CreateSemesterSchema } from '@iu-study-planner/shared';
+import {
+  CreateStudyPlanSchema,
+  CreateSemesterSchema,
+  UpdateSemesterSchema,
+} from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { requireAuth, requireUserIdAccess } from '../middleware/auth';
 import { requireStudyPlanAccess } from '../middleware/studyPlanAccess';
@@ -17,38 +21,6 @@ function isNotFoundError(error: unknown): boolean {
 }
 
 const router = Router();
-
-const SemesterInputSchema = CreateSemesterSchema.extend({
-  courses: z
-    .array(
-      CreateSemesterSchema.shape.courses.element
-        .extend({
-          courseId: z
-            .string()
-            .uuid()
-            .transform((id) => id.toLowerCase()),
-        })
-        .strict(),
-    )
-    .superRefine((courses, ctx) => {
-      const seen = new Set<string>();
-      courses.forEach(({ courseId }, index) => {
-        if (seen.has(courseId)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: [index, 'courseId'],
-            message: 'A course may appear only once in a semester',
-          });
-        }
-        seen.add(courseId);
-      });
-    }),
-}).strict();
-
-const SemesterUpdateSchema = SemesterInputSchema.partial().refine(
-  (data) => Object.keys(data).length > 0,
-  { message: 'At least one field must be provided' },
-);
 
 // Get all study plans for a user
 router.get('/user/:userId', requireUserIdAccess, async (req: Request, res: Response) => {
@@ -183,7 +155,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const validatedData = SemesterInputSchema.parse(req.body);
+      const validatedData = CreateSemesterSchema.parse(req.body);
 
       const semester = await createPlannedSemester(id, req.userId!, validatedData);
 
@@ -219,7 +191,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const { planId, semesterId } = req.params;
-      const validatedData = SemesterUpdateSchema.parse(req.body);
+      const validatedData = UpdateSemesterSchema.parse(req.body);
 
       const semester = await updatePlannedSemester(planId, semesterId, req.userId!, validatedData);
 
