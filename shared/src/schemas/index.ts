@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createCohortResourceSnapshotSchema } from './cohortResourceSnapshot';
 import { createPlannedDemandSnapshotSchema } from './plannedDemand';
 import { createEligibleCohortDemandSnapshotSchema } from './eligibleCohortDemand';
 import { createSimulationCapacitySnapshotSchema } from './simulationCapacity';
@@ -552,6 +553,10 @@ export const SimulationCapacitySnapshotSchema = createSimulationCapacitySnapshot
 export const SimulationResourceEnvelopeSchema = createSimulationResourceEnvelopeSchema(
   ResourceScopeSchema,
   ResourcesSnapshotSchema.innerType().shape.curriculum,
+);
+export const CohortResourceSnapshotSchema = createCohortResourceSnapshotSchema(
+  EligibleCohortDemandSnapshotSchema,
+  SimulationResourceEnvelopeSchema,
 );
 
 export const PlanSemesterSchema = z
