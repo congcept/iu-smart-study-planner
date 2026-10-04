@@ -2,17 +2,18 @@ import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
-import { getCurriculum, getCurrentStudentProgress, saveCourseProgress } from '@/lib/api';
+import { getCurriculum, saveCourseProgress } from '@/lib/api';
 import { getStudentGrades } from '@/lib/gradesApi';
+import { getScopedStudentProgress } from '@/lib/scopedProgressApi';
 import { useAppStore } from '@/lib/store';
 import type { Course } from '@/types';
 import { CurriculumProgressMap } from '../CurriculumProgressMap';
 
 vi.mock('@/lib/api', () => ({
   getCurriculum: vi.fn(),
-  getCurrentStudentProgress: vi.fn(),
   saveCourseProgress: vi.fn(),
 }));
+vi.mock('@/lib/scopedProgressApi', () => ({ getScopedStudentProgress: vi.fn() }));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 vi.mock('@/lib/sounds', () => ({
   playCompleteSound: vi.fn(),
@@ -90,13 +91,17 @@ beforeEach(() => {
     completedIds: {},
     plannedIds: [],
     progressOwnerId: null,
+    progressScope: null,
     progressStatus: 'ready',
     progressError: null,
     browserProgressBackup: null,
     pendingCompletionIds: new Set(),
     progressImportStatus: 'idle',
   });
-  vi.mocked(getCurrentStudentProgress).mockResolvedValue({ completedIds: {}, plannedIds: [] });
+  vi.mocked(getScopedStudentProgress).mockImplementation(async (userId) => ({
+    scope: { userId, curriculumId: null },
+    progress: { completedIds: {}, plannedIds: [] },
+  }));
   vi.mocked(getCurriculum).mockResolvedValue({
     success: true,
     data: [
@@ -220,9 +225,9 @@ describe('server GPA policy in the curriculum map', () => {
 
   it('refreshes the path on return from grade entry without changing progress', async () => {
     signIn('alice');
-    vi.mocked(getCurrentStudentProgress).mockResolvedValue({
-      completedIds: { MA001IU: null },
-      plannedIds: ['IT059IU'],
+    vi.mocked(getScopedStudentProgress).mockResolvedValue({
+      scope: { userId: 'alice', curriculumId: null },
+      progress: { completedIds: { MA001IU: null }, plannedIds: ['IT059IU'] },
     });
     vi.mocked(getStudentGrades)
       .mockResolvedValueOnce(grades('ALTERNATIVE', 70))

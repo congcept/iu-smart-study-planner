@@ -1,5 +1,6 @@
 import type { SemesterPlanningDTO, SemesterPlanSlotDTO } from '@iu-study-planner/shared';
 import type {
+  AccountWriteScopeDTO,
   CourseDifficultyDTO,
   StudentProgressDTO,
   RecommendationStatsDTO,
@@ -133,6 +134,7 @@ export interface AppState {
   error: string | null;
   completionVersion: number;
   progressOwnerId: string | null;
+  progressScope: AccountWriteScopeDTO | null;
   progressStatus: 'idle' | 'loading' | 'ready' | 'error';
   progressError: string | null;
   browserProgressBackup: StudentProgressDTO | null;

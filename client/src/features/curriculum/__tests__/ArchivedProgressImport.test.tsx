@@ -1,17 +1,18 @@
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { StudentProgressDTO } from '@iu-study-planner/shared';
-import { getCurrentStudentProgress, importStudentProgress } from '@/lib/api';
+import type { ScopedStudentProgressDTO, StudentProgressDTO } from '@iu-study-planner/shared';
+import { importStudentProgress } from '@/lib/api';
+import { getScopedStudentProgress } from '@/lib/scopedProgressApi';
 import { useAppStore } from '@/lib/store';
 import type { Course } from '@/types';
 import { ArchivedProgressImport } from '../ArchivedProgressImport';
 
 vi.mock('@/lib/api', () => ({
-  getCurrentStudentProgress: vi.fn(),
   importStudentProgress: vi.fn(),
   saveCourseProgress: vi.fn(),
 }));
+vi.mock('@/lib/scopedProgressApi', () => ({ getScopedStudentProgress: vi.fn() }));
 vi.mock('@/lib/sounds', () => ({
   playCompleteSound: vi.fn(),
   playUncompleteSound: vi.fn(),
@@ -36,7 +37,7 @@ const merged: StudentProgressDTO = {
   completedIds: { [prerequisiteId]: null, [electiveId]: 'Group 2' },
   plannedIds: [plannedId],
 };
-const getProgress = vi.mocked(getCurrentStudentProgress);
+const getProgress = vi.mocked(getScopedStudentProgress);
 const importProgress = vi.mocked(importStudentProgress);
 
 function course(id: string, code: string, name: string, overrides: Partial<Course> = {}): Course {
@@ -62,6 +63,10 @@ const courses = [
   course(existingId, 'IT162IU', 'Saved Course'),
 ];
 
+function scoped(progress: StudentProgressDTO, userId = 'alice'): ScopedStudentProgressDTO {
+  return { scope: { userId, curriculumId: null }, progress };
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
@@ -75,7 +80,7 @@ async function signIn(
   owner = 'alice',
 ) {
   localStorage.setItem(`browser_progress_backup:${owner}`, JSON.stringify(archive));
-  getProgress.mockResolvedValueOnce(progress);
+  getProgress.mockResolvedValueOnce(scoped(progress, owner));
   useAppStore.getState().setProgressOwner(owner);
   await useAppStore.getState().loadProgress();
 }
@@ -100,6 +105,7 @@ beforeEach(() => {
     completedIds: {},
     plannedIds: [],
     progressOwnerId: null,
+    progressScope: null,
     progressStatus: 'ready',
     progressError: null,
     browserProgressBackup: null,
@@ -118,6 +124,7 @@ describe('archived browser selection review', () => {
   it('requires an explicit review and import click after hydration, then saves the full snapshot', async () => {
     await signIn();
     importProgress.mockResolvedValueOnce(merged);
+    getProgress.mockResolvedValueOnce(scoped(merged));
     show();
     expect(
       screen.getByText('1 completed and 1 planned courses are backed up for this account.'),
@@ -139,7 +146,10 @@ describe('archived browser selection review', () => {
         'Earlier selections imported. Your account progress is saved.',
       ),
     );
-    expect(importProgress).toHaveBeenCalledExactlyOnceWith(backup);
+    expect(importProgress).toHaveBeenCalledExactlyOnceWith({
+      ...backup,
+      expectedScope: { userId: 'alice', curriculumId: null },
+    });
     expect(useAppStore.getState().completedIds).toEqual(merged.completedIds);
     expect(useAppStore.getState().plannedIds).toEqual(merged.plannedIds);
     expect(localStorage.getItem('browser_progress_backup:alice')).toBeNull();
@@ -341,7 +351,9 @@ describe('archived browser selection review', () => {
   it('disables repeat import and Later while importing and retains preview until confirmation', async () => {
     await signIn();
     const request = deferred<StudentProgressDTO>();
+    const confirmation = deferred<ScopedStudentProgressDTO>();
     importProgress.mockReturnValueOnce(request.promise);
+    getProgress.mockReturnValueOnce(confirmation.promise);
     show();
     fireEvent.click(review());
     expect(screen.getByRole('button', { name: 'Import selections' })).toBeDisabled();
@@ -357,6 +369,12 @@ describe('archived browser selection review', () => {
     expect(importProgress).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
     await act(async () => request.resolve(merged));
+    expect(getProgress).toHaveBeenCalledTimes(2);
+    expect(useAppStore.getState().completedIds).toEqual(initial.completedIds);
+    expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
+    expect(screen.getByRole('button', { name: 'Import selections' })).toBeDisabled();
+    await act(async () => confirmation.resolve(scoped(merged)));
+    expect(screen.getByRole('status')).toHaveTextContent('Earlier selections imported.');
   });
 
   it('keeps the reviewed preview and archive on failure, then permits an explicit retry after recovery', async () => {
@@ -364,24 +382,28 @@ describe('archived browser selection review', () => {
     importProgress
       .mockRejectedValueOnce(new Error('Connection lost'))
       .mockResolvedValueOnce(merged);
-    const recovery = deferred<StudentProgressDTO>();
+    const recovery = deferred<ScopedStudentProgressDTO>();
     getProgress.mockReturnValueOnce(recovery.promise);
     show();
     fireEvent.click(review());
     await waitFor(() => expect(getProgress).toHaveBeenCalledTimes(2));
     expect(screen.getByRole('button', { name: 'Import selections' })).toBeDisabled();
-    await act(async () => recovery.resolve(initial));
+    await act(async () => recovery.resolve(scoped(initial)));
     expect(screen.getByRole('alert')).toHaveTextContent('Connection lost');
     expect(screen.getByRole('alert')).toHaveTextContent('Your backup has been kept');
     expect(screen.getByRole('region', { name: 'Archived course selections' })).toBeInTheDocument();
     expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
     expect(screen.getByRole('button', { name: 'Import selections' })).toBeEnabled();
+    getProgress.mockResolvedValueOnce(scoped(merged));
     fireEvent.click(screen.getByRole('button', { name: 'Import selections' }));
     await waitFor(() =>
       expect(screen.getByRole('status')).toHaveTextContent('Earlier selections imported.'),
     );
     expect(importProgress).toHaveBeenCalledTimes(2);
-    expect(importProgress).toHaveBeenNthCalledWith(2, backup);
+    expect(importProgress).toHaveBeenNthCalledWith(2, {
+      ...backup,
+      expectedScope: { userId: 'alice', curriculumId: null },
+    });
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
@@ -390,6 +412,7 @@ describe('review keyboard focus', () => {
   it('moves focus into review and restores the review button after Later', async () => {
     useAppStore.setState({
       progressOwnerId: 'focus-owner',
+      progressScope: { userId: 'focus-owner', curriculumId: null },
       progressStatus: 'ready',
       browserProgressBackup: backup,
       browserProgressBackupError: null,

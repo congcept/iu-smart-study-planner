@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCurriculum, getCurrentStudentProgress, saveCourseProgress } from '@/lib/api';
+import { getCurriculum, saveCourseProgress } from '@/lib/api';
 import type { CompleteCourseResponseDTO } from '@iu-study-planner/shared';
+import { getScopedStudentProgress } from '@/lib/scopedProgressApi';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { useAppStore } from '@/lib/store';
 import type { Course } from '@/types';
@@ -10,9 +11,9 @@ import { CurriculumProgressMap } from '../CurriculumProgressMap';
 
 vi.mock('@/lib/api', () => ({
   getCurriculum: vi.fn(),
-  getCurrentStudentProgress: vi.fn(),
   saveCourseProgress: vi.fn(),
 }));
+vi.mock('@/lib/scopedProgressApi', () => ({ getScopedStudentProgress: vi.fn() }));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
 vi.mock('@/lib/sounds', () => ({
   playCompleteSound: vi.fn(),
@@ -61,7 +62,13 @@ beforeEach(() => {
   vi.mocked(getStudentGrades).mockResolvedValue({
     attempts: [],
     completedCoursesWithoutNumericGrades: [],
-    summary: { gpa100: null, gpaPath: null, gradedCredits: 0, gradedCourseCount: 0, courseScores: [] },
+    summary: {
+      gpa100: null,
+      gpaPath: null,
+      gradedCredits: 0,
+      gradedCourseCount: 0,
+      courseScores: [],
+    },
   });
   const storage = new Map<string, string>();
   vi.stubGlobal('localStorage', {
@@ -72,6 +79,7 @@ beforeEach(() => {
     completedIds: {},
     plannedIds: [],
     progressOwnerId: null,
+    progressScope: null,
     progressStatus: 'ready',
     progressError: null,
     browserProgressBackup: null,
@@ -96,9 +104,9 @@ afterEach(() => {
 describe('prerequisite interactions', () => {
   it('reconciles a signed-in cascade with server-only dependents and blocks clicks during saving', async () => {
     useAppStore.getState().setProgressOwner('alice');
-    vi.mocked(getCurrentStudentProgress).mockResolvedValue({
-      completedIds: { A: null, B: null, C: null, E: null },
-      plannedIds: [],
+    vi.mocked(getScopedStudentProgress).mockResolvedValue({
+      scope: { userId: 'alice', curriculumId: null },
+      progress: { completedIds: { A: null, B: null, C: null, E: null }, plannedIds: [] },
     });
     let confirm: (response: CompleteCourseResponseDTO) => void = () => {};
     vi.mocked(saveCourseProgress).mockReturnValue(
@@ -116,6 +124,11 @@ describe('prerequisite interactions', () => {
       courseId: 'A',
       electiveGroup: null,
       status: 'DROPPED',
+      expectedScope: { userId: 'alice', curriculumId: null },
+    });
+    vi.mocked(getScopedStudentProgress).mockResolvedValueOnce({
+      scope: { userId: 'alice', curriculumId: null },
+      progress: { completedIds: { C: null }, plannedIds: [] },
     });
     await act(async () => {
       confirm({ completedIds: { C: null }, plannedIds: [], uncompletedCourseIds: ['B', 'E'] });
@@ -127,9 +140,12 @@ describe('prerequisite interactions', () => {
 
   it('blocks course editing when hydration fails and recovers through the retry action', async () => {
     useAppStore.getState().setProgressOwner('alice');
-    vi.mocked(getCurrentStudentProgress)
+    vi.mocked(getScopedStudentProgress)
       .mockRejectedValueOnce(new Error('Offline'))
-      .mockResolvedValueOnce({ completedIds: {}, plannedIds: [] });
+      .mockResolvedValueOnce({
+        scope: { userId: 'alice', curriculumId: null },
+        progress: { completedIds: {}, plannedIds: [] },
+      });
     vi.mocked(getCurriculum).mockResolvedValue({
       success: true,
       data: [{ year: 1, semester: 1, courses: [course('A')] }],

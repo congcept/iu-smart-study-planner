@@ -1,18 +1,24 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { getCurrentStudentProgress, saveCourseProgress } from '../api';
+import type { ScopedStudentProgressDTO, StudentProgressDTO } from '@iu-study-planner/shared';
+import { saveCourseProgress } from '../api';
+import { getScopedStudentProgress } from '../scopedProgressApi';
 import { useAppStore } from '../store';
 
 vi.mock('../api', () => ({
-  getCurrentStudentProgress: vi.fn(),
   saveCourseProgress: vi.fn(),
 }));
 
+vi.mock('../scopedProgressApi', () => ({ getScopedStudentProgress: vi.fn() }));
 vi.mock('../sounds', () => ({
   playCompleteSound: vi.fn(),
   playUncompleteSound: vi.fn(),
   playPlanSound: vi.fn(),
   playUnplanSound: vi.fn(),
 }));
+
+function scoped(progress: StudentProgressDTO, userId = 'alice'): ScopedStudentProgressDTO {
+  return { scope: { userId, curriculumId: null }, progress };
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -24,6 +30,7 @@ beforeEach(() => {
   useAppStore.getState().setProgressOwner(null);
   useAppStore.setState({
     progressOwnerId: null,
+    progressScope: null,
     progressStatus: 'ready',
     progressError: null,
     browserProgressBackup: null,
@@ -37,9 +44,9 @@ afterEach(() => vi.unstubAllGlobals());
 it('keeps two students and guest progress separate, preserving elective claims and plans', async () => {
   localStorage.setItem('completed_courses', JSON.stringify({ guestCourse: null }));
   const store = useAppStore.getState();
-  const getProgress = vi.mocked(getCurrentStudentProgress);
+  const getProgress = vi.mocked(getScopedStudentProgress);
   const saveProgress = vi.mocked(saveCourseProgress);
-  getProgress.mockResolvedValueOnce({ completedIds: {}, plannedIds: [] });
+  getProgress.mockResolvedValueOnce(scoped({ completedIds: {}, plannedIds: [] }));
   store.setProgressOwner('alice');
   await store.loadProgress();
   saveProgress.mockResolvedValueOnce({
@@ -47,44 +54,58 @@ it('keeps two students and guest progress separate, preserving elective claims a
     plannedIds: [],
     uncompletedCourseIds: [],
   });
+  getProgress.mockResolvedValueOnce(
+    scoped({ completedIds: { 'course-a': 'Group 2' }, plannedIds: [] }),
+  );
   await store.toggleCourseComplete('course-a', 'Group 2');
   saveProgress.mockResolvedValueOnce({
     completedIds: { 'course-a': 'Group 2' },
     plannedIds: ['course-b'],
     uncompletedCourseIds: [],
   });
+  getProgress.mockResolvedValueOnce(
+    scoped({ completedIds: { 'course-a': 'Group 2' }, plannedIds: ['course-b'] }),
+  );
   await store.toggleCoursePlanned('course-b');
   store.setProgressOwner('bob');
   expect(useAppStore.getState().completedIds).toEqual({});
   expect(useAppStore.getState().plannedIds).toEqual([]);
-  getProgress.mockResolvedValueOnce({ completedIds: {}, plannedIds: [] });
+  getProgress.mockResolvedValueOnce(scoped({ completedIds: {}, plannedIds: [] }, 'bob'));
   await store.loadProgress();
   saveProgress.mockResolvedValueOnce({
     completedIds: { 'course-c': null },
     plannedIds: [],
     uncompletedCourseIds: [],
   });
+  getProgress.mockResolvedValueOnce(
+    scoped({ completedIds: { 'course-c': null }, plannedIds: [] }, 'bob'),
+  );
   await store.toggleCourseComplete('course-c');
   store.setProgressOwner('alice');
   expect(useAppStore.getState().completedIds).toEqual({ 'course-a': 'Group 2' });
   expect(useAppStore.getState().plannedIds).toEqual(['course-b']);
-  getProgress.mockResolvedValueOnce({
-    completedIds: { 'course-a': 'Group 2' },
-    plannedIds: ['course-b'],
-  });
+  getProgress.mockResolvedValueOnce(
+    scoped({
+      completedIds: { 'course-a': 'Group 2' },
+      plannedIds: ['course-b'],
+    }),
+  );
   await store.loadProgress();
   saveProgress.mockResolvedValueOnce({
     completedIds: {},
     plannedIds: ['course-b', 'course-a'],
     uncompletedCourseIds: [],
   });
+  getProgress.mockResolvedValueOnce(
+    scoped({ completedIds: {}, plannedIds: ['course-b', 'course-a'] }),
+  );
   await store.completeToPlanned('course-a');
   store.setProgressOwner('bob');
   expect(useAppStore.getState().completedIds).toEqual({ 'course-c': null });
   store.setProgressOwner(null);
   expect(useAppStore.getState().completedIds).toEqual({ guestCourse: null });
   await store.toggleCoursePlanned('guest-plan');
-  expect(getProgress).toHaveBeenCalledTimes(3);
+  expect(getProgress).toHaveBeenCalledTimes(7);
   expect(saveProgress).toHaveBeenCalledTimes(4);
   expect(JSON.parse(localStorage.getItem('completed_courses')!)).toEqual({ guestCourse: null });
   expect(JSON.parse(localStorage.getItem('planned_courses')!)).toEqual(['guest-plan']);
