@@ -3,6 +3,8 @@ import {
   RateCourseSchema,
   AccountWriteScopeSchema,
   ScopedOwnCourseRatingsSchema,
+  RatingCourseChoicesSchema,
+  type RatingCourseChoicesDTO,
   type ScopedOwnCourseRatingsDTO,
   type ApiResponse,
   type OwnCourseRatingDTO,
@@ -47,5 +49,20 @@ export async function getScopedOwnRatings(
     parsed.data.scope.userId !== expected.userId
   )
     throw new Error('Could not verify saved ratings for your account. Reload to try again.');
+  return parsed.data;
+}
+
+export async function getRatingCourseChoices(
+  expectedUserId: string,
+): Promise<RatingCourseChoicesDTO> {
+  const expected = AccountWriteScopeSchema.parse({ userId: expectedUserId, curriculumId: null });
+  const response = await apiClient.get<ApiResponse<unknown>>('/users/me/ratings/courses');
+  const parsed = RatingCourseChoicesSchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    parsed.data.scope.userId !== expected.userId
+  )
+    throw new Error('Could not verify completed courses for your account. Reload to try again.');
   return parsed.data;
 }
