@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createPlannedDemandSnapshotSchema } from './plannedDemand';
 import { createSimulationCapacitySnapshotSchema } from './simulationCapacity';
+import { createSimulationResourceEnvelopeSchema } from './simulationResourceEnvelope';
 
 export { ContextStudentProgressSchema } from './contextStudentProgress';
 export {
@@ -9,6 +10,7 @@ export {
   CurriculumReferencesSchema,
 } from './curriculumDetail';
 export { CurriculumSemesterPreviewSchema } from './curriculumSemesterPreview';
+export { SimulationResourcePolicySchema } from './simulationResourceEnvelope';
 
 export const PaginationQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
@@ -542,6 +544,10 @@ export const ResourcesSnapshotSchema = z
 export const PlannedDemandSnapshotSchema = createPlannedDemandSnapshotSchema(ResourceScopeSchema);
 export const SimulationCapacitySnapshotSchema = createSimulationCapacitySnapshotSchema(
   PlannedDemandSnapshotSchema,
+);
+export const SimulationResourceEnvelopeSchema = createSimulationResourceEnvelopeSchema(
+  ResourceScopeSchema,
+  ResourcesSnapshotSchema.innerType().shape.curriculum,
 );
 
 export const PlanSemesterSchema = z
