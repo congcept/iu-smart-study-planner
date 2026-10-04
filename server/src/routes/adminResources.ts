@@ -6,6 +6,7 @@ import { readResources, upsertResources, SchoolResourceError } from '../services
 import { readPlannedDemand } from '../services/schoolDemand';
 import { readSimulationCapacity } from '../services/schoolSupply';
 import { readSimulationResourceEnvelope } from '../services/schoolResourceEnvelope';
+import { readEligibleCohortDemand } from '../services/eligibleCohortDemand';
 
 const router = Router();
 const QuerySchema = ResourceScopeSchema.extend({
@@ -29,6 +30,16 @@ function failure(
   console.error('Resource configuration error:', error);
   return res.status(500).json({ success: false, error: fallback });
 }
+router.get('/cohort-demand', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const scope = QuerySchema.parse(req.query);
+    return res.json({ success: true, data: await readEligibleCohortDemand(req.userId, scope) });
+  } catch (error) {
+    return failure(error, res, 'Could not load eligible cohort demand');
+  }
+});
 router.get('/resource-envelope', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
