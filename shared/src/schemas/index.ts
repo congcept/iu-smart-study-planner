@@ -4,7 +4,11 @@ import { createPlannedDemandSnapshotSchema } from './plannedDemand';
 import { createEligibleCohortDemandSnapshotSchema } from './eligibleCohortDemand';
 import { createSimulationCapacitySnapshotSchema } from './simulationCapacity';
 import { createSimulationResourceEnvelopeSchema } from './simulationResourceEnvelope';
-import { createSimulationAllocationResultSchema } from './simulationAllocation';
+import {
+  createSimulationAllocationResultSchema,
+  SimulationAllocationPolicySchema,
+} from './simulationAllocation';
+import { createAllocationPreviewSchema } from './allocationPreview';
 
 export { ContextStudentProgressSchema } from './contextStudentProgress';
 export {
@@ -565,6 +569,11 @@ export const CohortResourceSnapshotSchema = createCohortResourceSnapshotSchema(
 );
 export const SimulationAllocationResultSchema = createSimulationAllocationResultSchema(
   SimulationResourceEnvelopeSchema,
+);
+
+export const AllocationPreviewSchema = createAllocationPreviewSchema(
+  CohortResourceSnapshotSchema,
+  SimulationAllocationPolicySchema,
 );
 
 export const PlanSemesterSchema = z

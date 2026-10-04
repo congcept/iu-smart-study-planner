@@ -181,3 +181,5 @@ export interface SemesterPlanningDTO {
 }
 
 export type PlanSemesterDTO = z.infer<typeof schemas.PlanSemesterSchema>;
+
+export type AllocationPreviewDTO = z.infer<typeof schemas.AllocationPreviewSchema>;
