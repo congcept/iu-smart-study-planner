@@ -80,8 +80,6 @@ export const StudentGradeCoursesSchema = z
     },
   );
 
-export const RateCourseSchema = z.object({ rating: z.number().int().min(1).max(5) }).strict();
-
 // A precondition, never an instruction to change the authenticated account/context.
 export const AccountWriteScopeSchema = z
   .object({
@@ -94,6 +92,13 @@ export const AccountWriteScopeSchema = z
       .uuid()
       .transform((id) => id.toLowerCase())
       .nullable(),
+  })
+  .strict();
+
+export const RateCourseSchema = z
+  .object({
+    rating: z.number().int().min(1).max(5),
+    expectedScope: AccountWriteScopeSchema.optional(),
   })
   .strict();
 
