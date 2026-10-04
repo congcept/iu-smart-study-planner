@@ -48,7 +48,7 @@ npm run dev                                # Build shared, then run shared/clien
 ## Architecture
 
 - **Monorepo** with workspaces: `client/`, `server/`, `shared/`
-- **Routing**: `react-router-dom` — `/` demo, `/login`, `/register`, protected `/curriculum`, `/grades`, `/ratings` and `/planner`, plus ADMIN-only `/admin` simulation resource entry. Grades show numeric GPA and retake history; demand/allocation views remain pending.
+- **Routing**: `react-router-dom` — `/` demo, `/login`, `/register`, protected `/curriculum`, `/grades`, `/ratings` and `/planner`, plus ADMIN-only `/admin` simulation resource entry and current planned-selection counts. Grades show numeric GPA and retake history; full demand/allocation views remain pending.
 - **State**: Zustand store (`client/src/lib/store.ts`), server-backed for signed-in accounts with localStorage as a confirmed-state cache; anonymous demo stays browser-local
   - `completedIds`: `Record<string, string | null>` — maps courseId → electiveGroup name (or null for non-elective)
   - `plannedIds`: `string[]`
@@ -157,7 +157,7 @@ Branches, pushes, and PR creation/merge are authorized in this conversation.
 | CS/IT/DS source gate           | User-supplied official CSE page reviewed; signed 2024/2025 curriculum links identified; existing CS JSON retained as attribute/layout reference; additive context membership/placement/prerequisite foundation and nullable user assignment; strict read-only CS verifier with portable source manifest preserving 71 placements/56 identities and explicit free-elective requirement and additive requirement storage; read-only catalog compatibility inspection and atomic/idempotent legacy CS context backfill; reference-only context list/detail API and isolated curriculum Bayesian priors                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Contextual recommendations/workload/planner readers; reconcile signed PDFs, validate IT/DS, then major selector |
 | Grades and GPA                 | Existing grade metadata preserved by completion updates; tested numeric 0–100 GPA calculator, highest score per course, credit weighting and physical-training exclusion; additive immutable numeric GradeAttempt history with account-scoped retry keys; authenticated numeric grade history/append APIs with consistent summaries and explicit coverage gaps; protected Grades dashboard with retake history, loading/retry states and account isolation; numeric grade entry with account-scoped tab recovery, immutable retry keys and full-snapshot reconciliation; server GPA path in grade summaries with decimal-exact >70 policy; signed-in curriculum path/target/recommendations follow the server with account isolation, refresh, retry and explicit-null manual fallback; member-scoped numeric GPA/coverage with full immutable history, placed-membership entry checks, safe old-key recovery and nonfork null path                                                                                                                                                                                                                                                                                                                                                                                                                 | Client context/scope/nonfork handling and verified subject metadata                                             |
 | Ratings and recommendations    | Seed difficulty prior retained; pure Bayesian shrinkage helper with prior strength 5, zero-rating mean behavior and confidence count; additive global CourseRating rows with unique account/course votes, 1–5 checks and atomic cached averages/counts, including concurrent writes and FK deletion; public consistent rating summaries with global prior resolution and Bayesian estimates; explicit validated curriculum reads and cookie-owner member vote replies share curriculum priors while preserving historical global votes; completion-gated cookie-authenticated upserts and durable configurable hourly quota, idempotent unchanged retries; private current-account vote reads; batched, snapshot-consistent difficulty/count projections in course lists, detail and curriculum rows; visible difficulty/count badges with honest zero-vote copy; protected Ratings route with completed-course 1–5 entry, saved personal votes, account isolation, session-tab recovery and locked same-vote retries; Bayesian estimates consumed by workload averages, risk, validation, personalized course selection and configurable semester ranking and explicit unscheduled-course reporting without misleading graduation estimates; duplicated planner `RULES` removed, all database prerequisite flags enforced across earlier semesters | Multi-objective scoring and verified curriculum activation                                                      |
-| School admin                   | Real ADMIN role and demo session; additive simulation resource settings, strict admin API and revision conflicts; role-guarded resource entry with exact read confirmation and tab recovery; scoped current-cohort planned-selection API and read-only counts screen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Demand, scarcity allocation, multi-objective scoring, allocation dashboard — required                           |
+| School admin                   | Real ADMIN role and demo session; additive simulation resource settings, strict admin API and revision conflicts; role-guarded resource entry with exact read confirmation and tab recovery; scoped current-cohort planned-selection API and read-only counts screen; explicit simulation capacity diagnostic                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Demand, scarcity allocation, multi-objective scoring, allocation dashboard — required                           |
 | Verification/deployment/thesis | Real PostgreSQL and client regression suites; shared-first root builds/typechecks/tests; concurrent local startup; Docker shared builds with isolated compiled output; local Docker smoke checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Deployment gate and thesis chapters                                                                             |
 
 Full phases are **not** marked complete: curriculum context, grades,
@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 973 server tests and 954 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 1035 server tests and 983 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -190,7 +190,7 @@ edits are preserved separately from the narrow auth/GPA fixes.
 ## Active Checkpoint — 2026-10-04
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #81 are pushed/merged. The planned-selection view is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #82 are pushed/merged. The capacity diagnostic is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -561,7 +561,28 @@ cohort from three to two selections without changing resources. QA fixtures/list
 removed; the running user app and unrelated drafts remain preserved. No migration, seed or real
 assignment. See `docs/phase-4/simulation-planned-selection-view.md`.
 
-Next: declared simulated supply assumptions and full demand,
+The ADMIN-only `/api/admin/capacity` diagnostic implements an explicit-course-override model.
+Declared seats are absolute limits; zero differs from unknown and professor-only limits do not
+infer seats. Positive-capacity ratios and known-capacity excess compare current intentions with
+declared limits. One separate classroom-seat proxy represents one simultaneous section per room;
+it is never copied into every course or added to overrides. Labs and staff remain raw inputs.
+Nested planned-selection scope/counts/limitations remain unchanged; stale nonmember overrides
+are ignored/count-reported. Actor, cohort, membership, revision and full validated resources share
+one RepeatableRead snapshot. No audit/student identities, allocation or writes are exposed.
+
+Thirty-nine pure/schema, twenty-three PostgreSQL and twenty-nine adapter cases pass. The default
+production reader race commits a new resource revision between demand and full-resource reads,
+then verifies the original revision/capacity remains coherent; the next read sees the committed
+revision. Malformed current and historical override JSON fails closed. Independent source review
+requested that default-wrapper regression; it is now implemented and review is clear. Build/types/
+zero-warning lint and 1035 server / 983 client tests pass for the exact isolated snapshot. An
+unrelated existing curriculum-import case returned 403 instead of 409 once; its complete 64-case
+targeted rerun and full suite recheck passed without source changes. The unexpected status remains
+a stability finding.
+See `docs/phase-4/simulation-capacity-diagnostic.md`. No migration, seed/reset, real assignment or
+student activation. Phase-4 supply/redistribution remains incomplete.
+
+Next: capacity diagnostic view and explicit shared section/staff assumptions, then full demand,
 configurable multi-objective scoring and scarcity allocation in small increments. Planner context read adoption is already shipped.
 Context-keyed caches remain necessary before assigned editing. Keep verified curriculum and
 assignment gates closed.
@@ -836,7 +857,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 973 server tests and 954 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 1035 server tests and 983 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety

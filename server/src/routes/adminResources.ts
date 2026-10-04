@@ -4,6 +4,7 @@ import { ResourceScopeSchema, UpsertResourcesSchema } from '@iu-study-planner/sh
 import { requireAdmin } from '../middleware/auth';
 import { readResources, upsertResources, SchoolResourceError } from '../services/schoolResources';
 import { readPlannedDemand } from '../services/schoolDemand';
+import { readSimulationCapacity } from '../services/schoolSupply';
 
 const router = Router();
 const QuerySchema = ResourceScopeSchema.extend({
@@ -27,6 +28,16 @@ function failure(
   console.error('Resource configuration error:', error);
   return res.status(500).json({ success: false, error: fallback });
 }
+router.get('/capacity', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const scope = QuerySchema.parse(req.query);
+    return res.json({ success: true, data: await readSimulationCapacity(req.userId, scope) });
+  } catch (error) {
+    return failure(error, res, 'Could not load simulation capacity diagnostic');
+  }
+});
 router.get('/demand', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
