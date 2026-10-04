@@ -20,6 +20,7 @@ import {
 import { AdminResourceDashboard } from '../AdminResourceDashboard';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
+vi.mock('../PlannedDemandPanel', () => ({ PlannedDemandPanel: () => null }));
 vi.mock('@/lib/adminResourcesApi', () => ({ getResources: vi.fn(), saveResources: vi.fn() }));
 vi.mock('@/lib/curriculumApi', () => ({
   getCurriculumReference: vi.fn(),
