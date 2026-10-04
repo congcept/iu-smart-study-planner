@@ -14,6 +14,7 @@ import { getSession } from '@/lib/api';
 import { getResources, saveResources } from '@/lib/adminResourcesApi';
 import { getCurriculumReference, getCurriculumReferences } from '@/lib/curriculumApi';
 import { ResourceSettingsForm } from './ResourceSettingsForm';
+import { PlannedDemandPanel } from './PlannedDemandPanel';
 import {
   ResourceRequestSchema,
   resourceRequestKey,
@@ -303,7 +304,7 @@ function ResourceSession({ userId }: { userId: string }) {
         <h2 className="text-2xl font-bold text-gray-900">Simulation resources</h2>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Configure a school-admin resource scenario for a curriculum and semester. These inputs are
-          simulated; demand, allocation and official course offerings are not available yet.
+          simulated; full demand, allocation and official course offerings are not available yet.
         </p>
       </header>
       {message && (
@@ -469,6 +470,17 @@ function ResourceSession({ userId }: { userId: string }) {
                 />
               </section>
             )
+          )}
+          {active && !loading && !loadError && (
+            <PlannedDemandPanel
+              userId={userId}
+              scope={{
+                curriculumId: active.snapshot.curriculum.id,
+                semester: active.snapshot.semester,
+                year: active.snapshot.year,
+              }}
+              resourceRevision={active.snapshot.resource?.revision ?? null}
+            />
           )}
         </>
       )}
