@@ -128,6 +128,9 @@ export type CreatePrerequisiteDTO = z.infer<typeof schemas.CreatePrerequisiteSch
 export type CreateStudyPlanDTO = z.infer<typeof schemas.CreateStudyPlanSchema>;
 export type UpdateStudyPlanDTO = z.infer<typeof schemas.UpdateStudyPlanSchema>;
 export type CreateSemesterDTO = z.infer<typeof schemas.CreateSemesterSchema>;
+export type ResourceScopeDTO = z.infer<typeof schemas.ResourceScopeSchema>;
+export type UpsertResourcesDTO = z.infer<typeof schemas.UpsertResourcesSchema>;
+export type ResourcesSnapshotDTO = z.infer<typeof schemas.ResourcesSnapshotSchema>;
 export type AnalyzeWorkloadDTO = z.infer<typeof schemas.AnalyzeWorkloadSchema>;
 
 export type CourseStatus = z.infer<typeof schemas.CourseStatusSchema>;

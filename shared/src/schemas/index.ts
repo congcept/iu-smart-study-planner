@@ -455,6 +455,84 @@ export const UpdateSemesterSchema = CreateSemesterSchema.partial().refine(
   { message: 'At least one semester field must be provided' },
 );
 
+// These bounds protect storage and arithmetic; they are not university capacity rules.
+const ResourceCountSchema = z.number().int().min(0).max(100000);
+const ResourceUuidSchema = z
+  .string()
+  .uuid()
+  .transform((id) => id.toLowerCase());
+export const ResourceScopeSchema = z
+  .object({
+    curriculumId: ResourceUuidSchema,
+    semester: SemesterSchema,
+    year: z.number().int().min(2000).max(2100),
+  })
+  .strict();
+const CourseResourceOverrideSchema = z
+  .object({
+    capacity: ResourceCountSchema.optional(),
+    professorCount: ResourceCountSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.capacity !== undefined || value.professorCount !== undefined,
+    'A course override must specify capacity or professor count',
+  );
+const ResourceOverridesSchema = z
+  .record(
+    z
+      .string()
+      .min(1)
+      .max(100)
+      .refine(
+        (code) => code === code.trim() && !['__proto__', 'prototype', 'constructor'].includes(code),
+        'Course codes must be canonical safe keys',
+      ),
+    CourseResourceOverrideSchema,
+  )
+  .refine((value) => Object.keys(value).length <= 500, 'Too many course overrides');
+const ResourceSettingsSchema = ResourceScopeSchema.extend({
+  professors: ResourceCountSchema,
+  classrooms: ResourceCountSchema,
+  labRooms: ResourceCountSchema,
+  maxStudentsPerSection: z.number().int().min(1).max(100000),
+  courseOverrides: ResourceOverridesSchema,
+});
+export const UpsertResourcesSchema = ResourceSettingsSchema.extend({
+  expectedRevision: z.number().int().min(0).max(2147483647),
+});
+const SchoolResourceSchema = ResourceSettingsSchema.extend({
+  id: ResourceUuidSchema,
+  revision: z.number().int().min(1).max(2147483647),
+  updatedBy: ResourceUuidSchema.nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export const ResourcesSnapshotSchema = z
+  .object({
+    kind: z.literal('SIMULATION'),
+    curriculum: z
+      .object({
+        id: ResourceUuidSchema,
+        code: z.string().min(1),
+        name: z.string().min(1),
+        school: z.string().min(1),
+      })
+      .strict(),
+    semester: SemesterSchema,
+    year: ResourceScopeSchema.shape.year,
+    resource: SchoolResourceSchema.nullable(),
+  })
+  .strict()
+  .refine(
+    (snapshot) =>
+      snapshot.resource === null ||
+      (snapshot.resource.curriculumId === snapshot.curriculum.id &&
+        snapshot.resource.semester === snapshot.semester &&
+        snapshot.resource.year === snapshot.year),
+    'Resource configuration must match its curriculum and semester',
+  );
+
 export const PlanSemesterSchema = z
   .object({
     intensityMode: z.enum(['low', 'normal', 'high', 'max']),

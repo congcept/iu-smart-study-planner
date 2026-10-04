@@ -13,6 +13,7 @@ import recommendationRoutes from './routes/recommendations';
 import authRoutes from './routes/auth';
 import gradeRoutes from './routes/grades';
 import courseRatingRoutes from './routes/courseRatings';
+import adminResourceRoutes from './routes/adminResources';
 import { checkRequestOrigin } from './middleware/auth';
 
 const app: Application = express();
@@ -55,6 +56,7 @@ app.use('/api/users/me/grades', gradeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/study-plans', studyPlanRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/admin', adminResourceRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
