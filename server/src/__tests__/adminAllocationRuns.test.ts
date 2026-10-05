@@ -277,6 +277,37 @@ describe('school-admin immutable aggregate simulation runs (PostgreSQL)', () => 
     expect(serialized).not.toContain('Private run');
   });
 
+  it('rejects a switched cookie administrator before capture or history recovery', async () => {
+    const input = { ...body(), expectedActorId: users[0] };
+    expect((await post(input, users[1])).status).toBe(409);
+    expect(
+      await prisma.simulationAllocationRun.count({ where: { curriculumId: contexts[0] } }),
+    ).toBe(0);
+    const first = await post(input);
+    expect(first.status).toBe(201);
+    expect((await post(input, users[1])).status).toBe(409);
+    expect(
+      await prisma.simulationAllocationRun.count({ where: { curriculumId: contexts[0] } }),
+    ).toBe(1);
+  });
+
+  it('normalizes the expected actor without using it as authorization', async () => {
+    const input = { ...body(), expectedActorId: users[0].toUpperCase() };
+    const first = await post(input);
+    expect(first.status).toBe(201);
+    const retry = await post(input);
+    expect(retry.status).toBe(200);
+    expect(retry.body.data.id).toBe(first.body.data.id);
+    expect((await post({ ...body(), expectedActorId: users[0] }, users[2])).status).toBe(403);
+  });
+
+  it('rejects malformed actor preconditions without persisting a run', async () => {
+    expect((await post({ ...body(), expectedActorId: 'admin' })).status).toBe(400);
+    expect(
+      await prisma.simulationAllocationRun.count({ where: { curriculumId: contexts[0] } }),
+    ).toBe(0);
+  });
+
   it('normalizes uppercase request, scope and run IDs to one key', async () => {
     const input = body();
     const first = await post({

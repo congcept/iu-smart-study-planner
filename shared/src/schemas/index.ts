@@ -500,6 +500,7 @@ export const ResourceScopeSchema = z
   .strict();
 export const CreateAllocationRunSchema = ResourceScopeSchema.extend({
   requestId: ResourceUuidSchema,
+  expectedActorId: ResourceUuidSchema.optional(),
 });
 const CourseResourceOverrideSchema = z
   .object({

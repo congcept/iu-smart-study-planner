@@ -74,6 +74,11 @@ export async function createAllocationRun(actorId: string, input: CreateAllocati
   const existing = await prisma.$transaction(
     async (tx) => {
       await authorize(tx, key.createdById);
+      if (request.expectedActorId && request.expectedActorId !== key.createdById)
+        throw new SchoolResourceError(
+          'Your admin session changed; sign in again before saving',
+          409,
+        );
       return tx.simulationAllocationRun.findUnique({ where: { createdById_requestId: key } });
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
