@@ -1,7 +1,10 @@
 # Aggregate simulation run history
 
-`POST /api/admin/allocation-runs` accepts only `curriculumId`, `semester`, `year`
-and a UUID `requestId`. The current database ADMIN role is required. A new request
+`POST /api/admin/allocation-runs` accepts `curriculumId`, `semester`, `year`,
+a UUID `requestId` and optional UUID `expectedActorId`. The client requires the
+verified actor precondition; a switched cookie actor returns 409 before capture or
+retry lookup. The body identity cannot grant access or change the stored creator.
+The current database ADMIN role is required. A new request
 captures the server's coherent allocation preview and stores an immutable aggregate
 summary; it returns 201. Repeat the same actor/request ID and scenario to recover
 the original run with 200. Reusing the key for another scenario returns 409.
@@ -52,10 +55,27 @@ is restricted while history exists. There is no migration data rewrite, reset or
 
 ## Remaining work
 
-Add client capture/recovery and history review, then a background-job lifecycle and
+Add scoped full-history browsing, then a background-job lifecycle and
 registration-window scheduling. This increment stores aggregate experiments only.
 Per-student allocations, full-semester plans, official offerings/calendar validation,
 verified category/grade-fit metadata and curriculum activation remain pending.
+
+## Admin capture and tab recovery
+
+The admin dashboard captures only saved settings and the current server cohort.
+Unsaved settings and resource-save recovery remain untouched. Each capture verifies
+the cookie account and ADMIN role before POST and again before publishing a result.
+Account/scenario changes discard late results. The server checks the expected actor
+so an account switch between the session read and POST cannot save under another admin.
+
+A strict owner/scenario journal retains only the request key and eventual run ID in
+sessionStorage. It is written, read back and verified before POST. Storage denial,
+corruption or unexpected journal changes block capture and preserve existing data.
+Mounting a pending request never sends it automatically: explicit retry recovers
+the same immutable run. Receipt-save failure retains the original request key.
+Confirmed receipts recover through GET, with identity and exact ID/scenario checks.
+The result shows captured cohort outcomes, timestamps, resource revision and weights.
+Only the last receipt in the current tab is shown; this is not a full history list.
 
 ## Verification
 
@@ -66,3 +86,9 @@ SQL immutability and foreign-key deletion behavior. Build, types, zero-warning l
 1529 server tests and 1042 client tests pass on the exact isolated source snapshot.
 Independent source/migration/test review found no blocker. The live backend remained
 healthy after generated Prisma/shared output refresh.
+
+The capture-control increment adds three PostgreSQL actor-precondition cases, sixty
+client API contract cases, thirty-six panel/recovery cases and three dashboard cases.
+Build/types/zero-warning lint and 1532 server / 1141 client tests pass on its exact
+isolated snapshot. Independent source review and desktop/mobile synthetic visual
+checks pass. The running app and unrelated interface drafts are retained.
