@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   CreateAllocationRunSchema,
   CreateAllocationJobSchema,
+  ExecuteAllocationJobSchema,
   ListAllocationRunsSchema,
   ResourceScopeSchema,
   UpsertResourcesSchema,
@@ -22,7 +23,7 @@ import {
   listAllocationRuns,
 } from '../services/allocationRuns';
 import { enqueueAllocationJob, readAllocationJob } from '../services/allocationJobs';
-import { readAllocationJobOutcome } from '../services/allocationJobExecution';
+import { readAllocationJobOutcome, executeAllocationJob } from '../services/allocationJobExecution';
 
 const router = Router();
 const RunParamsSchema = z
@@ -110,6 +111,24 @@ router.get('/allocation-jobs/:id/outcome', requireAdmin, async (req: Request, re
     return res.json({ success: true, data: await readAllocationJobOutcome(req.userId, id) });
   } catch (error) {
     return failure(error, res, 'Could not load simulation job outcome');
+  }
+});
+router.post('/allocation-jobs/:id/execute', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { id } = JobParamsSchema.parse(req.params);
+    z.object({}).strict().parse(req.query);
+    return res.json({
+      success: true,
+      data: await executeAllocationJob(req.userId, id, ExecuteAllocationJobSchema.parse(req.body)),
+    });
+  } catch (error) {
+    return failure(
+      error,
+      res,
+      'Could not execute simulation job; check its outcome before retrying',
+    );
   }
 });
 router.post('/allocation-runs', requireAdmin, async (req: Request, res: Response) => {

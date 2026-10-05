@@ -17,6 +17,12 @@ export {
 } from './allocationJob';
 export { AllocationJobOutcomeSchema, type AllocationJobOutcomeDTO } from './allocationJobOutcome';
 export {
+  ExecuteAllocationJobSchema,
+  AllocationJobExecutionSchema,
+  type ExecuteAllocationJobDTO,
+  type AllocationJobExecutionDTO,
+} from './allocationJobExecution';
+export {
   ListAllocationRunsSchema,
   AllocationRunHistorySchema,
   type ListAllocationRunsDTO,
