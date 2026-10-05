@@ -1,6 +1,10 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { ResourceScopeSchema, UpsertResourcesSchema } from '@iu-study-planner/shared';
+import {
+  CreateAllocationRunSchema,
+  ResourceScopeSchema,
+  UpsertResourcesSchema,
+} from '@iu-study-planner/shared';
 import { requireAdmin } from '../middleware/auth';
 import { readResources, upsertResources, SchoolResourceError } from '../services/schoolResources';
 import { readPlannedDemand } from '../services/schoolDemand';
@@ -10,8 +14,17 @@ import { readEligibleCohortDemand } from '../services/eligibleCohortDemand';
 import { readCohortResourceSnapshot } from '../services/cohortResourceSnapshot';
 
 import { readAllocationPreview } from '../services/allocationPreview';
+import { createAllocationRun, readAllocationRun } from '../services/allocationRuns';
 
 const router = Router();
+const RunParamsSchema = z
+  .object({
+    id: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase()),
+  })
+  .strict();
 const QuerySchema = ResourceScopeSchema.extend({
   year: z
     .string()
@@ -41,6 +54,37 @@ router.get('/allocation-preview', requireAdmin, async (req: Request, res: Respon
     return res.json({ success: true, data: await readAllocationPreview(req.userId, scope) });
   } catch (error) {
     return failure(error, res, 'Could not load allocation preview');
+  }
+});
+router.post('/allocation-runs', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { run, created } = await createAllocationRun(
+      req.userId,
+      CreateAllocationRunSchema.parse(req.body),
+    );
+    return res.status(created ? 201 : 200).json({ success: true, data: run });
+  } catch (error) {
+    return failure(error, res, 'Could not save simulation run');
+  }
+});
+router.get('/allocation-runs/:id', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { id } = RunParamsSchema.parse(req.params);
+    if (Object.keys(req.query).length)
+      throw new z.ZodError([
+        {
+          code: z.ZodIssueCode.custom,
+          path: ['query'],
+          message: 'Simulation run reads accept no query overrides',
+        },
+      ]);
+    return res.json({ success: true, data: await readAllocationRun(req.userId, id) });
+  } catch (error) {
+    return failure(error, res, 'Could not load simulation run');
   }
 });
 router.get('/cohort-resource-snapshot', requireAdmin, async (req: Request, res: Response) => {
