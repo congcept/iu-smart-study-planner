@@ -1,8 +1,8 @@
 # Durable simulation queue requests
 
-This increment stores immutable scenario requests before an explicit simulation worker
-exists. Enqueueing does not compute an allocation, capture live inputs, schedule a timer
-or register a student. Requests remain queued until execution support is implemented.
+This increment stores immutable scenario requests separately from explicit worker execution. Enqueueing does not compute an allocation, capture live inputs, schedule a timer
+or register a student. The original queued response remains an immutable receipt. Explicit single-job execution
+and terminal status reads are now available; see [the worker guide](simulation-job-worker.md).
 
 ## API
 
@@ -34,9 +34,9 @@ API, source rewrite, reset or seed operation.
 
 Enqueue/read do not read live policies, cohort, resources, grades, ratings or allocation
 results. Unverified reference contexts and absent resources can still hold a request; this
-is not a validation or execution claim. A later explicit worker must capture coherent live
-inputs at execution time and retain the preview's size and verification gates. Mutable
-execution state will remain separate from this immutable source manifest.
+is not a validation or execution claim. The explicit worker captures coherent live
+inputs at execution time and retains the preview's size and verification gates. Terminal
+execution outcomes remain separate from this immutable source manifest.
 
 ## Verification
 
@@ -49,6 +49,6 @@ isolated source snapshot. The sole reviewed additive migration was applied with 
 its checksum and actual scoped index name match. Generated shared/Prisma outputs were
 refreshed without recreating the running app or database.
 
-Next: explicit single-job execution, private lease ownership, interruption recovery and
-sanitized terminal outcomes. Full-semester/per-student allocation persistence and official
+Explicit atomic single-job execution and sanitized terminal outcomes are shipped in the
+worker increment. Next: browser queue/outcome controls and an explicit execution action. Full-semester/per-student allocation persistence and official
 calendar/resource/degree verification remain pending.

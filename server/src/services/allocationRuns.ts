@@ -21,7 +21,7 @@ async function authorize(tx: Prisma.TransactionClient, actorId: string) {
 }
 
 /** Historical reads use the pinned storage validator, never today's live preview or policy. */
-function storedRun(row: SimulationAllocationRun) {
+export function verifyStoredAllocationRun(row: SimulationAllocationRun) {
   const parsed = AllocationRunV1Schema.safeParse({
     id: row.id,
     formatVersion: row.formatVersion,
@@ -42,7 +42,7 @@ function storedRun(row: SimulationAllocationRun) {
 }
 
 function replay(row: SimulationAllocationRun, scope: ResourceScopeDTO) {
-  const run = storedRun(row);
+  const run = verifyStoredAllocationRun(row);
   if (
     run.result.scope.curriculumId !== scope.curriculumId ||
     run.result.scope.semester !== scope.semester ||
@@ -60,7 +60,7 @@ export async function readAllocationRun(actorId: string, runId: string) {
         where: { id: runId.toLowerCase() },
       });
       if (!row) throw new SchoolResourceError('Simulation run not found', 404);
-      return storedRun(row);
+      return verifyStoredAllocationRun(row);
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
   );
@@ -99,7 +99,7 @@ export async function listAllocationRuns(actorId: string, input: ListAllocationR
             'History continuation does not match this scenario; reload history',
             409,
           );
-        storedRun(cursor);
+        verifyStoredAllocationRun(cursor);
         boundary = {
           OR: [
             { createdAt: { lt: cursor.createdAt } },
@@ -112,7 +112,7 @@ export async function listAllocationRuns(actorId: string, input: ListAllocationR
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 21,
       });
-      const verified = rows.map(storedRun);
+      const verified = rows.map(verifyStoredAllocationRun);
       const runs = verified.slice(0, 20);
       return AllocationRunHistorySchema.parse({
         kind: 'SIMULATION',
@@ -173,7 +173,7 @@ export async function createAllocationRun(actorId: string, input: CreateAllocati
               result,
             },
           });
-          return { run: storedRun(row), created: true };
+          return { run: verifyStoredAllocationRun(row), created: true };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
