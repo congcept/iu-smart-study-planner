@@ -1,9 +1,12 @@
 import { Prisma, type SimulationAllocationRun } from '@prisma/client';
 import {
   AllocationRunV1Schema,
+  AllocationRunHistorySchema,
   CreateAllocationRunSchema,
+  ListAllocationRunsSchema,
   ResourceScopeSchema,
   type CreateAllocationRunDTO,
+  type ListAllocationRunsDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
@@ -58,6 +61,68 @@ export async function readAllocationRun(actorId: string, runId: string) {
       });
       if (!row) throw new SchoolResourceError('Simulation run not found', 404);
       return storedRun(row);
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
+}
+
+/** Bounded historical reads use immutable cursor metadata and never recompute results. */
+export async function listAllocationRuns(actorId: string, input: ListAllocationRunsDTO) {
+  const request = ListAllocationRunsSchema.parse(input);
+  const scope = ResourceScopeSchema.parse({
+    curriculumId: request.curriculumId,
+    semester: request.semester,
+    year: request.year,
+  });
+  return prisma.$transaction(
+    async (tx) => {
+      await authorize(tx, actorId.toLowerCase());
+      if (
+        !(await tx.curriculum.findUnique({
+          where: { id: scope.curriculumId },
+          select: { id: true },
+        }))
+      )
+        throw new SchoolResourceError('Curriculum not found', 404);
+      let boundary: Prisma.SimulationAllocationRunWhereInput = {};
+      if (request.after) {
+        const cursor = await tx.simulationAllocationRun.findUnique({
+          where: { id: request.after },
+        });
+        if (
+          !cursor ||
+          cursor.curriculumId !== scope.curriculumId ||
+          cursor.semester !== scope.semester ||
+          cursor.year !== scope.year
+        )
+          throw new SchoolResourceError(
+            'History continuation does not match this scenario; reload history',
+            409,
+          );
+        storedRun(cursor);
+        boundary = {
+          OR: [
+            { createdAt: { lt: cursor.createdAt } },
+            { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+          ],
+        };
+      }
+      const rows = await tx.simulationAllocationRun.findMany({
+        where: { ...scope, ...boundary },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 21,
+      });
+      const verified = rows.map(storedRun);
+      const runs = verified.slice(0, 20);
+      return AllocationRunHistorySchema.parse({
+        kind: 'SIMULATION',
+        usage: 'REFERENCE_ONLY',
+        scope,
+        order: 'STORED_NEWEST_FIRST',
+        pageSize: 20,
+        runs,
+        nextAfter: verified.length > 20 ? runs.at(-1)?.id : null,
+      });
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
   );

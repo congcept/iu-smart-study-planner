@@ -10,6 +10,12 @@ import {
 } from './simulationAllocation';
 import { createAllocationPreviewSchema } from './allocationPreview';
 export {
+  ListAllocationRunsSchema,
+  AllocationRunHistorySchema,
+  type ListAllocationRunsDTO,
+  type AllocationRunHistoryDTO,
+} from './allocationRunHistory';
+export {
   AllocationRunSummaryV1Schema,
   AllocationRunV1Schema,
   type AllocationRunSummaryV1DTO,
