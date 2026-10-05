@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AllocationUtilityPolicySchema } from './allocationUtility';
 import type { CohortResourceSnapshotSchema, SimulationAllocationPolicySchema } from './index';
 
 const count = z.number().int().nonnegative().safe();
@@ -17,7 +18,8 @@ export const createAllocationPreviewSchema = (
       usage: z.literal('REFERENCE_ONLY'),
       consistencyBasis: z.literal('SINGLE_DATABASE_SNAPSHOT'),
       model: z.literal('ONE_COURSE_PER_STUDENT_ROUND_V1'),
-      utilityBasis: z.literal('BAYESIAN_DIFFICULTY_FIT_ONLY_V1'),
+      utilityBasis: z.literal('BAYESIAN_DIFFICULTY_AND_IMMEDIATE_UNLOCKS_V1'),
+      utilityPolicy: AllocationUtilityPolicySchema,
       eligibilityValidated: z.literal(false),
       allocationValidated: z.literal(false),
       timetableValidated: z.literal(false),

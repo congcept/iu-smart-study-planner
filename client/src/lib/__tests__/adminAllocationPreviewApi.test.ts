@@ -30,6 +30,19 @@ describe('allocation preview runtime API adapter', () => {
     { success: true, data: { ...allocationPreview(), studentId: 'private' } },
     { success: true, data: { ...allocationPreview(), assignedStudentCount: 2 } },
     { success: true, data: { ...allocationPreview(), persisted: true } },
+    { success: true, data: { ...allocationPreview(), utilityPolicy: undefined } },
+    {
+      success: true,
+      data: {
+        ...allocationPreview(),
+        utilityPolicy: { difficultyFitWeight: 1, immediateUnlockWeight: 1 },
+      },
+    },
+    {
+      success: true,
+      data: { ...allocationPreview(), utilityBasis: 'BAYESIAN_DIFFICULTY_FIT_ONLY_V1' },
+    },
+    { success: true, data: { ...allocationPreview(), immediateUnlockCount: 2 } },
   ])('rejects unverified/private or corrupt replies %#', async (data) => {
     get.mockResolvedValue({ data });
     await expect(getAllocationPreview(allocationScope)).rejects.toThrow('Could not verify');

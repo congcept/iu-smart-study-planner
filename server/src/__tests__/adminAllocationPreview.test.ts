@@ -11,6 +11,7 @@ describe('school-admin aggregate allocation preview (PostgreSQL)', () => {
   const originalDemandPolicy = config.cohortDemandPolicy;
   const originalEnvelopePolicy = config.simulationResourcePolicy;
   const originalAllocationPolicy = config.simulationAllocationPolicy;
+  const originalUtilityPolicy = config.allocationUtilityPolicy;
   const prefix = `coherent-${randomUUID()}`;
   const users = Array.from({ length: 4 }, () => randomUUID());
   const contexts = Array.from({ length: 3 }, () => randomUUID());
@@ -220,6 +221,7 @@ describe('school-admin aggregate allocation preview (PostgreSQL)', () => {
     config.cohortDemandPolicy = originalDemandPolicy;
     config.simulationResourcePolicy = originalEnvelopePolicy;
     config.simulationAllocationPolicy = originalAllocationPolicy;
+    config.allocationUtilityPolicy = originalUtilityPolicy;
     await prisma.user.deleteMany({ where: { id: { in: users } } });
     await prisma.curriculum.deleteMany({ where: { id: { in: contexts } } });
     await prisma.course.deleteMany({ where: { id: { in: courses } } });
@@ -288,7 +290,7 @@ describe('school-admin aggregate allocation preview (PostgreSQL)', () => {
     expect(result.usedSections).toBeGreaterThan(0);
     expect(result.courses.reduce((sum, row) => sum + row.assignedStudentCount, 0)).toBe(2);
     expect(result).toMatchObject({
-      utilityBasis: 'BAYESIAN_DIFFICULTY_FIT_ONLY_V1',
+      utilityBasis: 'BAYESIAN_DIFFICULTY_AND_IMMEDIATE_UNLOCKS_V1',
       persisted: false,
       allocationValidated: false,
     });
@@ -440,11 +442,12 @@ describe('school-admin aggregate allocation preview (PostgreSQL)', () => {
     expect(latest.snapshot.demand.courses.map(({ id }) => id)).toEqual([courses[0]]);
     expect(latest).not.toEqual(initial);
   });
-  it('captures all three deployment policies before the first awaited production SELECT', async () => {
+  it('captures all four deployment policies before the first awaited production SELECT', async () => {
     await resource();
     const originalDemandPolicy = config.cohortDemandPolicy;
     const originalEnvelopePolicy = config.simulationResourcePolicy;
     const originalAllocationPolicy = config.simulationAllocationPolicy;
+    const originalUtilityPolicy = config.allocationUtilityPolicy;
     let changed = false;
     afterTransactionalActorRead = async () => {
       config.cohortDemandPolicy = Object.freeze({ maxCredits: 3, maxDifficulty: 1 });
@@ -459,12 +462,20 @@ describe('school-admin aggregate allocation preview (PostgreSQL)', () => {
         fairnessWeight: 0,
         congestionThreshold: 0.5,
       });
+      config.allocationUtilityPolicy = Object.freeze({
+        difficultyFitWeight: 0,
+        immediateUnlockWeight: 1,
+      });
       changed = true;
     };
     try {
       const during = await readAllocationPreview(users[0], scope());
       expect(changed).toBe(true);
       expect(during.allocationPolicy).toEqual(originalAllocationPolicy);
+      expect(during.utilityPolicy).toEqual(originalUtilityPolicy);
+      expect((await readAllocationPreview(users[0], scope())).utilityPolicy).toEqual(
+        config.allocationUtilityPolicy,
+      );
       expect((await readAllocationPreview(users[0], scope())).allocationPolicy).toEqual(
         config.simulationAllocationPolicy,
       );
@@ -482,9 +493,108 @@ describe('school-admin aggregate allocation preview (PostgreSQL)', () => {
       config.cohortDemandPolicy = originalDemandPolicy;
       config.simulationResourcePolicy = originalEnvelopePolicy;
       config.simulationAllocationPolicy = originalAllocationPolicy;
+      config.allocationUtilityPolicy = originalUtilityPolicy;
     }
   });
 
+  it('uses mandatory immediate unlock utility to select a prerequisite in the real cohort', async () => {
+    const child = randomUUID();
+    const prior = config.allocationUtilityPolicy;
+    config.allocationUtilityPolicy = Object.freeze({
+      difficultyFitWeight: 0,
+      immediateUnlockWeight: 1,
+    });
+    try {
+      await prisma.course.create({
+        data: {
+          id: child,
+          code: `${prefix}-unlock`,
+          name: 'Unlock fixture',
+          credits: 3,
+          difficultyLevel: 2,
+        },
+      });
+      await prisma.curriculumCourse.create({
+        data: {
+          curriculumId: contexts[0],
+          courseId: child,
+          placements: { create: { academicYear: 2, academicSemester: 1, sourceOrder: 2 } },
+        },
+      });
+      await prisma.curriculumPrerequisite.create({
+        data: {
+          curriculumId: contexts[0],
+          courseId: child,
+          prerequisiteId: courses[0],
+          isStrict: false,
+          isCorequisite: true,
+        },
+      });
+      const row = await resource();
+      await prisma.schoolResource.update({
+        where: { id: row.id },
+        data: { classrooms: 1, professors: 1, maxStudentsPerSection: 2 },
+      });
+      const before = await evidence();
+      const result = await readAllocationPreview(users[0], scope());
+      expect(result.utilityPolicy).toEqual({ difficultyFitWeight: 0, immediateUnlockWeight: 1 });
+      expect(result.courses.find(({ id }) => id === courses[0])?.assignedStudentCount).toBe(2);
+      expect(result.courses.find(({ id }) => id === courses[1])?.assignedStudentCount).toBe(0);
+      expect(result.courses.find(({ id }) => id === child)?.demandStudentCount).toBe(0);
+      expect(await evidence()).toEqual(before);
+      expect(JSON.stringify(result)).not.toContain('immediateUnlockCount');
+    } finally {
+      config.allocationUtilityPolicy = prior;
+      await prisma.curriculumPrerequisite.deleteMany({
+        where: { curriculumId: contexts[0], courseId: child },
+      });
+      await prisma.curriculumCourse.deleteMany({
+        where: { curriculumId: contexts[0], courseId: child },
+      });
+      await prisma.course.deleteMany({ where: { id: child } });
+    }
+  });
+  it('keeps prerequisite utility metadata within the captured production snapshot', async () => {
+    await resource();
+    const initial = await readAllocationPreview(users[0], scope());
+    const edge = randomUUID();
+    afterTransactionalActorRead = async () => {
+      await prisma.curriculumPrerequisite.create({
+        data: {
+          id: edge,
+          curriculumId: contexts[0],
+          courseId: courses[1],
+          prerequisiteId: courses[0],
+          isStrict: false,
+          isCorequisite: true,
+        },
+      });
+    };
+    try {
+      expect(await readAllocationPreview(users[0], scope())).toEqual(initial);
+      const latest = await readAllocationPreview(users[0], scope());
+      expect(
+        latest.snapshot.demand.courses.find(({ id }) => id === courses[1])?.demandStudentCount,
+      ).toBe(0);
+      expect(latest.courses.find(({ id }) => id === courses[0])?.assignedStudentCount).toBe(2);
+    } finally {
+      afterTransactionalActorRead = undefined;
+      await prisma.curriculumPrerequisite.deleteMany({ where: { id: edge } });
+    }
+  });
+  it('rejects corrupt utility policy before reading with a plain private-free 500', async () => {
+    config.allocationUtilityPolicy = Object.freeze({
+      difficultyFitWeight: 1,
+      immediateUnlockWeight: 1,
+    });
+    try {
+      const response = await get();
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({ success: false, error: 'Could not load allocation preview' });
+    } finally {
+      config.allocationUtilityPolicy = originalUtilityPolicy;
+    }
+  });
   it('respects a single shared seat without inventing per-course supply', async () => {
     const row = await resource();
     await prisma.schoolResource.update({

@@ -9,6 +9,10 @@ import {
   SimulationAllocationPolicySchema,
 } from './simulationAllocation';
 import { createAllocationPreviewSchema } from './allocationPreview';
+export {
+  AllocationUtilityPolicySchema,
+  type AllocationUtilityPolicyDTO,
+} from './allocationUtility';
 
 export { ContextStudentProgressSchema } from './contextStudentProgress';
 export {

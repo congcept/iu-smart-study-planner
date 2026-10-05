@@ -256,10 +256,14 @@ function AllocationReport({ userId, scope, resourceRevision }: Props) {
             )}
             <p className="max-w-prose text-sm text-gray-600">
               Assigned-seat use compares simulated assignments with opened seats; it is not demand
-              divided by supply. Ranking uses Bayesian difficulty, resource fit and scarcity.
-              Category, grade-fit and graduation-timeline personalization remain unavailable. Labs,
-              course overrides, professor availability and qualifications, calendars and
-              full-semester allocation remain unverified.
+              divided by supply. Student utility blends Bayesian difficulty fit (
+              {percent.format(report.utilityPolicy.difficultyFitWeight)}) and immediate prerequisite
+              unlocks ({percent.format(report.utilityPolicy.immediateUnlockWeight)}), alongside
+              resource fit and scarcity. Unlocks count distinct courses whose other mandatory
+              prerequisites are already completed; they do not predict graduation time. Category,
+              grade-fit and graduation-timeline personalization remain unavailable. Labs, course
+              overrides, professor availability and qualifications, calendars and full-semester
+              allocation remain unverified.
             </p>
           </>
         )

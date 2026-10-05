@@ -1,11 +1,13 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import type {
+  AllocationUtilityPolicyDTO,
   EligibleCohortDemandPolicyDTO,
   SimulationAllocationPolicyDTO,
   SimulationResourcePolicyDTO,
 } from '@iu-study-planner/shared';
 import { readCohortDemandPolicy } from './cohortDemand';
+import { readAllocationUtilityPolicy } from './allocationUtility';
 import { readSimulationAllocationPolicy } from './simulationAllocation';
 import { readSimulationResourcePolicy } from './simulationResources';
 
@@ -26,6 +28,7 @@ interface Config {
   simulationResourcePolicy: SimulationResourcePolicyDTO;
   cohortDemandPolicy: EligibleCohortDemandPolicyDTO;
   simulationAllocationPolicy: SimulationAllocationPolicyDTO;
+  allocationUtilityPolicy: AllocationUtilityPolicyDTO;
 }
 
 const duration = /^([1-9]\d*)(s|m|h|d)$/.exec(process.env.JWT_EXPIRES_IN || '7d');
@@ -81,6 +84,7 @@ if (
   throw new Error('RECOMMENDATION_GRADE_DIFFICULTY_TOLERANCE must be between 0 and 4');
 
 const config: Config = {
+  allocationUtilityPolicy: readAllocationUtilityPolicy(process.env),
   simulationAllocationPolicy: readSimulationAllocationPolicy(process.env),
   cohortDemandPolicy: readCohortDemandPolicy(process.env),
   simulationResourcePolicy: readSimulationResourcePolicy(process.env),

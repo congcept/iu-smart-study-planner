@@ -98,12 +98,25 @@ describe('read-only aggregate allocation panel', () => {
     region.focus();
     expect(region).toHaveFocus();
     expect(screen.getByText(/This preview saves no assignments/)).toBeInTheDocument();
-    expect(screen.getByText(/Ranking uses Bayesian difficulty/)).toHaveTextContent(
+    expect(screen.getByText(/Student utility blends Bayesian difficulty fit/)).toHaveTextContent(
       'Labs, course overrides',
+    );
+    expect(screen.getByText(/Student utility blends/)).toHaveTextContent(
+      'Bayesian difficulty fit (70%) and immediate prerequisite unlocks (30%)',
     );
     expect(screen.getByText(/no confirmed numeric GPA path/)).toBeInTheDocument();
     expect(saveResources).not.toHaveBeenCalled();
     expect(storage).not.toHaveBeenCalled();
+  });
+  it('shows the captured configured utility weights rather than default percentages', async () => {
+    const report = allocationPreview();
+    report.utilityPolicy = { difficultyFitWeight: 0.2, immediateUnlockWeight: 0.8 };
+    vi.mocked(getAllocationPreview).mockResolvedValue(report);
+    mount();
+    await screen.findByRole('table');
+    expect(screen.getByText(/Student utility blends/)).toHaveTextContent(
+      'Bayesian difficulty fit (20%) and immediate prerequisite unlocks (80%)',
+    );
   });
   it('removes previous evidence during retry and never double-loads rapid clicks', async () => {
     mount();
