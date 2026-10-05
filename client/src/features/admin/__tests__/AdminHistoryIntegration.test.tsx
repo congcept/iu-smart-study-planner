@@ -1,4 +1,4 @@
-vi.mock('../AllocationRunHistoryPanel', () => ({ AllocationRunHistoryPanel: () => null }));
+vi.mock('../AllocationRunCapturePanel', () => ({ AllocationRunCapturePanel: () => null }));
 vi.mock('../AllocationPreviewPanel', () => ({ AllocationPreviewPanel: () => null }));
 vi.mock('../PlannedDemandPanel', () => ({ PlannedDemandPanel: () => null }));
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -19,12 +19,12 @@ import {
   referenceSession,
 } from '@/test/fixtures/curriculumReference';
 import { allocationPreview } from '@/test/fixtures/allocationPreview';
-import { allocationRun } from '@/test/fixtures/allocationRun';
-import { createAllocationRun, getAllocationRun } from '@/lib/allocationRunsApi';
+import { allocationHistory } from '@/test/fixtures/allocationRun';
+import { listAllocationRuns, getAllocationRun } from '@/lib/allocationRunsApi';
 import { AdminResourceDashboard } from '../AdminResourceDashboard';
 
 vi.mock('@/lib/allocationRunsApi', () => ({
-  createAllocationRun: vi.fn(),
+  listAllocationRuns: vi.fn(),
   getAllocationRun: vi.fn(),
 }));
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -73,14 +73,15 @@ const resources = (values = payload(), revision = 1): ResourcesSnapshotDTO => ({
   },
 });
 const professors = () => screen.getByLabelText('Professors');
-const report = () => screen.getByRole('region', { name: 'Saved simulation capture' });
-const captureButton = () =>
-  within(report()).getByRole('button', { name: 'Capture simulation run' });
+const report = () => screen.getByRole('region', { name: 'Simulation run history' });
+const reloadHistory = () =>
+  within(report()).getByRole('button', { name: 'Reload simulation history' });
+const view = () => within(report()).getAllByRole('button', { name: /View capture/ })[0];
 const saveButton = () => screen.getByRole('button', { name: 'Save simulation settings' });
 async function mount() {
   render(<AdminResourceDashboard userId={ownerId} />);
   await waitFor(() => expect(professors()).toBeEnabled());
-  await waitFor(() => expect(captureButton()).toBeEnabled());
+  await waitFor(() => expect(view()).toBeEnabled());
 }
 
 beforeEach(() => {
@@ -110,8 +111,8 @@ beforeEach(() => {
   vi.mocked(getCurriculumReference).mockResolvedValue(detail);
   vi.mocked(getResources).mockResolvedValue(resources());
   vi.mocked(getAllocationPreview).mockResolvedValue(allocationPreview(scope, 1));
-  vi.mocked(createAllocationRun).mockResolvedValue(allocationRun(scope));
-  vi.mocked(getAllocationRun).mockResolvedValue(allocationRun(scope));
+  vi.mocked(listAllocationRuns).mockResolvedValue(allocationHistory(scope));
+  vi.mocked(getAllocationRun).mockResolvedValue(allocationHistory(scope).runs[0]);
   vi.mocked(saveResources).mockImplementation(async (values) => resources(values, 2));
 });
 afterEach(() => {
@@ -120,50 +121,44 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('simulation capture and resource settings integration', () => {
-  it('captures server settings while leaving unsaved resource edits untouched', async () => {
+describe('simulation history and resource settings integration', () => {
+  it('reloads history and views a capture without replacing unsaved resource edits', async () => {
     await mount();
     fireEvent.change(professors(), { target: { value: '17' } });
-    fireEvent.click(captureButton());
-    await within(report()).findByText('Last capture in this tab');
+    fireEvent.click(reloadHistory());
+    await waitFor(() => expect(listAllocationRuns).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(view()).toBeEnabled());
+    fireEvent.click(view());
+    await waitFor(() =>
+      expect(getAllocationRun).toHaveBeenCalledWith(allocationHistory(scope).runs[0].id, scope),
+    );
+    await within(report()).findByRole('region', { name: 'Selected simulation capture' });
+    await waitFor(() => expect(reloadHistory()).toBeEnabled());
     expect(professors()).toHaveValue(17);
     expect(professors()).toBeEnabled();
     expect(saveResources).not.toHaveBeenCalled();
     expect(getResources).toHaveBeenCalledTimes(1);
-    expect(storage.has(journalKey)).toBe(false);
-    expect(createAllocationRun).toHaveBeenCalledWith({
-      ...scope,
-      expectedActorId: ownerId,
-      requestId: expect.any(String),
-    });
+    expect(sessionStorage.setItem).not.toHaveBeenCalled();
+    expect(sessionStorage.removeItem).not.toHaveBeenCalled();
   });
-  it('preserves a lost resource-save journal and locked form during capture', async () => {
+  it('preserves resource-save recovery while browsing historical captures', async () => {
     await mount();
     vi.mocked(saveResources).mockRejectedValueOnce(new Error('Lost response'));
     fireEvent.change(professors(), { target: { value: '17' } });
     fireEvent.click(saveButton());
     await screen.findByText(/Could not confirm this save\. The request is preserved/);
     const preserved = storage.get(journalKey);
-    fireEvent.click(captureButton());
-    await within(report()).findByText('Last capture in this tab');
+    fireEvent.click(reloadHistory());
+    await waitFor(() => expect(listAllocationRuns).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(view()).toBeEnabled());
+    fireEvent.click(view());
+    await waitFor(() => expect(getAllocationRun).toHaveBeenCalledTimes(1));
+    await within(report()).findByRole('region', { name: 'Selected simulation capture' });
+    await waitFor(() => expect(reloadHistory()).toBeEnabled());
     expect(storage.get(journalKey)).toBe(preserved);
     expect(professors()).toHaveValue(17);
     expect(professors()).toBeDisabled();
     expect(saveResources).toHaveBeenCalledTimes(1);
     expect(sessionStorage.removeItem).not.toHaveBeenCalled();
-  });
-  it('retries a lost capture using one key without touching form edits', async () => {
-    await mount();
-    fireEvent.change(professors(), { target: { value: '17' } });
-    vi.mocked(createAllocationRun).mockRejectedValueOnce(new Error('Lost response'));
-    fireEvent.click(captureButton());
-    const retry = await within(report()).findByRole('button', { name: 'Retry simulation capture' });
-    await waitFor(() => expect(retry).toBeEnabled());
-    const original = vi.mocked(createAllocationRun).mock.calls[0][0];
-    fireEvent.click(retry);
-    await within(report()).findByText('Last capture in this tab');
-    expect(createAllocationRun).toHaveBeenLastCalledWith(original);
-    expect(professors()).toHaveValue(17);
-    expect(saveResources).not.toHaveBeenCalled();
   });
 });

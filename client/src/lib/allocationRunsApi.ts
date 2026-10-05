@@ -1,11 +1,14 @@
 import { z } from 'zod';
 import {
   AllocationRunV1Schema,
+  AllocationRunHistorySchema,
   CreateAllocationRunSchema,
+  ListAllocationRunsSchema,
   ResourceScopeSchema,
   type AllocationRunV1DTO,
   type ApiResponse,
   type CreateAllocationRunDTO,
+  type ListAllocationRunsDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import apiClient from './api';
@@ -53,4 +56,22 @@ export async function getAllocationRun(id: string, input: ResourceScopeDTO) {
   if (run.id !== runId)
     throw new Error('Could not verify the saved simulation capture. Retry to recover it.');
   return run;
+}
+
+export async function listAllocationRuns(input: ListAllocationRunsDTO) {
+  const request = ListAllocationRunsSchema.parse(input);
+  const response = await apiClient.get<ApiResponse<unknown>>('/admin/allocation-runs', {
+    params: request,
+  });
+  const parsed = AllocationRunHistorySchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    parsed.data.scope.curriculumId !== request.curriculumId ||
+    parsed.data.scope.semester !== request.semester ||
+    parsed.data.scope.year !== request.year ||
+    parsed.data.runs.some((run) => run.id === request.after)
+  )
+    throw new Error('Could not verify simulation run history. Reload to try again.');
+  return parsed.data;
 }
