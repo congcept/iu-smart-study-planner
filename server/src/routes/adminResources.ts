@@ -22,6 +22,7 @@ import {
   listAllocationRuns,
 } from '../services/allocationRuns';
 import { enqueueAllocationJob, readAllocationJob } from '../services/allocationJobs';
+import { readAllocationJobOutcome } from '../services/allocationJobExecution';
 
 const router = Router();
 const RunParamsSchema = z
@@ -95,6 +96,20 @@ router.get('/allocation-jobs/:id', requireAdmin, async (req: Request, res: Respo
     return res.json({ success: true, data: await readAllocationJob(req.userId, id) });
   } catch (error) {
     return failure(error, res, 'Could not load simulation job');
+  }
+});
+router.get('/allocation-jobs/:id/outcome', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { id } = JobParamsSchema.parse(req.params);
+    z.object({}).strict().parse(req.query);
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    return res.json({ success: true, data: await readAllocationJobOutcome(req.userId, id) });
+  } catch (error) {
+    return failure(error, res, 'Could not load simulation job outcome');
   }
 });
 router.post('/allocation-runs', requireAdmin, async (req: Request, res: Response) => {

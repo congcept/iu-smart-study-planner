@@ -96,7 +96,11 @@ export function projectAllocationPreview(
   return projected.data;
 }
 
-export async function readAllocationPreview(actorId: string, inputScope: ResourceScopeDTO) {
+export async function readAllocationPreview(
+  actorId: string,
+  inputScope: ResourceScopeDTO,
+  transaction?: Prisma.TransactionClient,
+) {
   const scope = ResourceScopeSchema.parse(inputScope);
   const demandPolicy = EligibleCohortDemandPolicySchema.safeParse(config.cohortDemandPolicy);
   const resourcePolicy = SimulationResourcePolicySchema.safeParse(config.simulationResourcePolicy);
@@ -115,15 +119,18 @@ export async function readAllocationPreview(actorId: string, inputScope: Resourc
   const capturedResource = Object.freeze(resourcePolicy.data);
   const capturedAllocation = Object.freeze(allocationPolicy.data);
   const capturedUtility = Object.freeze(utilityPolicy.data);
-  const source = await prisma.$transaction(
-    async (tx) => {
-      const cohort = await readEligibleCohortDemandWithChoices(actorId, scope, tx, capturedDemand);
-      const resources = await readResources(actorId, scope, tx);
-      return { cohort, resources };
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-  );
-  // Run CPU work after closing the transaction, over the captured source and policy only.
+  const read = async (tx: Prisma.TransactionClient) => {
+    const cohort = await readEligibleCohortDemandWithChoices(actorId, scope, tx, capturedDemand);
+    const resources = await readResources(actorId, scope, tx);
+    return { cohort, resources };
+  };
+  const source = transaction
+    ? await read(transaction)
+    : await prisma.$transaction(read, {
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+      });
+  // Normal previews release their snapshot before CPU work. The bounded worker supplies
+  // its transaction so the result and terminal outcome can commit atomically.
   const envelope = projectSimulationResourceEnvelope(source.resources, capturedResource);
   const snapshot = projectCohortResourceSnapshot(source.cohort.demand, envelope);
   const roster = source.cohort.choices.map(({ studentId, candidates }) => ({
@@ -138,7 +145,6 @@ export async function readAllocationPreview(actorId: string, inputScope: Resourc
   }));
   const checkedRoster = SimulationAllocationRosterSchema.safeParse(roster);
   if (
-    !checkedRoster.success ||
     roster.length > 500 ||
     roster.some(({ candidates }) => candidates.length > 100) ||
     roster.reduce((sum, { candidates }) => sum + candidates.length, 0) > 10_000
@@ -147,6 +153,7 @@ export async function readAllocationPreview(actorId: string, inputScope: Resourc
       'Allocation preview supports at most 500 students, 100 choices per student and 10000 total choices',
       409,
     );
+  if (!checkedRoster.success) throw new Error('Allocation roster metadata could not be verified');
   return projectAllocationPreview(
     snapshot,
     allocateSimulationRound(envelope, checkedRoster.data, capturedAllocation),
