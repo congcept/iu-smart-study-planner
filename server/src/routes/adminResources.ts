@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   CreateAllocationRunSchema,
+  ListAllocationRunsSchema,
   ResourceScopeSchema,
   UpsertResourcesSchema,
 } from '@iu-study-planner/shared';
@@ -14,7 +15,11 @@ import { readEligibleCohortDemand } from '../services/eligibleCohortDemand';
 import { readCohortResourceSnapshot } from '../services/cohortResourceSnapshot';
 
 import { readAllocationPreview } from '../services/allocationPreview';
-import { createAllocationRun, readAllocationRun } from '../services/allocationRuns';
+import {
+  createAllocationRun,
+  readAllocationRun,
+  listAllocationRuns,
+} from '../services/allocationRuns';
 
 const router = Router();
 const RunParamsSchema = z
@@ -28,6 +33,14 @@ const RunParamsSchema = z
 const QuerySchema = ResourceScopeSchema.extend({
   year: z
     .string()
+    .regex(/^\d{4}$/)
+    .transform(Number)
+    .pipe(ResourceScopeSchema.shape.year),
+});
+const HistoryQuerySchema = ListAllocationRunsSchema.extend({
+  year: z
+    .string()
+    .length(4)
     .regex(/^\d{4}$/)
     .transform(Number)
     .pipe(ResourceScopeSchema.shape.year),
@@ -67,6 +80,18 @@ router.post('/allocation-runs', requireAdmin, async (req: Request, res: Response
     return res.status(created ? 201 : 200).json({ success: true, data: run });
   } catch (error) {
     return failure(error, res, 'Could not save simulation run');
+  }
+});
+router.get('/allocation-runs', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    return res.json({
+      success: true,
+      data: await listAllocationRuns(req.userId, HistoryQuerySchema.parse(req.query)),
+    });
+  } catch (error) {
+    return failure(error, res, 'Could not load simulation run history');
   }
 });
 router.get('/allocation-runs/:id', requireAdmin, async (req: Request, res: Response) => {

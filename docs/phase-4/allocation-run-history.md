@@ -15,7 +15,23 @@ weights or supply students. Progress, grades, plans and resource settings are un
 data by run ID. It accepts no query overrides, returns 404 for an unknown ID and
 fails closed with a plain 500 for corrupt or unsupported stored data. No current
 curriculum labels, cohort, resources or configuration are used to rewrite history.
-There is no list, update or delete endpoint in this increment.
+There is no update or delete endpoint.
+
+`GET /api/admin/allocation-runs` requires an exact scenario (`curriculumId`,
+`semester`, `year`) and optional UUID `after`. The page contains at most twenty
+immutable V1 runs, newest storage time first with descending run ID as a tie-breaker.
+`nextAfter` identifies the last returned run only when another row exists. Use that
+ID with the same scenario to request the next page. Page size/order/policy overrides
+are rejected; there is no cross-scenario or private-creator filter.
+
+Authorization, scenario existence, cursor lookup and page read share one RepeatableRead
+transaction. The cursor must exist in the same scenario (409 otherwise) and pass pinned
+validation. Missing curriculum returns 404; valid empty history returns an empty page.
+The returned rows and the single lookahead row are validated atomically: corrupt or
+unsupported data fails the whole page, without skipping or recomputing history.
+Pagination uses immutable storage time/ID boundaries rather than offsets. Newer runs
+inserted between requests do not shift later pages; separate page requests do not
+promise one frozen full-history snapshot. Refresh from the first page to see new runs.
 
 ## Capture and safe recovery
 
@@ -55,7 +71,7 @@ is restricted while history exists. There is no migration data rewrite, reset or
 
 ## Remaining work
 
-Add scoped full-history browsing, then a background-job lifecycle and
+Add the scoped history browser client, then a background-job lifecycle and
 registration-window scheduling. This increment stores aggregate experiments only.
 Per-student allocations, full-semester plans, official offerings/calendar validation,
 verified category/grade-fit metadata and curriculum activation remain pending.
@@ -92,3 +108,9 @@ client API contract cases, thirty-six panel/recovery cases and three dashboard c
 Build/types/zero-warning lint and 1532 server / 1141 client tests pass on its exact
 isolated snapshot. Independent source review and desktop/mobile synthetic visual
 checks pass. The running app and unrelated interface drafts are retained.
+
+The scoped-list increment adds 74 pure contract and 38 PostgreSQL regressions, including
+keyset ties, inserts between/within reads, cursor/scope isolation, strict query handling,
+lookahead corruption and current-policy independence. Build/types/zero-warning lint and
+1644 server / 1141 client tests pass on its exact isolated snapshot. Independent source
+review found no blocker; the parent completed verification after a helper usage limit.
