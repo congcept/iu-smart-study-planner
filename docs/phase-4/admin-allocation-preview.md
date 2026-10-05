@@ -105,7 +105,8 @@ utility, mandatory unlocks, status/context/GPA exclusions, unchanged academic ev
 real allocation choice, corrupt policy and concurrent prerequisite writes. Five new
 client cases reject incompatible/corrupt provenance and display configured weights.
 
-Next: persist immutable aggregate simulation runs as a small foundation for
-registration-window jobs; category/grade-fit metadata and full-semester scheduling
+Aggregate simulation-run capture/read persistence is now available; see
+[run history](allocation-run-history.md). Next: client run capture/recovery and
+history review, then registration-window jobs; category/grade-fit metadata and full-semester scheduling
 remain separate gates. Phase 4 remains
 incomplete; no verified curriculum activation or account assignment is implied.

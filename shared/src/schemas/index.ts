@@ -10,6 +10,12 @@ import {
 } from './simulationAllocation';
 import { createAllocationPreviewSchema } from './allocationPreview';
 export {
+  AllocationRunSummaryV1Schema,
+  AllocationRunV1Schema,
+  type AllocationRunSummaryV1DTO,
+  type AllocationRunV1DTO,
+} from './allocationRunV1';
+export {
   AllocationUtilityPolicySchema,
   type AllocationUtilityPolicyDTO,
 } from './allocationUtility';
@@ -492,6 +498,9 @@ export const ResourceScopeSchema = z
     year: z.number().int().min(2000).max(2100),
   })
   .strict();
+export const CreateAllocationRunSchema = ResourceScopeSchema.extend({
+  requestId: ResourceUuidSchema,
+});
 const CourseResourceOverrideSchema = z
   .object({
     capacity: ResourceCountSchema.optional(),

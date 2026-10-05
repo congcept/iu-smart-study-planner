@@ -77,10 +77,11 @@ model Curriculum {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  courses      CurriculumCourse[]
-  users        User[]
-  requirements CurriculumRequirement[]
-  resources    SchoolResource[]
+  courses        CurriculumCourse[]
+  users          User[]
+  requirements   CurriculumRequirement[]
+  resources      SchoolResource[]
+  allocationRuns SimulationAllocationRun[]
 
   @@map("curriculums")
 }
@@ -202,7 +203,8 @@ model User {
   ratingWriteLimit RatingWriteLimit?
   studyPlans       StudyPlan[]
   updatedResources SchoolResource[]
-  curriculum       Curriculum?       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  allocationRuns   SimulationAllocationRun[]
+  curriculum       Curriculum?               @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -211,6 +213,27 @@ model User {
   @@index([email])
   @@index([curriculumId])
   @@map("users")
+}
+
+// Immutable aggregate experiments only; no student assignment or registration job.
+model SimulationAllocationRun {
+  id            String   @id @default(uuid())
+  curriculumId  String   @map("curriculum_id")
+  semester      Semester
+  year          Int
+  requestId     String   @map("request_id")
+  createdById   String?  @map("created_by_id")
+  formatVersion Int      @default(1) @map("format_version")
+  capturedAt    DateTime @map("captured_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  result        Json
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy  User?      @relation(fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Restrict)
+
+  @@unique([createdById, requestId])
+  @@index([curriculumId, semester, year, createdAt])
+  @@map("simulation_allocation_runs")
 }
 
 model StudentRecord {
