@@ -4,6 +4,7 @@ import {
   ResourcesSnapshotSchema,
   PlannedDemandSnapshotSchema,
   SimulationCapacitySnapshotSchema,
+  AllocationPreviewSchema,
   type ResourceScopeDTO,
   type UpsertResourcesDTO,
   type ResourcesSnapshotDTO,
@@ -75,5 +76,22 @@ export async function getSimulationCapacity(input: ResourceScopeDTO) {
     parsed.data.plannedSelections.scope.year !== scope.year
   )
     throw new Error('Could not verify simulation capacity. Reload to try again.');
+  return parsed.data;
+}
+
+export async function getAllocationPreview(input: ResourceScopeDTO) {
+  const scope = ResourceScopeSchema.parse(input);
+  const response = await apiClient.get<ApiResponse<unknown>>('/admin/allocation-preview', {
+    params: scope,
+  });
+  const parsed = AllocationPreviewSchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    parsed.data.snapshot.demand.scope.curriculumId !== scope.curriculumId ||
+    parsed.data.snapshot.demand.scope.semester !== scope.semester ||
+    parsed.data.snapshot.demand.scope.year !== scope.year
+  )
+    throw new Error('Could not verify the allocation preview. Reload to try again.');
   return parsed.data;
 }

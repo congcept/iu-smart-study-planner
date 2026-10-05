@@ -56,6 +56,22 @@ remain false, and the response states its difficulty-only utility basis. Labs,
 per-course overrides, staff qualifications, cross-curriculum capacity and calendars
 remain unmodeled as declared by the resource envelope.
 
+## Admin dashboard adoption
+
+The ADMIN-only resource dashboard mounts the read-only allocation panel after a
+confirmed scoped resource read. It shows cohort outcomes, per-course eligible demand,
+opened sections/seats and assigned-seat utilization, with distinct missing/zero
+resource states and honest simulation limits. Large-cohort limits, empty contexts,
+loading, malformed data and authorization changes have retry/recovery copy.
+
+The client validates the complete strict payload and exact normalized scope. Fresh
+ADMIN identity checks precede fetching and publication. Account, scope and confirmed
+resource revision changes invalidate in-flight results. Confirmed resource saves
+refresh the preview; manual preview reload leaves unsaved resource fields and recovery
+journals intact. A newer snapshot revision is reported without silently replacing the
+resource form. The course comparison is a keyboard-focusable scrolling region on
+narrow screens. No student identities, assignments or writes are exposed by this panel.
+
 ## Verification and next increment
 
 Pure contract tests cover exact union choices, mandatory prerequisites, highest
@@ -66,7 +82,12 @@ unchanged academic/resource evidence, shared-seat exhaustion, empty contexts,
 corrupt stored state, preview limits, all three policy captures and a committed
 concurrent writer while retaining the original production snapshot.
 
-Next: adopt this runtime-validated aggregate in the admin dashboard with scoped
-loading/retry and stale-response protection. Then extend supported utility metadata
-and plan full-semester registration-window jobs and persistence. Phase 4 remains
+Forty-five client API/panel/integration regressions verify response corruption,
+privacy, owner/scope/revision isolation, both session checks, retry/limit states and
+resource-form recovery. Build/types/lint and all 1394 server / 1037 client tests pass.
+Independent source/test review found no blocker; desktop/mobile visual checks confirm
+readable wrapping and contained horizontal table scrolling.
+
+Next: extend supported utility metadata and plan full-semester registration-window
+jobs and persistence. Phase 4 remains
 incomplete; no verified curriculum activation or account assignment is implied.
