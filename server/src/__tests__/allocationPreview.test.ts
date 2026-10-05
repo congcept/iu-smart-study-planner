@@ -14,6 +14,7 @@ import { projectCohortResourceSnapshot } from '../services/cohortResourceSnapsho
 import { projectSimulationResourceEnvelope } from '../services/schoolResourceEnvelope';
 import { allocateSimulationRound } from '../services/simulationAllocation';
 import config from '../config';
+import { calculateAllocationStudentUtility } from '../services/allocationUtility';
 
 const ids = Array.from({ length: 10 }, () => randomUUID());
 const course = (index: number, year = 1, semester = 1): CurriculumCourseDTO => ({
@@ -108,9 +109,12 @@ const build = (
     envelope,
     pair.choices.map(({ studentId, candidates }) => ({
       studentId,
-      candidates: candidates.map(({ courseId, ratingDifficulty }) => ({
+      candidates: candidates.map(({ courseId, ratingDifficulty, immediateUnlockCount }) => ({
         courseId,
-        studentUtility: (5 - ratingDifficulty) / 4,
+        studentUtility: calculateAllocationStudentUtility(
+          { ratingDifficulty, immediateUnlockCount },
+          config.allocationUtilityPolicy,
+        ),
       })),
     })),
     config.simulationAllocationPolicy,
@@ -120,7 +124,7 @@ const build = (
     pair,
     snapshot,
     allocation,
-    preview: projectAllocationPreview(snapshot, allocation),
+    preview: projectAllocationPreview(snapshot, allocation, config.allocationUtilityPolicy),
   };
 };
 
@@ -156,8 +160,8 @@ describe('aggregate allocation preview projection', () => {
     const result = build(source, [student()]);
     expect(result.pair.choices[0].candidates).toEqual(
       expect.arrayContaining([
-        { courseId: ids[0], ratingDifficulty: 4 },
-        { courseId: ids[1], ratingDifficulty: 1 },
+        { courseId: ids[0], ratingDifficulty: 4, immediateUnlockCount: 0 },
+        { courseId: ids[1], ratingDifficulty: 1, immediateUnlockCount: 0 },
       ]),
     );
     expect(result.preview.courses.find(({ id }) => id === ids[1])?.assignedStudentCount).toBe(1);
@@ -218,7 +222,7 @@ describe('aggregate allocation preview projection', () => {
   it('does not leak internal roster/assignment scores or mutate inputs', () => {
     const { snapshot, allocation, students } = build();
     const before = JSON.stringify({ snapshot, allocation });
-    const result = projectAllocationPreview(snapshot, allocation);
+    const result = projectAllocationPreview(snapshot, allocation, config.allocationUtilityPolicy);
     expect(JSON.stringify({ snapshot, allocation })).toBe(before);
     for (const { id } of students) expect(JSON.stringify(result)).not.toContain(id);
     for (const key of [
@@ -334,14 +338,16 @@ describe('aggregate allocation preview projection', () => {
   it('rejects allocations from a different envelope, roster size or eligible union', () => {
     const a = build();
     const b = build(undefined, undefined, 40);
-    expect(() => projectAllocationPreview(a.snapshot, b.allocation)).toThrow('envelope or cohort');
+    expect(() =>
+      projectAllocationPreview(a.snapshot, b.allocation, config.allocationUtilityPolicy),
+    ).toThrow('envelope or cohort');
     const fewer = build(undefined, [student()]);
-    expect(() => projectAllocationPreview(a.snapshot, fewer.allocation)).toThrow(
-      'envelope or cohort',
-    );
+    expect(() =>
+      projectAllocationPreview(a.snapshot, fewer.allocation, config.allocationUtilityPolicy),
+    ).toThrow('envelope or cohort');
     const different = build(context([course(2)]));
-    expect(() => projectAllocationPreview(a.snapshot, different.allocation)).toThrow(
-      'choices do not match',
-    );
+    expect(() =>
+      projectAllocationPreview(a.snapshot, different.allocation, config.allocationUtilityPolicy),
+    ).toThrow('choices do not match');
   });
 });

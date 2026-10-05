@@ -20,6 +20,7 @@ import {
   resolveCurriculumAvailability,
 } from './curriculumRecommendations';
 import { SchoolResourceError } from './schoolResources';
+import { countImmediateCourseUnlocks } from './allocationUtility';
 
 export interface EligibleCohortDemandStudent {
   id: string;
@@ -30,7 +31,7 @@ export interface EligibleCohortDemandStudent {
 /** Internal allocator input; never include this identity-bearing projection in API replies. */
 export interface EligibleCohortDemandChoices {
   studentId: string;
-  candidates: { courseId: string; ratingDifficulty: number }[];
+  candidates: { courseId: string; ratingDifficulty: number; immediateUnlockCount: number }[];
 }
 
 export interface EligibleCohortDemandWithChoices {
@@ -161,6 +162,12 @@ export function projectEligibleCohortDemandWithChoices(
       ).courses.map(({ id }) => id),
     );
     const demandIds = new Set([...plannedIds, ...recommendedIds]);
+    const unlockCounts = countImmediateCourseUnlocks(
+      studentContext,
+      student.records,
+      availability.gpaPath,
+      [...demandIds],
+    );
     if (plannedIds.size > 0) eligiblePlannedStudentCount++;
     if (recommendedIds.size > 0) recommendedStudentCount++;
     if (demandIds.size > 0) demandStudentCount++;
@@ -170,7 +177,11 @@ export function projectEligibleCohortDemandWithChoices(
       const availableCourse = availableById.get(id);
       if (!course || !availableCourse)
         throw new Error('Eligible cohort recommendation is not an available member');
-      candidates.push({ courseId: id, ratingDifficulty: availableCourse.ratingDifficulty });
+      candidates.push({
+        courseId: id,
+        ratingDifficulty: availableCourse.ratingDifficulty,
+        immediateUnlockCount: unlockCounts.get(id) ?? 0,
+      });
       const planned = plannedIds.has(id);
       const recommended = recommendedIds.has(id);
       if (planned) course.eligiblePlannedStudentCount++;

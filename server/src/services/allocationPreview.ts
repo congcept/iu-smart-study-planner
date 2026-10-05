@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import {
   AllocationPreviewSchema,
+  AllocationUtilityPolicySchema,
   CohortResourceSnapshotSchema,
   EligibleCohortDemandPolicySchema,
   ResourceScopeSchema,
@@ -9,6 +10,7 @@ import {
   SimulationAllocationRosterSchema,
   SimulationResourcePolicySchema,
   type AllocationPreviewDTO,
+  type AllocationUtilityPolicyDTO,
   type CohortResourceSnapshotDTO,
   type ResourceScopeDTO,
   type SimulationAllocationResultDTO,
@@ -20,15 +22,18 @@ import { readEligibleCohortDemandWithChoices } from './eligibleCohortDemand';
 import { projectSimulationResourceEnvelope } from './schoolResourceEnvelope';
 import { readResources, SchoolResourceError } from './schoolResources';
 import { allocateSimulationRound } from './simulationAllocation';
+import { calculateAllocationStudentUtility } from './allocationUtility';
 
 /** Internal IDs never leave this aggregate projection. Inputs must share their source snapshot. */
 export function projectAllocationPreview(
   inputSnapshot: CohortResourceSnapshotDTO,
   inputAllocation: SimulationAllocationResultDTO,
+  inputUtilityPolicy: AllocationUtilityPolicyDTO,
 ): AllocationPreviewDTO {
   const snapshot = CohortResourceSnapshotSchema.safeParse(inputSnapshot);
   const allocation = SimulationAllocationResultSchema.safeParse(inputAllocation);
-  if (!snapshot.success || !allocation.success)
+  const utilityPolicy = AllocationUtilityPolicySchema.safeParse(inputUtilityPolicy);
+  if (!snapshot.success || !allocation.success || !utilityPolicy.success)
     throw new Error('Allocation preview inputs could not be verified');
   const { demand, resourceEnvelope } = snapshot.data;
   const result = allocation.data;
@@ -51,7 +56,8 @@ export function projectAllocationPreview(
     usage: 'REFERENCE_ONLY',
     consistencyBasis: 'SINGLE_DATABASE_SNAPSHOT',
     model: result.model,
-    utilityBasis: 'BAYESIAN_DIFFICULTY_FIT_ONLY_V1',
+    utilityBasis: 'BAYESIAN_DIFFICULTY_AND_IMMEDIATE_UNLOCKS_V1',
+    utilityPolicy: utilityPolicy.data,
     eligibilityValidated: false,
     allocationValidated: false,
     timetableValidated: false,
@@ -97,11 +103,18 @@ export async function readAllocationPreview(actorId: string, inputScope: Resourc
   const allocationPolicy = SimulationAllocationPolicySchema.safeParse(
     config.simulationAllocationPolicy,
   );
-  if (!demandPolicy.success || !resourcePolicy.success || !allocationPolicy.success)
+  const utilityPolicy = AllocationUtilityPolicySchema.safeParse(config.allocationUtilityPolicy);
+  if (
+    !demandPolicy.success ||
+    !resourcePolicy.success ||
+    !allocationPolicy.success ||
+    !utilityPolicy.success
+  )
     throw new Error('Allocation preview policies could not be verified');
   const capturedDemand = Object.freeze(demandPolicy.data);
   const capturedResource = Object.freeze(resourcePolicy.data);
   const capturedAllocation = Object.freeze(allocationPolicy.data);
+  const capturedUtility = Object.freeze(utilityPolicy.data);
   const source = await prisma.$transaction(
     async (tx) => {
       const cohort = await readEligibleCohortDemandWithChoices(actorId, scope, tx, capturedDemand);
@@ -115,9 +128,12 @@ export async function readAllocationPreview(actorId: string, inputScope: Resourc
   const snapshot = projectCohortResourceSnapshot(source.cohort.demand, envelope);
   const roster = source.cohort.choices.map(({ studentId, candidates }) => ({
     studentId,
-    candidates: candidates.map(({ courseId, ratingDifficulty }) => ({
+    candidates: candidates.map(({ courseId, ratingDifficulty, immediateUnlockCount }) => ({
       courseId,
-      studentUtility: (5 - ratingDifficulty) / 4,
+      studentUtility: calculateAllocationStudentUtility(
+        { ratingDifficulty, immediateUnlockCount },
+        capturedUtility,
+      ),
     })),
   }));
   const checkedRoster = SimulationAllocationRosterSchema.safeParse(roster);
@@ -134,5 +150,6 @@ export async function readAllocationPreview(actorId: string, inputScope: Resourc
   return projectAllocationPreview(
     snapshot,
     allocateSimulationRound(envelope, checkedRoster.data, capturedAllocation),
+    capturedUtility,
   );
 }

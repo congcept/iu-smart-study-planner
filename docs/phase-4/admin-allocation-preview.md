@@ -8,8 +8,8 @@ It does not create a registration job, save assignments or edit student progress
 
 ## Source and policy consistency
 
-The reader captures the recommendation, resource-envelope and allocation policies
-before its first awaited read. Current role, curriculum metadata, assigned STUDENT
+The reader captures recommendation, resource-envelope, allocation and utility
+policies before its first awaited read. Current role, curriculum metadata, assigned STUDENT
 cohort, progress, numeric grade history, ratings and resource configuration share
 one RepeatableRead database transaction. Existing public demand readers retain
 their aggregate response contract.
@@ -23,11 +23,23 @@ The requested term identifies a resource scenario; offerings and calendars remai
 unverified.
 
 After closing the transaction, the pure allocator runs over captured inputs. Its
-student utility is explicitly `(5 - BayesianDifficulty) / 4`, with the context's
-current Bayesian estimates. It does not infer category, grade-fit or graduation
-timeline metadata. GPA affects eligibility, while grade-fit personalization remains
-unavailable. The configured resource/fairness weights and scarcity/congestion
-behavior come from the existing pure allocation foundation.
+student utility blends difficulty fit `(5 - BayesianDifficulty) / 4` and immediate
+unlock fit `n / (n + 1)`. A distinct placed child counts only when completing the
+candidate satisfies its sole remaining mandatory context prerequisite. Other parents
+must be current-member COMPLETED records; IN_PROGRESS is insufficient. Completed,
+in-progress, unplaced or GPA-ineligible children do not count. Unknown GPA defers
+fork-only placements, and repeated placements/edges count once. Unlocks are immediate,
+not transitive and not a prediction of graduation time.
+
+The captured strict utility policy is returned as `utilityPolicy`, with basis
+`BAYESIAN_DIFFICULTY_AND_IMMEDIATE_UNLOCKS_V1`. Deployment configuration defaults to
+`ALLOCATION_DIFFICULTY_FIT_WEIGHT=0.70` and
+`ALLOCATION_IMMEDIATE_UNLOCK_WEIGHT=0.30`; both normalized weights must sum to one.
+Difficulty-only weights (1/0) reproduce the former utility. The eligible demand union
+and reference recommendation policy are unchanged. Private unlock counts and student
+scores remain internal. Category, grade-fit and graduation-timeline metadata are not
+inferred; GPA still controls eligibility. The existing allocation policy combines
+student utility, resource fit and scarcity/fairness.
 
 The synchronous preview rejects more than 500 students, 100 choices per student or
 10,000 total choices with an identity-free 409. It never truncates demand. These are
@@ -52,7 +64,7 @@ the aggregate within the shared classroom/staff envelope.
 Student IDs, private choices, individual outcomes and scores, emails, grade
 history, elective claims and audit fields stay inside the server. The endpoint
 returns no persisted assignments. Eligibility, timetable and allocation validation
-remain false, and the response states its difficulty-only utility basis. Labs,
+remain false, and the response states its configured utility basis. Labs,
 per-course overrides, staff qualifications, cross-curriculum capacity and calendars
 remain unmodeled as declared by the resource envelope.
 
@@ -79,15 +91,21 @@ retakes and the exact GPA threshold, difficulty estimates, privacy, missing/zero
 resources, zero-demand rows, scope/cohort reconciliation and arithmetic corruption.
 Real PostgreSQL API tests verify cookie/current-role access, strict scopes, privacy,
 unchanged academic/resource evidence, shared-seat exhaustion, empty contexts,
-corrupt stored state, preview limits, all three policy captures and a committed
+corrupt stored state, preview limits, all four policy captures and a committed
 concurrent writer while retaining the original production snapshot.
 
 Forty-five client API/panel/integration regressions verify response corruption,
 privacy, owner/scope/revision isolation, both session checks, retry/limit states and
-resource-form recovery. Build/types/lint and all 1394 server / 1037 client tests pass.
+resource-form recovery. Build/types/lint and all 1471 server / 1042 client tests pass.
 Independent source/test review found no blocker; desktop/mobile visual checks confirm
 readable wrapping and contained horizontal table scrolling.
 
-Next: extend supported utility metadata and plan full-semester registration-window
-jobs and persistence. Phase 4 remains
+Seventy-seven new server cases verify configured weight parsing, hand-calculated
+utility, mandatory unlocks, status/context/GPA exclusions, unchanged academic evidence,
+real allocation choice, corrupt policy and concurrent prerequisite writes. Five new
+client cases reject incompatible/corrupt provenance and display configured weights.
+
+Next: persist immutable aggregate simulation runs as a small foundation for
+registration-window jobs; category/grade-fit metadata and full-semester scheduling
+remain separate gates. Phase 4 remains
 incomplete; no verified curriculum activation or account assignment is implied.
