@@ -157,7 +157,7 @@ Branches, pushes, and PR creation/merge are authorized in this conversation.
 | CS/IT/DS source gate           | User-supplied official CSE page reviewed; signed 2024/2025 curriculum links identified; existing CS JSON retained as attribute/layout reference; additive context membership/placement/prerequisite foundation and nullable user assignment; strict read-only CS verifier with portable source manifest preserving 71 placements/56 identities and explicit free-elective requirement and additive requirement storage; read-only catalog compatibility inspection and atomic/idempotent legacy CS context backfill; reference-only context list/detail API and isolated curriculum Bayesian priors                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Reconcile signed PDFs and elective rules; validate IT/DS, then assignment and major selector                                     |
 | Grades and GPA                 | Existing grade metadata preserved by completion updates; tested numeric 0–100 GPA calculator, highest score per course, credit weighting and physical-training exclusion; additive immutable numeric GradeAttempt history with account-scoped retry keys; authenticated numeric grade history/append APIs with consistent summaries and explicit coverage gaps; protected Grades dashboard with retake history, loading/retry states and account isolation; numeric grade entry with account-scoped tab recovery, immutable retry keys and full-snapshot reconciliation; server GPA path in grade summaries with decimal-exact >70 policy; signed-in curriculum path/target/recommendations follow the server with account isolation, refresh, retry and explicit-null manual fallback; member-scoped numeric GPA/coverage with full immutable history, placed-membership entry checks, safe old-key recovery and nonfork null path                                                                                                                                                                                                                                                                                                                                                                                                                 | Verified subject metadata and explicit legacy-grade recovery before assignment                                                   |
 | Ratings and recommendations    | Seed difficulty prior retained; pure Bayesian shrinkage helper with prior strength 5, zero-rating mean behavior and confidence count; additive global CourseRating rows with unique account/course votes, 1–5 checks and atomic cached averages/counts, including concurrent writes and FK deletion; public consistent rating summaries with global prior resolution and Bayesian estimates; explicit validated curriculum reads and cookie-owner member vote replies share curriculum priors while preserving historical global votes; completion-gated cookie-authenticated upserts and durable configurable hourly quota, idempotent unchanged retries; private current-account vote reads; batched, snapshot-consistent difficulty/count projections in course lists, detail and curriculum rows; visible difficulty/count badges with honest zero-vote copy; protected Ratings route with completed-course 1–5 entry, saved personal votes, account isolation, session-tab recovery and locked same-vote retries; Bayesian estimates consumed by workload averages, risk, validation, personalized course selection and configurable semester ranking and explicit unscheduled-course reporting without misleading graduation estimates; duplicated planner `RULES` removed, all database prerequisite flags enforced across earlier semesters | Multi-objective scoring and verified curriculum activation                                                                       |
-| School admin                   | Real ADMIN role and demo session; additive simulation resource settings, strict admin API and revision conflicts; role-guarded resource entry with exact read confirmation and tab recovery; scoped current-cohort planned-selection API and read-only counts screen; explicit simulation capacity diagnostic and coherent read-only comparison screen; configurable shared classroom/staff simulation envelope; eligible planned/recommended cohort union with mandatory context prerequisites and numeric GPA paths; coherent combined cohort/resource read; configurable pure one-course scarcity allocation round; same-snapshot aggregate admin allocation preview with explicit configured Bayesian-difficulty/immediate-unlock utility; runtime-validated admin preview panel with scoped retry, fresh role checks, stale-response isolation and confirmed-resource refresh; versioned immutable aggregate run capture/read API with safe per-admin retry recovery; admin capture control with owner/scenario tab receipts and safe explicit retries; bounded same-snapshot scoped history API with immutable cursor pagination; scenario history browser with exact-page retry and selected immutable capture details                                                                                                                       | Verified category/grade-fit metadata, full-semester jobs and per-student persistence, lab/staff/calendar verification — required |
+| School admin                   | Real ADMIN role and demo session; additive simulation resource settings, strict admin API and revision conflicts; role-guarded resource entry with exact read confirmation and tab recovery; scoped current-cohort planned-selection API and read-only counts screen; explicit simulation capacity diagnostic and coherent read-only comparison screen; configurable shared classroom/staff simulation envelope; eligible planned/recommended cohort union with mandatory context prerequisites and numeric GPA paths; coherent combined cohort/resource read; configurable pure one-course scarcity allocation round; same-snapshot aggregate admin allocation preview with explicit configured Bayesian-difficulty/immediate-unlock utility; runtime-validated admin preview panel with scoped retry, fresh role checks, stale-response isolation and confirmed-resource refresh; versioned immutable aggregate run capture/read API with safe per-admin retry recovery; admin capture control with owner/scenario tab receipts and safe explicit retries; bounded same-snapshot scoped history API with immutable cursor pagination; scenario history browser with exact-page retry and selected immutable capture details; durable admin-only queue requests with private-free queued receipts and safe per-actor retries                       | Verified category/grade-fit metadata, full-semester jobs and per-student persistence, lab/staff/calendar verification — required |
 | Verification/deployment/thesis | Real PostgreSQL and client regression suites; shared-first root builds/typechecks/tests; concurrent local startup; Docker shared builds with isolated compiled output; local Docker smoke checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Deployment gate and thesis chapters                                                                                              |
 
 Full phases are **not** marked complete: curriculum context, grades,
@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 1644 server tests and 1193 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 1769 server tests and 1193 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -188,6 +188,32 @@ and the sidebar overlay/pan bounds in uncommitted interface work. Those interfac
 edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-05
+
+### Durable simulation queue requests — 2026-10-05
+
+ADMIN-only POST /admin/allocation-jobs persists an immutable scenario request, with a
+mandatory expectedActorId and per-actor request UUID. Current-role authorization, actor
+matching, replay, context existence and creation share each bounded Serializable attempt.
+Identical retries return the original ID/time; changed scenarios conflict. GET /:id uses
+current ADMIN authorization in RepeatableRead and rejects query overrides. Replies contain
+only simulation/reference labels, ID, scope, queued time, QUEUED and inputsCaptured:false.
+Enqueue/read never compute previews or capture policies, cohort, resources or results.
+There is no worker, timer, UI control, assignment or academic write in this increment.
+
+The additive table restricts context deletion and has unique actor/request keys. SQL
+rejects source changes except creator anonymization/no-op. Applied SQL is unchanged;
+Prisma explicitly maps its verified PostgreSQL-truncated scoped index. Live checksum and
+catalog names match. Shared/Prisma outputs were refreshed without container recreation.
+Eighty-four pure contracts and forty-one PostgreSQL cases pass, including true concurrent
+retries, role/account recovery, source immutability and unchanged academic/resource/run
+records. Independent source/migration review found no blocker. Build/types/zero-warning
+lint and 1769 server / 1193 client tests pass on the exact isolated source.
+See docs/phase-4/simulation-job-queue.md. Existing app/database and unrelated drafts remain.
+
+Next: an explicit single-job worker with separate mutable execution state, lease ownership,
+safe capture/finalization replay and sanitized outcomes. Do not start a daemon or recreate
+the deleted repeating automation. Full-semester/student persistence and verified calendar,
+resource, category/grade-fit and curriculum activation remain pending.
 
 ### Scenario history browser — 2026-10-05
 
@@ -365,7 +391,7 @@ The repeating implementation automation was canceled at the user's request;
 implementation resumed manually in this chat without recreating it.
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #94 are pushed/merged. The scenario history browser is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #95 are pushed/merged. Durable queue requests are verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -1168,7 +1194,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 1644 server tests and 1193 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 1769 server tests and 1193 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
