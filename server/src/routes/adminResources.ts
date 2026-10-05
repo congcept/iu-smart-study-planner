@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   CreateAllocationRunSchema,
+  CreateAllocationJobSchema,
   ListAllocationRunsSchema,
   ResourceScopeSchema,
   UpsertResourcesSchema,
@@ -20,6 +21,7 @@ import {
   readAllocationRun,
   listAllocationRuns,
 } from '../services/allocationRuns';
+import { enqueueAllocationJob, readAllocationJob } from '../services/allocationJobs';
 
 const router = Router();
 const RunParamsSchema = z
@@ -30,6 +32,7 @@ const RunParamsSchema = z
       .transform((id) => id.toLowerCase()),
   })
   .strict();
+const JobParamsSchema = z.object({ id: CreateAllocationJobSchema.shape.requestId }).strict();
 const QuerySchema = ResourceScopeSchema.extend({
   year: z
     .string()
@@ -67,6 +70,31 @@ router.get('/allocation-preview', requireAdmin, async (req: Request, res: Respon
     return res.json({ success: true, data: await readAllocationPreview(req.userId, scope) });
   } catch (error) {
     return failure(error, res, 'Could not load allocation preview');
+  }
+});
+router.post('/allocation-jobs', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({}).strict().parse(req.query);
+    const { job, created } = await enqueueAllocationJob(
+      req.userId,
+      CreateAllocationJobSchema.parse(req.body),
+    );
+    return res.status(created ? 201 : 200).json({ success: true, data: job });
+  } catch (error) {
+    return failure(error, res, 'Could not queue simulation job');
+  }
+});
+router.get('/allocation-jobs/:id', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { id } = JobParamsSchema.parse(req.params);
+    z.object({}).strict().parse(req.query);
+    return res.json({ success: true, data: await readAllocationJob(req.userId, id) });
+  } catch (error) {
+    return failure(error, res, 'Could not load simulation job');
   }
 });
 router.post('/allocation-runs', requireAdmin, async (req: Request, res: Response) => {
