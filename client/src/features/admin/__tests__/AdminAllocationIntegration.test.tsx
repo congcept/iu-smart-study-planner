@@ -1,3 +1,4 @@
+vi.mock('../AllocationRunHistoryPanel', () => ({ AllocationRunHistoryPanel: () => null }));
 vi.mock('../AllocationRunCapturePanel', () => ({ AllocationRunCapturePanel: () => null }));
 vi.mock('../PlannedDemandPanel', () => ({ PlannedDemandPanel: () => null }));
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';

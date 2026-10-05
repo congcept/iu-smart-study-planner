@@ -71,7 +71,7 @@ is restricted while history exists. There is no migration data rewrite, reset or
 
 ## Remaining work
 
-Add the scoped history browser client, then a background-job lifecycle and
+Add a background-job lifecycle and
 registration-window scheduling. This increment stores aggregate experiments only.
 Per-student allocations, full-semester plans, official offerings/calendar validation,
 verified category/grade-fit metadata and curriculum activation remain pending.
@@ -91,7 +91,26 @@ Mounting a pending request never sends it automatically: explicit retry recovers
 the same immutable run. Receipt-save failure retains the original request key.
 Confirmed receipts recover through GET, with identity and exact ID/scenario checks.
 The result shows captured cohort outcomes, timestamps, resource revision and weights.
-Only the last receipt in the current tab is shown; this is not a full history list.
+Only the last receipt in the current tab is shown by the capture control. The separate
+history browser reads stored runs beyond that receipt.
+
+## Scenario history browser
+
+The admin dashboard loads the selected scenario's newest page, up to twenty captures.
+Reload starts from the newest page; loading older captures replaces the current page
+rather than accumulating unlimited history in browser memory. Failed-page retry retains
+the same cursor and immutable boundary. Each row shows storage time, captured resource
+revision and outcome counts. Viewing a row reads its exact saved run into inline details,
+including captured resources, policies, outcomes, course seats and timestamps.
+
+Fresh exact-owner ADMIN session reads precede history/detail requests and publication.
+Strict schema and scope validation apply even when helpers are mocked; older pages must
+fall below the previous immutable time/ID boundary. Details must match the selected run
+ID and scenario. Keyed owner/scenario remounts invalidate late responses, and one read
+is allowed at a time. Pending and failed details clear the previous detail. The panel
+never writes storage, captures, resources or academic records; unsaved settings and
+both resource/capture recovery journals remain independent. History is refreshed explicitly
+after a new capture. One-course simulation and verification limits remain visible.
 
 ## Verification
 
@@ -114,3 +133,9 @@ keyset ties, inserts between/within reads, cursor/scope isolation, strict query 
 lookahead corruption and current-policy independence. Build/types/zero-warning lint and
 1644 server / 1141 client tests pass on its exact isolated snapshot. Independent source
 review found no blocker; the parent completed verification after a helper usage limit.
+
+The history-browser increment adds eighteen API cases, thirty-two panel cases and two
+integrated dashboard cases. Build/types/zero-warning lint and 1644 server / 1193 client
+tests pass on the exact isolated source. Independent source review and desktop/mobile
+synthetic visual checks pass; the mobile page has no horizontal overflow. No database,
+resource or academic write, app recreation or unrelated-draft change occurred.

@@ -17,6 +17,7 @@ import { ResourceSettingsForm } from './ResourceSettingsForm';
 import { PlannedDemandPanel } from './PlannedDemandPanel';
 import { AllocationPreviewPanel } from './AllocationPreviewPanel';
 import { AllocationRunCapturePanel } from './AllocationRunCapturePanel';
+import { AllocationRunHistoryPanel } from './AllocationRunHistoryPanel';
 import {
   ResourceRequestSchema,
   resourceRequestKey,
@@ -487,6 +488,16 @@ function ResourceSession({ userId }: { userId: string }) {
           )}
           {active && !loading && !loadError && (
             <AllocationRunCapturePanel
+              userId={userId}
+              scope={{
+                curriculumId: active.snapshot.curriculum.id,
+                semester: active.snapshot.semester,
+                year: active.snapshot.year,
+              }}
+            />
+          )}
+          {active && !loading && !loadError && (
+            <AllocationRunHistoryPanel
               userId={userId}
               scope={{
                 curriculumId: active.snapshot.curriculum.id,
