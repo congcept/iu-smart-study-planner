@@ -5,6 +5,7 @@ import {
   CreateAllocationJobSchema,
   ExecuteAllocationJobSchema,
   ListAllocationRunsSchema,
+  ListAllocationJobsSchema,
   ResourceScopeSchema,
   UpsertResourcesSchema,
 } from '@iu-study-planner/shared';
@@ -23,6 +24,7 @@ import {
   listAllocationRuns,
 } from '../services/allocationRuns';
 import { enqueueAllocationJob, readAllocationJob } from '../services/allocationJobs';
+import { listAllocationJobs } from '../services/allocationJobHistory';
 import { readAllocationJobOutcome, executeAllocationJob } from '../services/allocationJobExecution';
 
 const router = Router();
@@ -50,6 +52,14 @@ const HistoryQuerySchema = ListAllocationRunsSchema.extend({
     .transform(Number)
     .pipe(ResourceScopeSchema.shape.year),
 });
+const JobHistoryQuerySchema = ListAllocationJobsSchema.extend({
+  year: z
+    .string()
+    .length(4)
+    .regex(/^\d{4}$/)
+    .transform(Number)
+    .pipe(ListAllocationJobsSchema.shape.year),
+});
 function failure(
   error: unknown,
   res: Response,
@@ -72,6 +82,21 @@ router.get('/allocation-preview', requireAdmin, async (req: Request, res: Respon
     return res.json({ success: true, data: await readAllocationPreview(req.userId, scope) });
   } catch (error) {
     return failure(error, res, 'Could not load allocation preview');
+  }
+});
+router.get('/allocation-jobs', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    return res.json({
+      success: true,
+      data: await listAllocationJobs(req.userId, JobHistoryQuerySchema.parse(req.query)),
+    });
+  } catch (error) {
+    return failure(error, res, 'Could not load simulation request history');
   }
 });
 router.post('/allocation-jobs', requireAdmin, async (req: Request, res: Response) => {
