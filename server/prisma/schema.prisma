@@ -242,7 +242,7 @@ model SimulationAllocationRun {
   @@map("simulation_allocation_runs")
 }
 
-// Immutable queue requests only; inputs have not been captured and no executor exists yet.
+// Immutable queue manifests; a separate atomic executor captures inputs when explicitly run.
 model SimulationAllocationJob {
   id           String   @id @default(uuid())
   curriculumId String   @map("curriculum_id")

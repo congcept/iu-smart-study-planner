@@ -9,7 +9,10 @@ import {
   AllocationJobOutcomeSchema,
   AllocationJobSchema,
   CreateAllocationJobSchema,
+  ExecuteAllocationJobSchema,
+  AllocationJobExecutionSchema,
   type AllocationJobOutcomeDTO,
+  type ExecuteAllocationJobDTO,
   type AllocationRunSummaryV1DTO,
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
@@ -98,20 +101,55 @@ function retryable(error: unknown): boolean {
   return error.code === 'P2010' && ['40001', '40P01'].includes(String(error.meta?.code));
 }
 
-/** Explicit bounded worker: one selected request, no timer or automatic queue draining. */
-export async function runOneAllocationJob(jobId: string) {
+type ExecutionAuthorization = { actorId: string; request: ExecuteAllocationJobDTO };
+
+async function executeOne(jobId: string, authorization?: ExecutionAuthorization) {
   const id = CreateAllocationJobSchema.shape.requestId.parse(jobId);
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       return await prisma.$transaction(
         async (tx) => {
+          let selected: (SimulationAllocationJob & { execution: StoredExecution | null }) | null =
+            null;
+          if (authorization) {
+            // The acting role is locked through capture/terminal commit, including replay.
+            const actors = await tx.$queryRaw<{ role: string }[]>`
+              SELECT role FROM users WHERE id = ${authorization.actorId} FOR SHARE
+            `;
+            if (!actors[0]) throw new SchoolResourceError('Authentication required', 401);
+            if (actors[0].role !== 'ADMIN')
+              throw new SchoolResourceError('Administrator access required', 403);
+            if (authorization.actorId !== authorization.request.expectedActorId)
+              throw new SchoolResourceError(
+                'The signed-in account changed; refresh and retry',
+                409,
+              );
+            selected = await tx.simulationAllocationJob.findUnique({
+              where: { id },
+              include: { execution: { include: { run: true } } },
+            });
+            if (!selected) throw new SchoolResourceError('Simulation job not found', 404);
+            const expected = authorization.request;
+            if (
+              selected.curriculumId !== expected.curriculumId ||
+              selected.semester !== expected.semester ||
+              selected.year !== expected.year
+            )
+              throw new SchoolResourceError(
+                'The simulation scenario changed; refresh and retry',
+                409,
+              );
+          }
           const claimed = await tx.$queryRaw<{ id: string }[]>`
           SELECT j.id FROM simulation_allocation_jobs j
           WHERE j.id = ${id}
             AND NOT EXISTS (SELECT 1 FROM simulation_allocation_executions e WHERE e.job_id = j.id)
           FOR UPDATE OF j SKIP LOCKED
         `;
-          if (claimed.length === 0) return { processed: false as const };
+          if (claimed.length === 0)
+            return selected
+              ? { processed: false as const, outcome: outcome(selected, selected.execution) }
+              : { processed: false as const };
           const job = await tx.simulationAllocationJob.findUniqueOrThrow({ where: { id } });
           const pending = outcome(job, null);
           const authors = job.createdById
@@ -187,4 +225,20 @@ export async function runOneAllocationJob(jobId: string) {
     }
   }
   throw new Error('Could not confirm simulation execution');
+}
+
+/** Explicit bounded CLI worker: one selected request, no timer or automatic queue draining. */
+export async function runOneAllocationJob(jobId: string) {
+  return executeOne(jobId);
+}
+
+/** Browser action: authorize the current actor and scenario inside the same atomic worker. */
+export async function executeAllocationJob(
+  actorId: string,
+  jobId: string,
+  input: ExecuteAllocationJobDTO,
+) {
+  const request = ExecuteAllocationJobSchema.parse(input);
+  const actor = CreateAllocationJobSchema.shape.expectedActorId.parse(actorId);
+  return AllocationJobExecutionSchema.parse(await executeOne(jobId, { actorId: actor, request }));
 }

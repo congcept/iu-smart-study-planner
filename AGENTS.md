@@ -170,7 +170,7 @@ and Computer Engineering tracks. Some shared courses have different prerequisite
 across majors; retain global Course identities but resolve prerequisites in curriculum
 context before seeding IT/DS. Do not union prerequisite sets across majors.
 
-Current verification: 1904 server tests and 1193 client tests (integration suites use real PostgreSQL), covering cookie/role access,
+Current verification: 1984 server tests and 1193 client tests (integration suites use real PostgreSQL), covering cookie/role access,
 mandatory prerequisites, transactional cascades, optimistic store saves, failure recovery,
 stale account responses, legacy cache backups, guest isolation, and legacy read ownership/role guards, additive import validation/concurrency, denied-storage session recovery, and GPA recommendation budgets. Re-run quality gates
 before each commit; keep these counts current when tests change.
@@ -188,6 +188,33 @@ and the sidebar overlay/pan bounds in uncommitted interface work. Those interfac
 edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-05
+
+### Protected explicit simulation execution action — 2026-10-05
+
+ADMIN POST /allocation-jobs/:id/execute accepts only the exact selected scenario and mandatory
+expectedActorId. The current acting role is read FOR SHARE inside the existing Serializable
+worker and held through terminal commit. Missing/demoted actors reject; expected-account
+mismatch rejects before job lookup, and scenario mismatch rejects before claim. Another current
+admin may execute an original admin's request without changing its author or manifest. New
+captures still require an available original author; terminal replay validates immutable history
+without rechecking that author's current role. The strict processed/outcome response distinguishes
+this invocation's execution from a prior terminal result or snapshot-coherent in-flight PENDING.
+There is no automatic queue drain, background daemon or startup execution. CLI behavior is retained.
+
+Thirty-seven PostgreSQL action cases and forty-three pure contracts pass, along with fifty-two
+worker/CLI regressions. Tests verify real acting-role writer blocking, fresh authorization after
+middleware, account/scope ordering, concurrent separate admins, private-safe exact replay, original
+author changes, corrupt history rejection and rollback after a real capture insertion. Independent
+source/test review found no blocker. Build/types/zero-warning lint and 1984 server / 1193 client
+tests pass on the exact isolated source. No schema/data migration, assignment, seed or reset was
+needed. The running app was preserved; generated shared outputs were refreshed and backend health
+passed. See docs/phase-4/simulation-job-execution-action.md.
+
+Next: browser queue/outcome controls with durable enqueue recovery, explicit selected execution
+and account/scenario isolation, followed by full-semester/per-student persistence. The existing
+one-course simulation and fifteen-second atomic-worker limitations remain explicit. Curriculum,
+calendar, grade-fit/category metadata and deployment gates are still open. Canceled automation
+remains canceled; unrelated interface/staged drafts remain preserved.
 
 ### Explicit atomic simulation worker — 2026-10-05
 
@@ -423,7 +450,7 @@ The repeating implementation automation was canceled at the user's request;
 implementation resumed manually in this chat without recreating it.
 
 Development remains active; work needing unavailable input is skipped and recorded. Increments
-through PR #96 are pushed/merged. Explicit atomic job execution is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
+through PR #97 are pushed/merged. The protected execution action is verified in this branch; GitHub records its merge status. Saved-semester creation/course-list edits
 follow the plan owner's stored curriculum, including admin writes. Placed membership, rating
 prior, current actor role, owner/nested-resource authorization, authoritative totals and save
 share one Serializable transaction with bounded retries. Nonmember/unplaced selections reject
@@ -1226,7 +1253,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 1904 server tests and 1193 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 1984 server tests and 1193 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
