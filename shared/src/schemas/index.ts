@@ -17,6 +17,32 @@ export {
   type SimulationSemesterAllocationResultDTO,
 } from './simulationSemesterAllocation';
 export {
+  SemesterAllocationInputV1Schema,
+  SemesterAllocationReasonV1Schema,
+  SemesterAllocationScopeV1Schema,
+  SemesterAllocationCurriculumV1Schema,
+  SemesterAllocationPolicyV1Schema,
+  SemesterAllocationEnvelopeV1Schema,
+  SemesterAllocationCourseLedgerV1Schema,
+  SemesterAllocationStudentResultV1Schema,
+  SemesterAllocationResultV1Schema,
+  type SemesterAllocationInputV1DTO,
+  type SemesterAllocationStudentResultV1DTO,
+  type SemesterAllocationResultV1DTO,
+} from './semesterAllocationResultV1';
+export {
+  CreateSemesterAllocationRunSchema,
+  SemesterAllocationStorageV1Schema,
+  SemesterAllocationRunSummaryV1Schema,
+  SemesterAllocationRunV1Schema,
+  OwnSemesterAllocationRunV1Schema,
+  type CreateSemesterAllocationRunDTO,
+  type SemesterAllocationStorageV1DTO,
+  type SemesterAllocationRunSummaryV1DTO,
+  type SemesterAllocationRunV1DTO,
+  type OwnSemesterAllocationRunV1DTO,
+} from './semesterAllocationRunV1';
+export {
   CreateAllocationJobSchema,
   AllocationJobSchema,
   type CreateAllocationJobDTO,
