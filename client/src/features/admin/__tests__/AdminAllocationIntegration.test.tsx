@@ -1,3 +1,4 @@
+vi.mock('../AllocationJobHistoryPanel', () => ({ AllocationJobHistoryPanel: () => null }));
 vi.mock('../AllocationRunHistoryPanel', () => ({ AllocationRunHistoryPanel: () => null }));
 vi.mock('../AllocationRunCapturePanel', () => ({ AllocationRunCapturePanel: () => null }));
 vi.mock('../PlannedDemandPanel', () => ({ PlannedDemandPanel: () => null }));
