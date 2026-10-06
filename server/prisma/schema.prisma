@@ -83,6 +83,7 @@ model Curriculum {
   resources      SchoolResource[]
   allocationRuns SimulationAllocationRun[]
   allocationJobs SimulationAllocationJob[]
+  semesterRuns   SimulationSemesterRun[]
 
   @@map("curriculums")
 }
@@ -206,7 +207,9 @@ model User {
   updatedResources SchoolResource[]
   allocationRuns   SimulationAllocationRun[]
   allocationJobs   SimulationAllocationJob[]
-  curriculum       Curriculum?               @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  semesterRuns     SimulationSemesterRun[]
+  semesterResults  SimulationSemesterParticipant[]
+  curriculum       Curriculum?                     @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -240,6 +243,45 @@ model SimulationAllocationRun {
   @@unique([createdById, requestId])
   @@index([curriculumId, semester, year, createdAt])
   @@map("simulation_allocation_runs")
+}
+
+// Private simulation replay only. Academic plans and progress are never changed by storage.
+model SimulationSemesterRun {
+  id            String   @id @default(uuid())
+  curriculumId  String   @map("curriculum_id")
+  semester      Semester
+  year          Int
+  requestId     String   @map("request_id")
+  createdById   String?  @map("created_by_id")
+  formatVersion Int      @default(1) @map("format_version")
+  capturedAt    DateTime @map("captured_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  result        Json
+
+  curriculum   Curriculum                      @relation(fields: [curriculumId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User?                           @relation(fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Restrict)
+  participants SimulationSemesterParticipant[]
+
+  @@unique([createdById, requestId])
+  @@index([curriculumId, semester, year, createdAt, id], map: "simulation_semester_runs_scope_history_idx")
+  @@map("simulation_semester_runs")
+}
+
+// Live access may be revoked by account deletion; historical private UUIDs remain captured.
+model SimulationSemesterParticipant {
+  id                String  @id @default(uuid())
+  runId             String  @map("run_id")
+  capturedStudentId String  @map("captured_student_id")
+  userId            String? @map("user_id")
+  result            Json
+
+  run  SimulationSemesterRun @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user User?                 @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Restrict)
+
+  @@unique([runId, capturedStudentId])
+  @@unique([runId, userId])
+  @@index([userId, runId])
+  @@map("simulation_semester_participants")
 }
 
 // Immutable queue manifests; a separate atomic executor captures inputs when explicitly run.
