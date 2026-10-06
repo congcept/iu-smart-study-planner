@@ -23,7 +23,7 @@ import { SchoolResourceError } from './schoolResources';
 
 type StoredExecution = SimulationAllocationExecution & { run: SimulationAllocationRun | null };
 
-function outcome(
+export function verifyStoredAllocationJobOutcome(
   job: SimulationAllocationJob,
   execution: StoredExecution | null,
 ): AllocationJobOutcomeDTO {
@@ -89,7 +89,7 @@ export async function readAllocationJobOutcome(actorId: string, jobId: string) {
         include: { execution: { include: { run: true } } },
       });
       if (!job) throw new SchoolResourceError('Simulation job not found', 404);
-      return outcome(job, job.execution);
+      return verifyStoredAllocationJobOutcome(job, job.execution);
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
   );
@@ -148,10 +148,13 @@ async function executeOne(jobId: string, authorization?: ExecutionAuthorization)
         `;
           if (claimed.length === 0)
             return selected
-              ? { processed: false as const, outcome: outcome(selected, selected.execution) }
+              ? {
+                  processed: false as const,
+                  outcome: verifyStoredAllocationJobOutcome(selected, selected.execution),
+                }
               : { processed: false as const };
           const job = await tx.simulationAllocationJob.findUniqueOrThrow({ where: { id } });
-          const pending = outcome(job, null);
+          const pending = verifyStoredAllocationJobOutcome(job, null);
           const authors = job.createdById
             ? await tx.$queryRaw<
                 { role: string }[]
@@ -211,7 +214,10 @@ async function executeOne(jobId: string, authorization?: ExecutionAuthorization)
               ),
             },
           });
-          return { processed: true as const, outcome: outcome(job, { ...execution, run }) };
+          return {
+            processed: true as const,
+            outcome: verifyStoredAllocationJobOutcome(job, { ...execution, run }),
+          };
         },
         {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
