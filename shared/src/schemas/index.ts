@@ -9,6 +9,13 @@ import {
   SimulationAllocationPolicySchema,
 } from './simulationAllocation';
 import { createAllocationPreviewSchema } from './allocationPreview';
+import { createSimulationSemesterAllocationResultSchema } from './simulationSemesterAllocation';
+export {
+  SimulationSemesterAllocationInputSchema,
+  SimulationSemesterAllocationReasonSchema,
+  type SimulationSemesterAllocationInputDTO,
+  type SimulationSemesterAllocationResultDTO,
+} from './simulationSemesterAllocation';
 export {
   CreateAllocationJobSchema,
   AllocationJobSchema,
@@ -609,6 +616,8 @@ export const CohortResourceSnapshotSchema = createCohortResourceSnapshotSchema(
 export const SimulationAllocationResultSchema = createSimulationAllocationResultSchema(
   SimulationResourceEnvelopeSchema,
 );
+export const SimulationSemesterAllocationResultSchema =
+  createSimulationSemesterAllocationResultSchema(SimulationResourceEnvelopeSchema);
 
 export const AllocationPreviewSchema = createAllocationPreviewSchema(
   CohortResourceSnapshotSchema,
