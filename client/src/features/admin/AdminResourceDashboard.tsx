@@ -19,6 +19,7 @@ import { AllocationPreviewPanel } from './AllocationPreviewPanel';
 import { AllocationRunCapturePanel } from './AllocationRunCapturePanel';
 import { AllocationRunHistoryPanel } from './AllocationRunHistoryPanel';
 import { AllocationJobPanel } from './AllocationJobPanel';
+import { AllocationJobHistoryPanel } from './AllocationJobHistoryPanel';
 import {
   ResourceRequestSchema,
   resourceRequestKey,
@@ -489,6 +490,16 @@ function ResourceSession({ userId }: { userId: string }) {
           )}
           {active && !loading && !loadError && (
             <AllocationJobPanel
+              userId={userId}
+              scope={{
+                curriculumId: active.snapshot.curriculum.id,
+                semester: active.snapshot.semester,
+                year: active.snapshot.year,
+              }}
+            />
+          )}
+          {active && !loading && !loadError && (
+            <AllocationJobHistoryPanel
               userId={userId}
               scope={{
                 curriculumId: active.snapshot.curriculum.id,

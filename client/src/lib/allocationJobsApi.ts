@@ -2,6 +2,8 @@ import {
   AllocationJobExecutionSchema,
   AllocationJobOutcomeSchema,
   AllocationJobSchema,
+  AllocationJobHistorySchema,
+  ListAllocationJobsSchema,
   CreateAllocationJobSchema,
   ExecuteAllocationJobSchema,
   type AllocationJobDTO,
@@ -9,6 +11,7 @@ import {
   type ApiResponse,
   type CreateAllocationJobDTO,
   type ExecuteAllocationJobDTO,
+  type ListAllocationJobsDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import apiClient from './api';
@@ -87,6 +90,27 @@ export async function getAllocationJobOutcome(id: string, input: ResourceScopeDT
     `/admin/allocation-jobs/${jobId}/outcome`,
   );
   return verifiedOutcome(response.data, scope, jobId);
+}
+
+export async function listAllocationJobs(input: ListAllocationJobsDTO) {
+  const request = ListAllocationJobsSchema.parse(input);
+  const scope = scopeSchema.parse({
+    curriculumId: request.curriculumId,
+    semester: request.semester,
+    year: request.year,
+  });
+  const response = await apiClient.get<ApiResponse<unknown>>('/admin/allocation-jobs', {
+    params: request,
+  });
+  const parsed = AllocationJobHistorySchema.safeParse(response.data?.data);
+  if (
+    response.data?.success !== true ||
+    !parsed.success ||
+    !matchesScope(parsed.data.scope, scope) ||
+    parsed.data.jobs.some((job) => job.jobId === request.after)
+  )
+    throw new Error(verificationError);
+  return parsed.data;
 }
 
 /** Lost responses keep the same selected job identity; this adapter never retries automatically. */

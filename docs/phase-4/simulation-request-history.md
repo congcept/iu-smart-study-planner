@@ -34,5 +34,6 @@ data, resource settings or saved jobs.
 The bound limits rows, not the size of all stored capture JSON or parsing cost. Reads can
 still fail on excessive/corrupt historical data or database errors. Clients must explicitly
 retry the exact failed continuation or reload, and must validate scope, ordering, IDs and
-continuation boundaries. A scenario request browser remains the next client increment;
-the current request control still recovers the latest tab receipt only.
+continuation boundaries. The [scenario request browser](simulation-request-history-browser.md)
+provides bounded history and selected-outcome reads; separate current-request controls still
+recover the latest tab receipt only.
