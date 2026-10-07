@@ -678,3 +678,10 @@ export {
   SemesterAllocationJobOutcomeSchema,
   type SemesterAllocationJobOutcomeDTO,
 } from './semesterAllocationJobOutcome';
+
+export {
+  ExecuteSemesterAllocationJobSchema,
+  SemesterAllocationJobExecutionSchema,
+  type ExecuteSemesterAllocationJobDTO,
+  type SemesterAllocationJobExecutionDTO,
+} from './semesterAllocationJobExecution';

@@ -108,6 +108,19 @@ describe('explicit atomic semester simulation job execution (PostgreSQL)', () =>
     request(app)
       .get(`/api/admin/semester-allocation-jobs/${id}/outcome`)
       .set('Cookie', `${AUTH_COOKIE_NAME}=${issueToken(actorId)}`);
+  const executionInput = (actorId = administrators[0]) => ({
+    ...scope(),
+    expectedActorId: actorId,
+  });
+  const postExecution = (
+    id: string,
+    input: Record<string, unknown> = executionInput(),
+    actorId = administrators[0],
+  ) =>
+    request(app)
+      .post(`/api/admin/semester-allocation-jobs/${id}/execute`)
+      .set('Cookie', `${AUTH_COOKIE_NAME}=${issueToken(actorId)}`)
+      .send(input);
   const counts = async () => ({
     executions: await prisma.simulationSemesterAllocationExecution.count({
       where: { job: { curriculumId: { in: contexts } } },
@@ -1146,6 +1159,13 @@ describe('explicit atomic semester simulation job execution (PostgreSQL)', () =>
         'verified',
       );
       await expect(runOneSemesterAllocationJob(job.id)).rejects.toThrow('verified');
+      const executionResponse = await postExecution(
+        job.id,
+        executionInput(administrators[1]),
+        administrators[1],
+      );
+      expect(executionResponse.status).toBe(500);
+      expect(executionResponse.body).not.toHaveProperty('data');
       expect(await counts()).toEqual(before);
     },
   );
@@ -1228,4 +1248,408 @@ describe('explicit atomic semester simulation job execution (PostgreSQL)', () =>
     expect(await readSemesterAllocationJobOutcome(administrators[1], job.id)).toEqual(outcome);
     expect(await counts()).toEqual({ executions: 1, runs: 1, participants: 2 });
   });
+
+  it('protects the exact HTTP execution action against absent and non-administrator accounts', async () => {
+    const job = await queue();
+    expect(
+      (
+        await request(app)
+          .post(`/api/admin/semester-allocation-jobs/${job.id}/execute`)
+          .send(executionInput())
+      ).status,
+    ).toBe(401);
+    expect((await postExecution(job.id, executionInput(students[0]), students[0])).status).toBe(
+      403,
+    );
+    const absent = randomUUID();
+    expect((await postExecution(job.id, executionInput(absent), absent)).status).toBe(401);
+    expect(await counts()).toEqual({ executions: 0, runs: 0, participants: 0 });
+  });
+
+  it('rejects replacement execution inputs, malformed paths and query overrides without consuming a pending job', async () => {
+    const job = await queue();
+    for (const changed of [
+      { expectedActorId: undefined },
+      { expectedActorId: `${administrators[0]}\n` },
+      { requestId: randomUUID() },
+      { model: 'SEMESTER_CREDIT_BUDGET_V1' },
+      { result: {} },
+      { students: [], resources: {} },
+      { year: 1999 },
+      { semester: 'WINTER' },
+    ])
+      expect((await postExecution(job.id, { ...executionInput(), ...changed })).status).toBe(400);
+    expect((await postExecution('invalid')).status).toBe(400);
+    expect((await postExecution(`${job.id}%0A`)).status).toBe(400);
+    expect((await postExecution(job.id).query({ expectedActorId: administrators[0] })).status).toBe(
+      400,
+    );
+    expect((await postExecution(randomUUID())).status).toBe(404);
+    const old = (
+      await enqueueAllocationJob(administrators[0], {
+        ...scope(),
+        expectedActorId: administrators[0],
+        requestId: randomUUID(),
+      })
+    ).job;
+    expect((await postExecution(old.id)).status).toBe(404);
+    expect(await counts()).toEqual({ executions: 0, runs: 0, participants: 0 });
+    expect((await readSemesterAllocationJobOutcome(administrators[0], job.id)).status).toBe(
+      'PENDING',
+    );
+  });
+
+  it.each(['pending', 'terminal'] as const)(
+    'checks the expected acting account before %s execution or recovery',
+    async (state) => {
+      const job = await queue();
+      const prior = state === 'terminal' ? (await savedRun(job.id)).outcome : undefined;
+      const before = await counts();
+      const response = await postExecution(job.id, executionInput(administrators[1]));
+      expect(response.status).toBe(409);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await counts()).toEqual(before);
+      if (prior)
+        expect(await readSemesterAllocationJobOutcome(administrators[1], job.id)).toEqual(prior);
+      else
+        expect((await readSemesterAllocationJobOutcome(administrators[1], job.id)).status).toBe(
+          'PENDING',
+        );
+      expect((await postExecution(randomUUID(), executionInput(administrators[1]))).status).toBe(
+        409,
+      );
+    },
+  );
+
+  it.each([{ curriculumId: contexts[1] }, { semester: 'SPRING' }, { year: 2027 }])(
+    'checks every exact scenario precondition before both new execution and terminal recovery: %j',
+    async (changed) => {
+      const job = await queue();
+      const input = { ...executionInput(), ...changed };
+      expect((await postExecution(job.id, input)).status).toBe(409);
+      expect(await counts()).toEqual({ executions: 0, runs: 0, participants: 0 });
+      const { outcome } = await savedRun(job.id);
+      const replay = await postExecution(job.id, input);
+      expect(replay.status).toBe(409);
+      expect(replay.body).not.toHaveProperty('data');
+      expect(await readSemesterAllocationJobOutcome(administrators[1], job.id)).toEqual(outcome);
+      expect(await counts()).toEqual({ executions: 1, runs: 1, participants: 2 });
+    },
+  );
+
+  it('allows a different current administrator to execute without replacing the original author or exposing private input', async () => {
+    const job = await queue(administrators[1]);
+    const before = await source();
+    const response = await postExecution(job.id.toUpperCase(), {
+      ...executionInput(),
+      curriculumId: contexts[0].toUpperCase(),
+      expectedActorId: administrators[0].toUpperCase(),
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.data.processed).toBe(true);
+    expect(Object.keys(response.body.data).sort()).toEqual(['outcome', 'processed']);
+    const outcome = SemesterAllocationJobOutcomeSchema.parse(response.body.data.outcome);
+    expect(outcome).toMatchObject({ jobId: job.id, status: 'SUCCEEDED' });
+    const execution = await storedExecution(job.id);
+    expect(execution.run?.createdById).toBe(administrators[1]);
+    expect(execution.run?.jobId).toBe(job.id);
+    const serialized = JSON.stringify(response.body);
+    for (const id of actors) expect(serialized).not.toContain(id);
+    for (const key of ['requestId', 'createdById', 'passwordHash', '"students":', '"input":'])
+      expect(serialized).not.toContain(key);
+    expect(await source()).toEqual(before);
+    const replay = await postExecution(job.id);
+    expect(replay.status).toBe(200);
+    expect(replay.body.data).toEqual({ processed: false, outcome });
+    expect(await counts()).toEqual({ executions: 1, runs: 1, participants: 2 });
+  });
+
+  it.each(['demoted', 'deleted'] as const)(
+    'retains original-author failure when a different administrator executes after that author is %s',
+    async (change) => {
+      const job = await queue(administrators[1]);
+      if (change === 'demoted')
+        await prisma.user.update({ where: { id: administrators[1] }, data: { role: 'STUDENT' } });
+      else await prisma.user.delete({ where: { id: administrators[1] } });
+      const response = await postExecution(job.id);
+      expect(response.status).toBe(200);
+      expect(response.body.data.processed).toBe(true);
+      const outcome = SemesterAllocationJobOutcomeSchema.parse(response.body.data.outcome);
+      expect(outcome).toMatchObject({
+        status: 'FAILED',
+        failureCode: 'AUTHOR_UNAVAILABLE',
+        runId: null,
+      });
+      expect(await counts()).toEqual({ executions: 1, runs: 0, participants: 0 });
+      expect((await postExecution(job.id)).body.data).toEqual({ processed: false, outcome });
+    },
+  );
+
+  it.each(['pending', 'terminal'] as const)(
+    'reauthorizes a middleware-approved acting administrator before %s execution',
+    async (state) => {
+      const job = await queue(administrators[1]);
+      const prior = state === 'terminal' ? (await savedRun(job.id)).outcome : undefined;
+      const before = await counts();
+      afterMiddlewareRead = async () => {
+        await prisma.user.update({ where: { id: administrators[0] }, data: { role: 'STUDENT' } });
+      };
+      const response = await postExecution(job.id);
+      expect(response.status).toBe(403);
+      expect(response.body).not.toHaveProperty('data');
+      expect(await counts()).toEqual(before);
+      if (prior)
+        expect(await readSemesterAllocationJobOutcome(administrators[1], job.id)).toEqual(prior);
+      else
+        expect((await readSemesterAllocationJobOutcome(administrators[1], job.id)).status).toBe(
+          'PENDING',
+        );
+    },
+  );
+
+  it('retries an actual acting-role lock behind an uncommitted demotion and denies execution without a terminal write', async () => {
+    const job = await queue(administrators[1]);
+    let releaseWriter: () => void = () => undefined;
+    const release = new Promise<void>((resolve) => {
+      releaseWriter = resolve;
+    });
+    let signalHeld: (pid: number) => void = () => undefined;
+    let failHeld: (failure: unknown) => void = () => undefined;
+    const writerReady = new Promise<number>((resolve, reject) => {
+      signalHeld = resolve;
+      failHeld = reject;
+    });
+    let writerFailure: unknown;
+    const writer = prisma
+      .$transaction(
+        async (tx) => {
+          const [connection] = await tx.$queryRaw<
+            { pid: number }[]
+          >`SELECT pg_backend_pid() AS pid`;
+          await tx.user.update({ where: { id: administrators[0] }, data: { role: 'STUDENT' } });
+          signalHeld(connection.pid);
+          await release;
+        },
+        { maxWait: 3000, timeout: 10000 },
+      )
+      .then(
+        () => undefined,
+        (failure: unknown) => {
+          writerFailure = failure;
+          failHeld(failure);
+        },
+      );
+    let middlewareRead = false;
+    afterMiddlewareRead = async () => {
+      middlewareRead = true;
+    };
+    let response: { status: number; body: unknown } | undefined;
+    let requestFailure: unknown;
+    let submission: Promise<void> | undefined;
+    try {
+      const writerPid = await writerReady;
+      submission = postExecution(job.id).then(
+        (received) => {
+          response = { status: received.status, body: received.body };
+        },
+        (failure: unknown) => {
+          requestFailure = failure;
+        },
+      );
+      let blocked = false;
+      for (let attempt = 0; attempt < 40 && !blocked; attempt++) {
+        const waiting = await prisma.$queryRaw<{ wait: string | null; blockers: number[] }[]>`
+          SELECT wait_event_type AS wait, pg_blocking_pids(pid) AS blockers
+          FROM pg_stat_activity WHERE pid <> ${writerPid}
+            AND ${writerPid} = ANY(pg_blocking_pids(pid))
+            AND query LIKE '%users%' AND query LIKE '%FOR SHARE%'
+        `;
+        blocked = waiting.some(
+          (activity) => activity.wait === 'Lock' && activity.blockers.includes(writerPid),
+        );
+        if (!blocked) await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      }
+      expect(middlewareRead).toBe(true);
+      expect(blocked).toBe(true);
+    } finally {
+      afterMiddlewareRead = undefined;
+      releaseWriter();
+      await writer;
+      if (submission) await submission;
+    }
+    if (writerFailure) throw writerFailure;
+    if (requestFailure) throw requestFailure;
+    expect(response?.status).toBe(403);
+    expect(response?.body).not.toHaveProperty('data');
+    expect(await counts()).toEqual({ executions: 0, runs: 0, participants: 0 });
+    expect((await readSemesterAllocationJobOutcome(administrators[1], job.id)).status).toBe(
+      'PENDING',
+    );
+    await prisma.user.update({ where: { id: administrators[0] }, data: { role: 'ADMIN' } });
+    expect((await postExecution(job.id)).body.data).toMatchObject({
+      processed: true,
+      outcome: { status: 'SUCCEEDED' },
+    });
+    expect((await storedExecution(job.id)).run?.createdById).toBe(administrators[1]);
+  });
+
+  it('holds a different acting administrator role through HTTP capture commit while demotion waits', async () => {
+    const job = await queue(administrators[1]);
+    let writer: Promise<void> | undefined;
+    let writerFailure: unknown;
+    let committed = false;
+    afterRunCreate = async () => {
+      let signalPid: (pid: number) => void = () => undefined;
+      let failPid: (failure: unknown) => void = () => undefined;
+      const pidReady = new Promise<number>((resolve, reject) => {
+        signalPid = resolve;
+        failPid = reject;
+      });
+      writer = prisma
+        .$transaction(
+          async (tx) => {
+            const [connection] = await tx.$queryRaw<
+              { pid: number }[]
+            >`SELECT pg_backend_pid() AS pid`;
+            signalPid(connection.pid);
+            await tx.user.update({ where: { id: administrators[0] }, data: { role: 'STUDENT' } });
+          },
+          { maxWait: 3000, timeout: 10000 },
+        )
+        .then(
+          () => {
+            committed = true;
+          },
+          (failure: unknown) => {
+            writerFailure = failure;
+            failPid(failure);
+          },
+        );
+      const pid = await pidReady;
+      let blocked = false;
+      for (let attempt = 0; attempt < 40 && !blocked; attempt++) {
+        const [activity] = await prisma.$queryRaw<{ wait: string | null; blockers: number[] }[]>`
+          SELECT wait_event_type AS wait, pg_blocking_pids(pid) AS blockers
+          FROM pg_stat_activity WHERE pid = ${pid}
+        `;
+        blocked = activity?.wait === 'Lock' && activity.blockers.length > 0;
+        if (!blocked) await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      }
+      expect(blocked).toBe(true);
+      expect(committed).toBe(false);
+    };
+    try {
+      const response = await postExecution(job.id);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        processed: true,
+        outcome: { status: 'SUCCEEDED' },
+      });
+    } finally {
+      afterRunCreate = undefined;
+      if (writer) await writer;
+    }
+    if (writerFailure) throw writerFailure;
+    expect(committed).toBe(true);
+    expect((await postExecution(job.id)).status).toBe(403);
+    expect((await storedExecution(job.id)).run?.createdById).toBe(administrators[1]);
+    expect((await readSemesterAllocationJobOutcome(administrators[1], job.id)).status).toBe(
+      'SUCCEEDED',
+    );
+    expect(await counts()).toEqual({ executions: 1, runs: 1, participants: 2 });
+  });
+
+  it('converges concurrent protected HTTP and trusted CLI execution on one run and exact terminal receipt', async () => {
+    const job = await queue();
+    const [http, cli] = await Promise.all([
+      postExecution(job.id),
+      runOneSemesterAllocationJob(job.id),
+    ]);
+    expect(http.status).toBe(200);
+    expect([http.body.data, cli].filter(({ processed }) => processed)).toHaveLength(1);
+    const outcome = await readSemesterAllocationJobOutcome(administrators[1], job.id);
+    expect(outcome.status).toBe('SUCCEEDED');
+    expect((await postExecution(job.id)).body.data).toEqual({ processed: false, outcome });
+    expect(await counts()).toEqual({ executions: 1, runs: 1, participants: 2 });
+  });
+
+  it('returns an exact nonmutating PENDING receipt when another transaction holds the selected job claim', async () => {
+    const job = await queue();
+    const before = await source();
+    const pending = await readSemesterAllocationJobOutcome(administrators[0], job.id);
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let signalReady: () => void = () => undefined;
+    let failReady: (failure: unknown) => void = () => undefined;
+    const ready = new Promise<void>((resolve, reject) => {
+      signalReady = resolve;
+      failReady = reject;
+    });
+    let holderFailure: unknown;
+    const holder = prisma
+      .$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM simulation_semester_allocation_jobs WHERE id = ${job.id} FOR UPDATE`;
+          signalReady();
+          await released;
+        },
+        { timeout: 10000 },
+      )
+      .then(
+        () => undefined,
+        (failure: unknown) => {
+          holderFailure = failure;
+          failReady(failure);
+        },
+      );
+    try {
+      await ready;
+      const response = await postExecution(job.id);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({ processed: false, outcome: pending });
+      expect(await counts()).toEqual({ executions: 0, runs: 0, participants: 0 });
+      expect(await source()).toEqual(before);
+    } finally {
+      release();
+      await holder;
+    }
+    if (holderFailure) throw holderFailure;
+    expect((await postExecution(job.id)).body.data).toMatchObject({
+      processed: true,
+      outcome: { status: 'SUCCEEDED' },
+    });
+  });
+
+  it.each(['run', 'participants', 'execution'] as const)(
+    'rolls back protected execution after a real %s write fault and recovers through the same exact HTTP job',
+    async (stage) => {
+      const job = await queue();
+      const before = await source();
+      const fail = async () => {
+        throw new Error('Private protected execution infrastructure error');
+      };
+      if (stage === 'run') afterRunCreate = fail;
+      else if (stage === 'participants') afterParticipantsCreate = fail;
+      else afterExecutionCreate = fail;
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      const uncertain = await postExecution(job.id);
+      expect(uncertain.status).toBe(500);
+      expect(uncertain.body).not.toHaveProperty('data');
+      expect(JSON.stringify(uncertain.body)).not.toContain('Private protected');
+      expect(await counts()).toEqual({ executions: 0, runs: 0, participants: 0 });
+      expect((await readSemesterAllocationJobOutcome(administrators[1], job.id)).status).toBe(
+        'PENDING',
+      );
+      expect(await source()).toEqual(before);
+      const retry = await postExecution(job.id);
+      expect(retry.status).toBe(200);
+      expect(retry.body.data).toMatchObject({
+        processed: true,
+        outcome: { jobId: job.id, status: 'SUCCEEDED' },
+      });
+      expect(await counts()).toEqual({ executions: 1, runs: 1, participants: 2 });
+    },
+  );
 });

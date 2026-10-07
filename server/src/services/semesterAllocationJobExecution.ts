@@ -9,6 +9,9 @@ import {
 import {
   SemesterAllocationJobSchema,
   SemesterAllocationJobOutcomeSchema,
+  ExecuteSemesterAllocationJobSchema,
+  SemesterAllocationJobExecutionSchema,
+  type ExecuteSemesterAllocationJobDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
@@ -101,19 +104,45 @@ function retryable(error: unknown) {
   );
 }
 
-/** Trusted local explicit worker. No timer, startup hook or automatic queue draining. */
-export async function runOneSemesterAllocationJob(jobId: string) {
+type ExecutionAuthorization = { actorId: string; request: ExecuteSemesterAllocationJobDTO };
+
+async function executeOne(jobId: string, authorization?: ExecutionAuthorization) {
   const id = uuid.parse(jobId);
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       return await prisma.$transaction(
         async (tx) => {
+          if (authorization) {
+            const accounts = await tx.$queryRaw<{ role: string }[]>`
+              SELECT role FROM users WHERE id = ${authorization.actorId} FOR SHARE
+            `;
+            if (!accounts[0]) throw new SchoolResourceError('Authentication required', 401);
+            if (accounts[0].role !== 'ADMIN')
+              throw new SchoolResourceError('Administrator access required', 403);
+            if (authorization.actorId !== authorization.request.expectedActorId)
+              throw new SchoolResourceError(
+                'Your admin session changed; refresh before executing',
+                409,
+              );
+          }
           const selected = await tx.simulationSemesterAllocationJob.findUnique({
             where: { id },
             include,
           });
           if (!selected)
             throw new SchoolResourceError('Semester simulation request not found', 404);
+          if (authorization) {
+            const expected = authorization.request;
+            if (
+              selected.curriculumId !== expected.curriculumId ||
+              selected.semester !== expected.semester ||
+              selected.year !== expected.year
+            )
+              throw new SchoolResourceError(
+                'The simulation scenario changed; refresh before executing',
+                409,
+              );
+          }
           const pending = verifyStoredSemesterAllocationJobOutcome(selected, selected.execution);
           const linked = await tx.simulationSemesterRun.findUnique({
             where: { jobId: id },
@@ -210,6 +239,24 @@ export async function runOneSemesterAllocationJob(jobId: string) {
     }
   }
   throw storedError();
+}
+
+/** Trusted local explicit worker. No timer, startup hook or automatic queue draining. */
+export async function runOneSemesterAllocationJob(jobId: string) {
+  return executeOne(jobId);
+}
+
+/** Fresh acting-account/scenario authorization shares the atomic worker, including recovery. */
+export async function executeSemesterAllocationJob(
+  actorId: string,
+  jobId: string,
+  input: ExecuteSemesterAllocationJobDTO,
+) {
+  const request = ExecuteSemesterAllocationJobSchema.parse(input);
+  const actor = uuid.parse(actorId);
+  return SemesterAllocationJobExecutionSchema.parse(
+    await executeOne(jobId, { actorId: actor, request }),
+  );
 }
 
 export async function readSemesterAllocationJobOutcome(actorId: string, jobId: string) {
