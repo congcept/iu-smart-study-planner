@@ -39,6 +39,7 @@ export function verifyStoredSemesterAllocationRun(row: StoredRun): SemesterAlloc
     scope.semester !== row.semester ||
     scope.year !== row.year ||
     !uuid.safeParse(row.requestId).success ||
+    (row.jobId !== null && !uuid.safeParse(row.jobId).success) ||
     (row.createdById !== null && !uuid.safeParse(row.createdById).success)
   )
     throw storedError();
@@ -152,6 +153,7 @@ export async function recoverSemesterAllocationRunInTransaction(
   tx: Prisma.TransactionClient,
   actorId: string,
   input: CreateSemesterAllocationRunDTO,
+  jobId?: string,
 ) {
   const request = CreateSemesterAllocationRunSchema.parse(input);
   const actor = uuid.parse(actorId);
@@ -162,6 +164,8 @@ export async function recoverSemesterAllocationRunInTransaction(
     where: { createdById_requestId: { createdById: actor, requestId: request.requestId } },
     include: { participants },
   });
+  if (existing && existing.jobId !== (jobId === undefined ? null : uuid.parse(jobId)))
+    throw storedError();
   return existing ? recover(existing, request) : null;
 }
 
@@ -175,10 +179,11 @@ export async function storeSemesterAllocationRunInTransaction(
   input: CreateSemesterAllocationRunDTO,
   rawResult: unknown,
   capturedAt: Date,
+  jobId?: string,
 ) {
   const request = CreateSemesterAllocationRunSchema.parse(input);
   const actor = uuid.parse(actorId);
-  const existing = await recoverSemesterAllocationRunInTransaction(tx, actor, request);
+  const existing = await recoverSemesterAllocationRunInTransaction(tx, actor, request, jobId);
   if (existing) return existing;
   const key = { createdById: actor, requestId: request.requestId };
   const result = SemesterAllocationResultV1Schema.parse(rawResult);
@@ -213,6 +218,7 @@ export async function storeSemesterAllocationRunInTransaction(
     data: {
       ...scope,
       ...key,
+      jobId: jobId === undefined ? null : uuid.parse(jobId),
       formatVersion: 1,
       capturedAt,
       createdAt: new Date(Math.max(Date.now(), capturedAt.getTime())),
