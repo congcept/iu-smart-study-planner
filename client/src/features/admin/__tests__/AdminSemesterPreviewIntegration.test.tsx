@@ -1,6 +1,5 @@
-vi.mock('../SemesterAllocationPreviewPanel', () => ({
-  SemesterAllocationPreviewPanel: () => null,
-}));
+vi.mock('../AllocationPreviewPanel', () => ({ AllocationPreviewPanel: () => null }));
+vi.mock('../AllocationJobPanel', () => ({ AllocationJobPanel: () => null }));
 vi.mock('../AllocationJobHistoryPanel', () => ({ AllocationJobHistoryPanel: () => null }));
 vi.mock('../AllocationRunHistoryPanel', () => ({ AllocationRunHistoryPanel: () => null }));
 vi.mock('../AllocationRunCapturePanel', () => ({ AllocationRunCapturePanel: () => null }));
@@ -11,11 +10,12 @@ import type {
   CurriculumSummaryDTO,
   ResourcesSnapshotDTO,
   ResourceScopeDTO,
-  AllocationPreviewDTO,
+  SemesterAllocationPreviewDTO,
   UpsertResourcesDTO,
 } from '@iu-study-planner/shared';
 import { getSession } from '@/lib/api';
-import { getAllocationPreview, getResources, saveResources } from '@/lib/adminResourcesApi';
+import { getResources, saveResources } from '@/lib/adminResourcesApi';
+import { getSemesterAllocationPreview } from '@/lib/semesterAllocationApi';
 import { getCurriculumReference, getCurriculumReferences } from '@/lib/curriculumApi';
 import {
   curriculumReference,
@@ -23,15 +23,15 @@ import {
   referenceId,
   referenceSession,
 } from '@/test/fixtures/curriculumReference';
-import { allocationPreview } from '@/test/fixtures/allocationPreview';
+import { semesterAllocationPreview } from '@/test/fixtures/semesterAllocationPreview';
 import { AdminResourceDashboard } from '../AdminResourceDashboard';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/adminResourcesApi', () => ({
   getResources: vi.fn(),
   saveResources: vi.fn(),
-  getAllocationPreview: vi.fn(),
 }));
+vi.mock('@/lib/semesterAllocationApi', () => ({ getSemesterAllocationPreview: vi.fn() }));
 vi.mock('@/lib/curriculumApi', () => ({
   getCurriculumReference: vi.fn(),
   getCurriculumReferences: vi.fn(),
@@ -79,9 +79,9 @@ function deferred<T>() {
   return { promise, resolve };
 }
 const professors = () => screen.getByLabelText('Professors');
-const report = () => screen.getByRole('region', { name: 'Allocation preview' });
+const report = () => screen.getByRole('region', { name: 'Semester allocation preview' });
 const reloadPreview = () =>
-  within(report()).getByRole('button', { name: 'Reload allocation preview' });
+  within(report()).getByRole('button', { name: 'Reload semester preview' });
 const saveButton = () => screen.getByRole('button', { name: 'Save simulation settings' });
 async function mount() {
   render(<AdminResourceDashboard userId={ownerId} />);
@@ -115,7 +115,7 @@ beforeEach(() => {
   vi.mocked(getCurriculumReferences).mockResolvedValue([summary]);
   vi.mocked(getCurriculumReference).mockResolvedValue(detail);
   vi.mocked(getResources).mockResolvedValue(resources());
-  vi.mocked(getAllocationPreview).mockResolvedValue(allocationPreview(scope, 1));
+  vi.mocked(getSemesterAllocationPreview).mockResolvedValue(semesterAllocationPreview(scope, 1));
   vi.mocked(saveResources).mockImplementation(async (values) => resources(values, 2));
 });
 afterEach(() => {
@@ -124,17 +124,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('allocation preview and resource confirmation integration', () => {
+describe('semester preview and resource confirmation integration', () => {
   it('reloads preview without replacing edits or writing a recovery journal', async () => {
     await mount();
     fireEvent.change(professors(), { target: { value: '17' } });
-    const pending = deferred<AllocationPreviewDTO>();
-    vi.mocked(getAllocationPreview).mockReturnValueOnce(pending.promise);
+    const pending = deferred<SemesterAllocationPreviewDTO>();
+    vi.mocked(getSemesterAllocationPreview).mockReturnValueOnce(pending.promise);
     fireEvent.click(reloadPreview());
     expect(professors()).toHaveValue(17);
     expect(within(report()).queryByRole('table')).not.toBeInTheDocument();
-    await waitFor(() => expect(getAllocationPreview).toHaveBeenCalledTimes(2));
-    await act(async () => pending.resolve(allocationPreview(scope, 1)));
+    await waitFor(() => expect(getSemesterAllocationPreview).toHaveBeenCalledTimes(2));
+    await act(async () => pending.resolve(semesterAllocationPreview(scope, 1)));
     await within(report()).findByRole('table');
     expect(professors()).toHaveValue(17);
     expect(professors()).toBeEnabled();
@@ -153,7 +153,7 @@ describe('allocation preview and resource confirmation integration', () => {
     expect(preserved).toBeTruthy();
     expect(professors()).toBeDisabled();
     fireEvent.click(reloadPreview());
-    await waitFor(() => expect(getAllocationPreview).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSemesterAllocationPreview).toHaveBeenCalledTimes(2));
     await within(report()).findByRole('table');
     expect(storage.get(journalKey)).toBe(preserved);
     expect(professors()).toHaveValue(17);
@@ -164,23 +164,23 @@ describe('allocation preview and resource confirmation integration', () => {
   it('refreshes preview only when a resource read confirms the saved revision', async () => {
     await mount();
     const confirmation = deferred<ResourcesSnapshotDTO>();
-    const refreshed = deferred<AllocationPreviewDTO>();
+    const refreshed = deferred<SemesterAllocationPreviewDTO>();
     vi.mocked(getResources).mockReturnValueOnce(confirmation.promise);
-    vi.mocked(getAllocationPreview).mockReturnValueOnce(refreshed.promise);
+    vi.mocked(getSemesterAllocationPreview).mockReturnValueOnce(refreshed.promise);
     fireEvent.change(professors(), { target: { value: '17' } });
     fireEvent.click(saveButton());
     await waitFor(() => expect(getResources).toHaveBeenCalledTimes(2));
-    expect(getAllocationPreview).toHaveBeenCalledTimes(1);
+    expect(getSemesterAllocationPreview).toHaveBeenCalledTimes(1);
     await act(async () => confirmation.resolve(resources(payload({ professors: 17 }), 2)));
     await screen.findByText('Simulation settings saved and confirmed.');
-    await waitFor(() => expect(getAllocationPreview).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSemesterAllocationPreview).toHaveBeenCalledTimes(2));
     expect(within(report()).queryByRole('table')).not.toBeInTheDocument();
-    await act(async () => refreshed.resolve(allocationPreview(scope, 2)));
+    await act(async () => refreshed.resolve(semesterAllocationPreview(scope, 2)));
     await within(report()).findByRole('table');
     expect(
       within(report()).queryByText(/different saved resource revision/),
     ).not.toBeInTheDocument();
-    expect(getAllocationPreview).toHaveBeenLastCalledWith(scope);
+    expect(getSemesterAllocationPreview).toHaveBeenLastCalledWith(scope);
     expect(professors()).toHaveValue(17);
     expect(professors()).toBeEnabled();
     expect(storage.has(journalKey)).toBe(false);
