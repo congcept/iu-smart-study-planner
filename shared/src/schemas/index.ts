@@ -666,3 +666,10 @@ export const PlanSemesterSchema = z
     completedCourseIds: z.array(z.string()).optional(),
   })
   .strict();
+
+export {
+  CreateSemesterAllocationJobSchema,
+  SemesterAllocationJobSchema,
+  type CreateSemesterAllocationJobDTO,
+  type SemesterAllocationJobDTO,
+} from './semesterAllocationJob';

@@ -77,13 +77,14 @@ model Curriculum {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  courses        CurriculumCourse[]
-  users          User[]
-  requirements   CurriculumRequirement[]
-  resources      SchoolResource[]
-  allocationRuns SimulationAllocationRun[]
-  allocationJobs SimulationAllocationJob[]
-  semesterRuns   SimulationSemesterRun[]
+  courses                CurriculumCourse[]
+  users                  User[]
+  requirements           CurriculumRequirement[]
+  resources              SchoolResource[]
+  allocationRuns         SimulationAllocationRun[]
+  allocationJobs         SimulationAllocationJob[]
+  semesterRuns           SimulationSemesterRun[]
+  semesterAllocationJobs SimulationSemesterAllocationJob[]
 
   @@map("curriculums")
 }
@@ -199,17 +200,18 @@ model User {
   curriculumId         String?  @map("curriculum_id")
 
   // Relations
-  studentRecords   StudentRecord[]
-  gradeAttempts    GradeAttempt[]
-  ratings          CourseRating[]
-  ratingWriteLimit RatingWriteLimit?
-  studyPlans       StudyPlan[]
-  updatedResources SchoolResource[]
-  allocationRuns   SimulationAllocationRun[]
-  allocationJobs   SimulationAllocationJob[]
-  semesterRuns     SimulationSemesterRun[]
-  semesterResults  SimulationSemesterParticipant[]
-  curriculum       Curriculum?                     @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  studentRecords         StudentRecord[]
+  gradeAttempts          GradeAttempt[]
+  ratings                CourseRating[]
+  ratingWriteLimit       RatingWriteLimit?
+  studyPlans             StudyPlan[]
+  updatedResources       SchoolResource[]
+  allocationRuns         SimulationAllocationRun[]
+  allocationJobs         SimulationAllocationJob[]
+  semesterRuns           SimulationSemesterRun[]
+  semesterAllocationJobs SimulationSemesterAllocationJob[]
+  semesterResults        SimulationSemesterParticipant[]
+  curriculum             Curriculum?                       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -282,6 +284,25 @@ model SimulationSemesterParticipant {
   @@unique([runId, userId])
   @@index([userId, runId])
   @@map("simulation_semester_participants")
+}
+
+// Separate pinned semester manifests; enqueue never captures live inputs.
+model SimulationSemesterAllocationJob {
+  id           String   @id @default(uuid())
+  curriculumId String   @map("curriculum_id")
+  semester     Semester
+  year         Int
+  model        String   @default("SEMESTER_CREDIT_BUDGET_V1")
+  createdById  String?  @map("created_by_id")
+  requestId    String   @map("request_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "semester_jobs_curriculum_fkey")
+  createdBy  User?      @relation(fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "semester_jobs_creator_fkey")
+
+  @@unique([createdById, requestId], map: "semester_jobs_actor_request_key")
+  @@index([curriculumId, semester, year, createdAt], map: "semester_jobs_scope_created_idx")
+  @@map("simulation_semester_allocation_jobs")
 }
 
 // Immutable queue manifests; a separate atomic executor captures inputs when explicitly run.
