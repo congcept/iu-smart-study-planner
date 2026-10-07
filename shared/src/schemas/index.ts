@@ -11,6 +11,10 @@ import {
 import { createAllocationPreviewSchema } from './allocationPreview';
 import { createSimulationSemesterAllocationResultSchema } from './simulationSemesterAllocation';
 export {
+  SemesterAllocationPreviewSchema,
+  type SemesterAllocationPreviewDTO,
+} from './semesterAllocationPreview';
+export {
   SimulationSemesterAllocationInputSchema,
   SimulationSemesterAllocationReasonSchema,
   type SimulationSemesterAllocationInputDTO,

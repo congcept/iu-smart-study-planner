@@ -7,6 +7,7 @@ import {
   ListAllocationRunsSchema,
   ListAllocationJobsSchema,
   ResourceScopeSchema,
+  SemesterAllocationScopeV1Schema,
   UpsertResourcesSchema,
 } from '@iu-study-planner/shared';
 import { requireAdmin } from '../middleware/auth';
@@ -18,6 +19,7 @@ import { readEligibleCohortDemand } from '../services/eligibleCohortDemand';
 import { readCohortResourceSnapshot } from '../services/cohortResourceSnapshot';
 
 import { readAllocationPreview } from '../services/allocationPreview';
+import { readSemesterAllocationPreview } from '../services/semesterAllocationPreview';
 import {
   createAllocationRun,
   readAllocationRun,
@@ -60,6 +62,14 @@ const JobHistoryQuerySchema = ListAllocationJobsSchema.extend({
     .transform(Number)
     .pipe(ListAllocationJobsSchema.shape.year),
 });
+const SemesterPreviewQuerySchema = SemesterAllocationScopeV1Schema.extend({
+  year: z
+    .string()
+    .length(4)
+    .regex(/^\d{4}$/)
+    .transform(Number)
+    .pipe(SemesterAllocationScopeV1Schema.shape.year),
+});
 function failure(
   error: unknown,
   res: Response,
@@ -74,6 +84,22 @@ function failure(
   console.error('Resource configuration error:', error);
   return res.status(500).json({ success: false, error: fallback });
 }
+router.get('/semester-allocation-preview', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    const scope = SemesterPreviewQuerySchema.parse(req.query);
+    return res.json({
+      success: true,
+      data: await readSemesterAllocationPreview(req.userId, scope),
+    });
+  } catch (error) {
+    return failure(error, res, 'Could not load semester allocation preview');
+  }
+});
 router.get('/allocation-preview', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
