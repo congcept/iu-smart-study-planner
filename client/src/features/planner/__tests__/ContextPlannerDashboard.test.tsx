@@ -6,6 +6,10 @@ import type { AuthUserDTO, CurriculumSemesterPreviewDTO } from '@iu-study-planne
 import * as api from '@/lib/api';
 import { PlannerDashboard } from '../PlannerDashboard';
 
+vi.mock('../OwnSemesterAllocationHistoryPanel', () => ({
+  OwnSemesterAllocationHistoryPanel: () => null,
+}));
+
 const children = vi.hoisted(() => ({ workload: vi.fn(), recommendations: vi.fn() }));
 vi.mock('@/lib/api', () => ({
   getSession: vi.fn(),
