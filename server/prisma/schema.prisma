@@ -250,6 +250,7 @@ model SimulationAllocationRun {
 // Private simulation replay only. Academic plans and progress are never changed by storage.
 model SimulationSemesterRun {
   id            String   @id @default(uuid())
+  jobId         String?  @unique(map: "semester_runs_job_key") @map("job_id")
   curriculumId  String   @map("curriculum_id")
   semester      Semester
   year          Int
@@ -260,9 +261,11 @@ model SimulationSemesterRun {
   createdAt     DateTime @default(now()) @map("created_at")
   result        Json
 
-  curriculum   Curriculum                      @relation(fields: [curriculumId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy    User?                           @relation(fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Restrict)
+  curriculum   Curriculum                             @relation(fields: [curriculumId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User?                                  @relation(fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Restrict)
   participants SimulationSemesterParticipant[]
+  job          SimulationSemesterAllocationJob?       @relation("SemesterJobCapture", fields: [jobId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "semester_runs_job_fkey")
+  execution    SimulationSemesterAllocationExecution?
 
   @@unique([createdById, requestId])
   @@index([curriculumId, semester, year, createdAt, id], map: "simulation_semester_runs_scope_history_idx")
@@ -297,12 +300,28 @@ model SimulationSemesterAllocationJob {
   requestId    String   @map("request_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "semester_jobs_curriculum_fkey")
-  createdBy  User?      @relation(fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "semester_jobs_creator_fkey")
+  curriculum Curriculum                             @relation(fields: [curriculumId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "semester_jobs_curriculum_fkey")
+  createdBy  User?                                  @relation(fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "semester_jobs_creator_fkey")
+  run        SimulationSemesterRun?                 @relation("SemesterJobCapture")
+  execution  SimulationSemesterAllocationExecution?
 
   @@unique([createdById, requestId], map: "semester_jobs_actor_request_key")
   @@index([curriculumId, semester, year, createdAt], map: "semester_jobs_scope_created_idx")
   @@map("simulation_semester_allocation_jobs")
+}
+
+// A terminal reference outcome commits atomically with its private semester capture.
+model SimulationSemesterAllocationExecution {
+  jobId       String                              @id @map("job_id")
+  status      SimulationAllocationExecutionStatus
+  runId       String?                             @unique(map: "semester_executions_run_key") @map("run_id")
+  failureCode String?                             @map("failure_code")
+  completedAt DateTime                            @map("completed_at")
+
+  job SimulationSemesterAllocationJob @relation(fields: [jobId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "semester_executions_job_fkey")
+  run SimulationSemesterRun?          @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "semester_executions_run_fkey")
+
+  @@map("simulation_semester_allocation_executions")
 }
 
 // Immutable queue manifests; a separate atomic executor captures inputs when explicitly run.

@@ -18,7 +18,8 @@
     "verify:cs-reference": "ts-node src/scripts/verifyCsReference.ts",
     "inspect:cs-backfill": "ts-node src/scripts/inspectCsBackfill.ts",
     "backfill:cs-reference": "ts-node src/scripts/backfillCsReference.ts",
-    "allocation:run-one": "ts-node src/scripts/runAllocationJob.ts"
+    "allocation:run-one": "ts-node src/scripts/runAllocationJob.ts",
+    "semester-allocation:run-one": "ts-node src/scripts/runSemesterAllocationJob.ts"
   },
   "keywords": [
     "study-planner",

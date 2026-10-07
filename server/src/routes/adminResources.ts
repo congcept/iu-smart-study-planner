@@ -36,6 +36,7 @@ import {
   enqueueSemesterAllocationJob,
   readSemesterAllocationJob,
 } from '../services/semesterAllocationJobs';
+import { readSemesterAllocationJobOutcome } from '../services/semesterAllocationJobExecution';
 
 const router = Router();
 const RunParamsSchema = z
@@ -130,6 +131,30 @@ router.get('/semester-allocation-jobs/:id', requireAdmin, async (req: Request, r
     return failure(error, res, 'Could not load the queued semester simulation');
   }
 });
+router.get(
+  '/semester-allocation-jobs/:id/outcome',
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    if (!req.userId)
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    try {
+      const { id } = z
+        .object({ id: CreateSemesterAllocationJobSchema.shape.requestId })
+        .strict()
+        .parse(req.params);
+      z.object({}).strict().parse(req.query);
+      z.object({})
+        .strict()
+        .parse(req.body ?? {});
+      return res.json({
+        success: true,
+        data: await readSemesterAllocationJobOutcome(req.userId, id),
+      });
+    } catch (error) {
+      return failure(error, res, 'Could not load semester simulation outcome');
+    }
+  },
+);
 router.post('/semester-allocation-runs', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
