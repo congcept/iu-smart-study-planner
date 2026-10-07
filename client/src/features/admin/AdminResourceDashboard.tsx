@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ResourceScopeSchema,
+  SemesterAllocationJobSchema,
   ResourcesSnapshotSchema,
   type CurriculumDetailDTO,
   type CurriculumSummaryDTO,
@@ -18,6 +19,7 @@ import { PlannedDemandPanel } from './PlannedDemandPanel';
 import { AllocationPreviewPanel } from './AllocationPreviewPanel';
 import { SemesterAllocationPreviewPanel } from './SemesterAllocationPreviewPanel';
 import { SemesterAllocationRunCapturePanel } from './SemesterAllocationRunCapturePanel';
+import { SemesterAllocationJobPanel } from './SemesterAllocationJobPanel';
 import { AllocationRunCapturePanel } from './AllocationRunCapturePanel';
 import { AllocationRunHistoryPanel } from './AllocationRunHistoryPanel';
 import { AllocationJobPanel } from './AllocationJobPanel';
@@ -80,6 +82,7 @@ function ResourceSession({ userId }: { userId: string }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [semesterSessionBlocked, setSemesterSessionBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(
     journal.invalid
@@ -90,9 +93,20 @@ function ResourceSession({ userId }: { userId: string }) {
   );
 
   const verifySession = useCallback(async () => {
-    const user = await getSession();
-    if (!user || user.id.toLowerCase() !== userId || user.role !== 'ADMIN')
+    let user: Awaited<ReturnType<typeof getSession>>;
+    try {
+      user = await getSession();
+    } catch (error) {
+      if (isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0))
+        setSemesterSessionBlocked(true);
+      throw error;
+    }
+    const identity = SemesterAllocationJobSchema.shape.id.safeParse(user?.id);
+    if (!identity.success || identity.data !== userId || user.role !== 'ADMIN') {
+      setSemesterSessionBlocked(true);
       throw new AdminSessionChanged();
+    }
+    setSemesterSessionBlocked(false);
   }, [userId]);
   const readSnapshot = useCallback(async (scope: ResourceScopeDTO) => {
     const snapshot = ResourcesSnapshotSchema.parse(await getResources(scope));
@@ -493,6 +507,16 @@ function ResourceSession({ userId }: { userId: string }) {
           )}
           {active && !loading && !loadError && (
             <SemesterAllocationRunCapturePanel
+              userId={userId}
+              scope={{
+                curriculumId: active.snapshot.curriculum.id,
+                semester: active.snapshot.semester,
+                year: active.snapshot.year,
+              }}
+            />
+          )}
+          {active && !loading && !loadError && !semesterSessionBlocked && (
+            <SemesterAllocationJobPanel
               userId={userId}
               scope={{
                 curriculumId: active.snapshot.curriculum.id,
