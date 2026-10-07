@@ -25,5 +25,6 @@ Targets remain configured references, not verified student requests or graduatio
 All mandatory earlier prerequisites and numeric GPA filtering apply before allocation; choosing
 a prerequisite never unlocks another course in the same semester. Official offerings, eligibility,
 registration, timetable, staff/lab and category/grade-fit/timeline personalization stay unverified.
-The panel saves no assignments or academic plans. Explicit browser capture/recovery and protected
-student result discovery remain following increments.
+The preview panel saves no assignments or academic plans. A separate explicit capture/recovery
+control is described in semester-allocation-capture-browser.md. Protected student result
+discovery remains a following increment.
