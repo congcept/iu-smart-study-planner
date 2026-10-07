@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   CreateUserSchema,
   CreateSemesterAllocationRunSchema,
+  ListOwnSemesterAllocationRunsSchema,
   CompleteCourseSchema,
   UpsertProgressSchema,
   ToggleStudentRecordSchema,
@@ -19,9 +20,36 @@ import { importStudentProgress } from '../services/importStudentProgress';
 import { readStudentProgressView } from '../services/studentProgressView';
 import { readStudentProfileView, readStudentRecordsView } from '../services/studentAccountViews';
 import { readOwnSemesterAllocationRun } from '../services/semesterAllocationStorage';
+import { listOwnSemesterAllocationRuns } from '../services/ownSemesterAllocationHistory';
 import { SchoolResourceError } from '../services/schoolResources';
 
 const router = Router();
+
+router.get('/me/semester-allocation-runs', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const query = ListOwnSemesterAllocationRunsSchema.parse(req.query);
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    return res.json({
+      success: true,
+      data: await listOwnSemesterAllocationRuns(req.userId, query),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return res
+        .status(400)
+        .json({ success: false, error: 'Validation failed', details: error.errors });
+    if (error instanceof SchoolResourceError)
+      return res.status(error.status).json({ success: false, error: error.message });
+    console.error('Own semester simulation history error:', error);
+    return res
+      .status(500)
+      .json({ success: false, error: 'Could not load own semester simulations' });
+  }
+});
 
 router.get('/me/semester-allocation-runs/:id', requireAuth, async (req, res) => {
   if (!req.userId)

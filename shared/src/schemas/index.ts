@@ -47,6 +47,12 @@ export {
   type OwnSemesterAllocationRunV1DTO,
 } from './semesterAllocationRunV1';
 export {
+  ListOwnSemesterAllocationRunsSchema,
+  OwnSemesterAllocationHistorySchema,
+  type ListOwnSemesterAllocationRunsDTO,
+  type OwnSemesterAllocationHistoryDTO,
+} from './ownSemesterAllocationHistory';
+export {
   CreateAllocationJobSchema,
   AllocationJobSchema,
   type CreateAllocationJobDTO,
