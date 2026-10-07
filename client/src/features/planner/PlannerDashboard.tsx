@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import type { CurriculumSemesterPreviewDTO, PlanSemesterDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import {
@@ -12,6 +13,7 @@ import type { Course } from '@/types';
 import { Recommendations } from '../recommendations/Recommendations';
 import { WorkloadAnalyzer } from './WorkloadAnalyzer';
 import { CurriculumPlannerPreview } from './CurriculumPlannerPreview';
+import { OwnSemesterAllocationHistoryPanel } from './OwnSemesterAllocationHistoryPanel';
 
 type IntensityMode = PlanSemesterDTO['intensityMode'];
 type PlannerIdentity = { ownerId: string; key: string; request: number };
@@ -26,6 +28,7 @@ const curriculumIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 class MissingPlannedCoursesError extends Error {}
 
 export function PlannerDashboard({ userId }: { userId: string }) {
+  const [invalidOwner, setInvalidOwner] = useState<string | null>(null);
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
   const requestKey = JSON.stringify([userId, intensityMode]);
   const [state, setState] = useState<PlannerState>({
@@ -65,10 +68,17 @@ export function PlannerDashboard({ userId }: { userId: string }) {
     const isCurrent = () =>
       mounted.current && identity.current === requestKey && request === generation.current;
     const promise = (async () => {
+      let checkingAccount = true;
       try {
         // Cached session metadata cannot choose the scope of a fresh planner read.
         const session = await Promise.resolve().then(() => getSession());
         if (!isCurrent()) return;
+        if (!session || session.id !== userId) {
+          setInvalidOwner(userId);
+          throw new Error('Session owner unavailable');
+        }
+        checkingAccount = false;
+        setInvalidOwner(null);
         if (
           !session ||
           session.id !== userId ||
@@ -136,6 +146,13 @@ export function PlannerDashboard({ userId }: { userId: string }) {
           revision: ++revision.current,
         });
       } catch (error) {
+        if (
+          isCurrent() &&
+          checkingAccount &&
+          isAxiosError(error) &&
+          (error.response?.status === 401 || error.response?.status === 403)
+        )
+          setInvalidOwner(userId);
         if (isCurrent())
           setState({
             ownerId: userId,
@@ -290,6 +307,7 @@ export function PlannerDashboard({ userId }: { userId: string }) {
           <Recommendations key={`recommendations:${userId}:${current.revision}`} userId={userId} />
         </>
       )}
+      <OwnSemesterAllocationHistoryPanel ownerId={userId} blocked={invalidOwner === userId} />
     </div>
   );
 }

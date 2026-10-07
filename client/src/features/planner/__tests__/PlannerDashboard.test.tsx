@@ -8,6 +8,10 @@ import { getCourses, getCurrentStudentProgress, getSession } from '@/lib/api';
 import type { Course } from '@/types';
 import { PlannerDashboard } from '../PlannerDashboard';
 
+vi.mock('../OwnSemesterAllocationHistoryPanel', () => ({
+  OwnSemesterAllocationHistoryPanel: () => null,
+}));
+
 const children = vi.hoisted(() => ({
   workload: vi.fn(),
   recommendations: vi.fn(),

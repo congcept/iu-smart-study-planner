@@ -189,6 +189,40 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-07
 
+### Student saved semester simulation browser — 2026-10-07
+
+Protected Planner now shows cookie-account own simulation history independently of current
+planner source/scope/intensity. Reads expose up to five stored results, exact older boundaries
+and selected immutable outcomes. All evidence is hidden during pending/failed confirmations;
+explicit retries preserve exact requests/receipts in private refs. Owner-keyed remounts, busy
+guards and generations reject stale handlers/replies. Planner-confirmed wrong/invalid owner
+or preflight 401/403 unmounts history; fresh same-owner recovery reads a new first page.
+Unrelated current-source or transport failures preserve this independently confirmed history.
+No POST, polling, storage writes, focus-driven history reload or academic/resource changes.
+
+Captured budget/assigned/remaining credits, scenario, times and plain stop reasons retain
+reference-only limits. V1 never captured course names; stored identifiers/credits are shown
+with honest copy. Empty first/older pages differ. Live completion announcements and confirmed
+selected-heading focus support keyboard recovery. Thirty focused panel and ten integration
+cases pass, including account expiry, private/math guards, immutable retries and stale
+blocked replies. Isolated production build/types/zero-warning lint and 2416 server /
+1672 client tests pass on exact owned source. Initial cleanup-hook lint warning was fixed
+with a stable callback; no suppression. Independent source/tests/desktop/default/mobile/
+failure review: Ship. One final mechanical detector pass returned no findings. Browser
+fixtures verified 1280/default779/390 widths, no overflow, 44px controls, older paging and
+failed selected read followed by exact retry. Backend health remains good.
+
+See docs/phase-4/own-semester-allocation-browser.md. Unrelated staged/interface drafts,
+live app/database and frozen V1/one-course paths remain preserved. No activation, reset,
+seed, live capture or container restart. PR #109 is merged; this panel is published through
+its verified GitHub PR. New attachments exceed the chat 100 limit; direct PR links work.
+Canceled automation remains canceled.
+
+Next: a separate scenario-only semester simulation queue with durable per-admin keys and
+explicit future execution, then semester outcomes/browser recovery. Never enqueue live
+cohort/config snapshots or claim queued work is already captured. Full-scale profiling,
+verified curriculum/category/grade-fit/calendar/staff/lab and deployment gates stay open.
+
 ### Validated browser own-history readers — 2026-10-07
 
 Client GET adapters validate the local expected owner and check the fresh cookie account
@@ -1598,7 +1632,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 2416 server tests and 1632 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 2416 server tests and 1672 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
