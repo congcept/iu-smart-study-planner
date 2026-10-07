@@ -293,6 +293,38 @@ export async function readSemesterAllocationRun(actorId: string, runId: string) 
   );
 }
 
+/** Project only a verified historical participant outcome; callers authorize its live access FK. */
+export function projectOwnSemesterAllocationRun(
+  run: SemesterAllocationStorageV1DTO,
+  capturedStudentId: string,
+) {
+  const outcome = run.result.students.find(
+    (student) => student.studentId === capturedStudentId.toLowerCase(),
+  );
+  if (!outcome) throw storedError();
+  const own = {
+    targetCredits: outcome.targetCredits,
+    courseIds: outcome.courseIds,
+    assignedCredits: outcome.assignedCredits,
+    remainingCredits: outcome.remainingCredits,
+    reason: outcome.reason,
+  };
+  const catalog = new Map(run.result.courses.map((course) => [course.courseId, course.credits]));
+  return OwnSemesterAllocationRunV1Schema.parse({
+    ...metadata(run),
+    kind: 'SIMULATION',
+    usage: 'REFERENCE_ONLY',
+    model: run.result.model,
+    scope: run.result.envelope.scope,
+    eligibilityValidated: false,
+    allocationValidated: false,
+    timetableValidated: false,
+    academicPlansChanged: false,
+    result: own,
+    courses: own.courseIds.map((courseId) => ({ courseId, credits: catalog.get(courseId) })),
+  });
+}
+
 export async function readOwnSemesterAllocationRun(actorId: string, runId: string) {
   const actor = uuid.parse(actorId);
   const id = uuid.parse(runId);
@@ -311,33 +343,7 @@ export async function readOwnSemesterAllocationRun(actorId: string, runId: strin
       });
       if (!row) throw storedError();
       const run = verifyStoredSemesterAllocationRun(row);
-      const outcome = run.result.students.find(
-        (student) => student.studentId === participant.capturedStudentId.toLowerCase(),
-      );
-      if (!outcome) throw storedError();
-      const own = {
-        targetCredits: outcome.targetCredits,
-        courseIds: outcome.courseIds,
-        assignedCredits: outcome.assignedCredits,
-        remainingCredits: outcome.remainingCredits,
-        reason: outcome.reason,
-      };
-      const catalog = new Map(
-        run.result.courses.map((course) => [course.courseId, course.credits]),
-      );
-      return OwnSemesterAllocationRunV1Schema.parse({
-        ...metadata(run),
-        kind: 'SIMULATION',
-        usage: 'REFERENCE_ONLY',
-        model: run.result.model,
-        scope: run.result.envelope.scope,
-        eligibilityValidated: false,
-        allocationValidated: false,
-        timetableValidated: false,
-        academicPlansChanged: false,
-        result: own,
-        courses: own.courseIds.map((courseId) => ({ courseId, credits: catalog.get(courseId) })),
-      });
+      return projectOwnSemesterAllocationRun(run, participant.capturedStudentId);
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
   );
