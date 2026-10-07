@@ -147,6 +147,24 @@ function recover(row: StoredRun, request: CreateSemesterAllocationRunDTO) {
   return { created: false, run: projectSemesterAllocationRun(run) };
 }
 
+/** Caller must use Serializable isolation; hold current authorization through commit. */
+export async function recoverSemesterAllocationRunInTransaction(
+  tx: Prisma.TransactionClient,
+  actorId: string,
+  input: CreateSemesterAllocationRunDTO,
+) {
+  const request = CreateSemesterAllocationRunSchema.parse(input);
+  const actor = uuid.parse(actorId);
+  await authorizeAdmin(tx, actor, true);
+  if (request.expectedActorId !== actor)
+    throw new SchoolResourceError('Your admin session changed; sign in again before saving', 409);
+  const existing = await tx.simulationSemesterRun.findUnique({
+    where: { createdById_requestId: { createdById: actor, requestId: request.requestId } },
+    include: { participants },
+  });
+  return existing ? recover(existing, request) : null;
+}
+
 /**
  * Trusted server-produced input only. Caller must use a Serializable transaction.
  * Existing-key recovery precedes parsing today's producer result or checking its cohort.
@@ -160,15 +178,9 @@ export async function storeSemesterAllocationRunInTransaction(
 ) {
   const request = CreateSemesterAllocationRunSchema.parse(input);
   const actor = uuid.parse(actorId);
-  await authorizeAdmin(tx, actor, true);
-  if (request.expectedActorId !== actor)
-    throw new SchoolResourceError('Your admin session changed; sign in again before saving', 409);
+  const existing = await recoverSemesterAllocationRunInTransaction(tx, actor, request);
+  if (existing) return existing;
   const key = { createdById: actor, requestId: request.requestId };
-  const existing = await tx.simulationSemesterRun.findUnique({
-    where: { createdById_requestId: key },
-    include: { participants },
-  });
-  if (existing) return recover(existing, request);
   const result = SemesterAllocationResultV1Schema.parse(rawResult);
   const scope = result.envelope.scope;
   if (
