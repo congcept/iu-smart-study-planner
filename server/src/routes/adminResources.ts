@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   CreateSemesterAllocationJobSchema,
+  ExecuteSemesterAllocationJobSchema,
   CreateAllocationRunSchema,
   CreateSemesterAllocationRunSchema,
   CreateAllocationJobSchema,
@@ -36,7 +37,10 @@ import {
   enqueueSemesterAllocationJob,
   readSemesterAllocationJob,
 } from '../services/semesterAllocationJobs';
-import { readSemesterAllocationJobOutcome } from '../services/semesterAllocationJobExecution';
+import {
+  readSemesterAllocationJobOutcome,
+  executeSemesterAllocationJob,
+} from '../services/semesterAllocationJobExecution';
 
 const router = Router();
 const RunParamsSchema = z
@@ -152,6 +156,35 @@ router.get(
       });
     } catch (error) {
       return failure(error, res, 'Could not load semester simulation outcome');
+    }
+  },
+);
+router.post(
+  '/semester-allocation-jobs/:id/execute',
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    if (!req.userId)
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    try {
+      const { id } = z
+        .object({ id: CreateSemesterAllocationJobSchema.shape.requestId })
+        .strict()
+        .parse(req.params);
+      z.object({}).strict().parse(req.query);
+      return res.json({
+        success: true,
+        data: await executeSemesterAllocationJob(
+          req.userId,
+          id,
+          ExecuteSemesterAllocationJobSchema.parse(req.body),
+        ),
+      });
+    } catch (error) {
+      return failure(
+        error,
+        res,
+        'Could not confirm semester execution; inspect its outcome before retrying the same job',
+      );
     }
   },
 );
