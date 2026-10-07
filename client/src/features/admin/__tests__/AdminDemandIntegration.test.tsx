@@ -1,3 +1,6 @@
+vi.mock('../SemesterAllocationRunCapturePanel', () => ({
+  SemesterAllocationRunCapturePanel: () => null,
+}));
 vi.mock('../SemesterAllocationPreviewPanel', () => ({
   SemesterAllocationPreviewPanel: () => null,
 }));

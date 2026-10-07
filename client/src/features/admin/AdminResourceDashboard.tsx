@@ -17,6 +17,7 @@ import { ResourceSettingsForm } from './ResourceSettingsForm';
 import { PlannedDemandPanel } from './PlannedDemandPanel';
 import { AllocationPreviewPanel } from './AllocationPreviewPanel';
 import { SemesterAllocationPreviewPanel } from './SemesterAllocationPreviewPanel';
+import { SemesterAllocationRunCapturePanel } from './SemesterAllocationRunCapturePanel';
 import { AllocationRunCapturePanel } from './AllocationRunCapturePanel';
 import { AllocationRunHistoryPanel } from './AllocationRunHistoryPanel';
 import { AllocationJobPanel } from './AllocationJobPanel';
@@ -488,6 +489,16 @@ function ResourceSession({ userId }: { userId: string }) {
               }}
               resourceRevision={active.snapshot.resource?.revision ?? null}
               courses={active.reference.courses}
+            />
+          )}
+          {active && !loading && !loadError && (
+            <SemesterAllocationRunCapturePanel
+              userId={userId}
+              scope={{
+                curriculumId: active.snapshot.curriculum.id,
+                semester: active.snapshot.semester,
+                year: active.snapshot.year,
+              }}
             />
           )}
           {active && !loading && !loadError && (

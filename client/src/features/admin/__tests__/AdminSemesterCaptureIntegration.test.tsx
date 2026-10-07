@@ -1,20 +1,18 @@
-vi.mock('../SemesterAllocationRunCapturePanel', () => ({
-  SemesterAllocationRunCapturePanel: () => null,
-}));
+vi.mock('../AllocationRunCapturePanel', () => ({ AllocationRunCapturePanel: () => null }));
+vi.mock('../AllocationJobPanel', () => ({ AllocationJobPanel: () => null }));
 vi.mock('../SemesterAllocationPreviewPanel', () => ({
   SemesterAllocationPreviewPanel: () => null,
 }));
 vi.mock('../AllocationJobHistoryPanel', () => ({ AllocationJobHistoryPanel: () => null }));
 vi.mock('../AllocationRunHistoryPanel', () => ({ AllocationRunHistoryPanel: () => null }));
-vi.mock('../AllocationRunCapturePanel', () => ({ AllocationRunCapturePanel: () => null }));
+vi.mock('../AllocationPreviewPanel', () => ({ AllocationPreviewPanel: () => null }));
 vi.mock('../PlannedDemandPanel', () => ({ PlannedDemandPanel: () => null }));
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   CurriculumSummaryDTO,
   ResourcesSnapshotDTO,
   ResourceScopeDTO,
-  AllocationPreviewDTO,
   UpsertResourcesDTO,
 } from '@iu-study-planner/shared';
 import { getSession } from '@/lib/api';
@@ -27,8 +25,17 @@ import {
   referenceSession,
 } from '@/test/fixtures/curriculumReference';
 import { allocationPreview } from '@/test/fixtures/allocationPreview';
+import { semesterAllocationRun } from '@/test/fixtures/semesterAllocationRun';
+import {
+  createSemesterAllocationRun,
+  getSemesterAllocationRun,
+} from '@/lib/semesterAllocationRunsApi';
 import { AdminResourceDashboard } from '../AdminResourceDashboard';
 
+vi.mock('@/lib/semesterAllocationRunsApi', () => ({
+  createSemesterAllocationRun: vi.fn(),
+  getSemesterAllocationRun: vi.fn(),
+}));
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/adminResourcesApi', () => ({
   getResources: vi.fn(),
@@ -74,22 +81,15 @@ const resources = (values = payload(), revision = 1): ResourcesSnapshotDTO => ({
     updatedAt: '2026-10-04T01:00:00.000Z',
   },
 });
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
 const professors = () => screen.getByLabelText('Professors');
-const report = () => screen.getByRole('region', { name: 'Allocation preview' });
-const reloadPreview = () =>
-  within(report()).getByRole('button', { name: 'Reload allocation preview' });
+const report = () => screen.getByRole('region', { name: 'Saved semester simulation' });
+const captureButton = () =>
+  within(report()).getByRole('button', { name: 'Capture semester simulation' });
 const saveButton = () => screen.getByRole('button', { name: 'Save simulation settings' });
 async function mount() {
   render(<AdminResourceDashboard userId={ownerId} />);
   await waitFor(() => expect(professors()).toBeEnabled());
-  await within(report()).findByRole('table');
+  await waitFor(() => expect(captureButton()).toBeEnabled());
 }
 
 beforeEach(() => {
@@ -119,6 +119,8 @@ beforeEach(() => {
   vi.mocked(getCurriculumReference).mockResolvedValue(detail);
   vi.mocked(getResources).mockResolvedValue(resources());
   vi.mocked(getAllocationPreview).mockResolvedValue(allocationPreview(scope, 1));
+  vi.mocked(createSemesterAllocationRun).mockResolvedValue(semesterAllocationRun(scope));
+  vi.mocked(getSemesterAllocationRun).mockResolvedValue(semesterAllocationRun(scope));
   vi.mocked(saveResources).mockImplementation(async (values) => resources(values, 2));
 });
 afterEach(() => {
@@ -127,65 +129,50 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('allocation preview and resource confirmation integration', () => {
-  it('reloads preview without replacing edits or writing a recovery journal', async () => {
+describe('semester simulation capture and resource settings integration', () => {
+  it('captures server settings while leaving unsaved resource edits untouched', async () => {
     await mount();
     fireEvent.change(professors(), { target: { value: '17' } });
-    const pending = deferred<AllocationPreviewDTO>();
-    vi.mocked(getAllocationPreview).mockReturnValueOnce(pending.promise);
-    fireEvent.click(reloadPreview());
-    expect(professors()).toHaveValue(17);
-    expect(within(report()).queryByRole('table')).not.toBeInTheDocument();
-    await waitFor(() => expect(getAllocationPreview).toHaveBeenCalledTimes(2));
-    await act(async () => pending.resolve(allocationPreview(scope, 1)));
-    await within(report()).findByRole('table');
+    fireEvent.click(captureButton());
+    await within(report()).findByText('Last semester capture in this tab');
     expect(professors()).toHaveValue(17);
     expect(professors()).toBeEnabled();
-    expect(getResources).toHaveBeenCalledTimes(1);
     expect(saveResources).not.toHaveBeenCalled();
-    expect(sessionStorage.setItem).not.toHaveBeenCalled();
-    expect(sessionStorage.removeItem).not.toHaveBeenCalled();
+    expect(getResources).toHaveBeenCalledTimes(1);
+    expect(storage.has(journalKey)).toBe(false);
+    expect(createSemesterAllocationRun).toHaveBeenCalledWith({
+      ...scope,
+      expectedActorId: ownerId,
+      requestId: expect.any(String),
+    });
   });
-  it('keeps lost-save recovery and locked resource fields intact while preview reloads', async () => {
+  it('preserves a lost resource-save journal and locked form during capture', async () => {
     await mount();
     vi.mocked(saveResources).mockRejectedValueOnce(new Error('Lost response'));
     fireEvent.change(professors(), { target: { value: '17' } });
     fireEvent.click(saveButton());
     await screen.findByText(/Could not confirm this save\. The request is preserved/);
     const preserved = storage.get(journalKey);
-    expect(preserved).toBeTruthy();
-    expect(professors()).toBeDisabled();
-    fireEvent.click(reloadPreview());
-    await waitFor(() => expect(getAllocationPreview).toHaveBeenCalledTimes(2));
-    await within(report()).findByRole('table');
+    fireEvent.click(captureButton());
+    await within(report()).findByText('Last semester capture in this tab');
     expect(storage.get(journalKey)).toBe(preserved);
     expect(professors()).toHaveValue(17);
     expect(professors()).toBeDisabled();
     expect(saveResources).toHaveBeenCalledTimes(1);
     expect(sessionStorage.removeItem).not.toHaveBeenCalled();
   });
-  it('refreshes preview only when a resource read confirms the saved revision', async () => {
+  it('retries a lost capture using one key without touching form edits', async () => {
     await mount();
-    const confirmation = deferred<ResourcesSnapshotDTO>();
-    const refreshed = deferred<AllocationPreviewDTO>();
-    vi.mocked(getResources).mockReturnValueOnce(confirmation.promise);
-    vi.mocked(getAllocationPreview).mockReturnValueOnce(refreshed.promise);
     fireEvent.change(professors(), { target: { value: '17' } });
-    fireEvent.click(saveButton());
-    await waitFor(() => expect(getResources).toHaveBeenCalledTimes(2));
-    expect(getAllocationPreview).toHaveBeenCalledTimes(1);
-    await act(async () => confirmation.resolve(resources(payload({ professors: 17 }), 2)));
-    await screen.findByText('Simulation settings saved and confirmed.');
-    await waitFor(() => expect(getAllocationPreview).toHaveBeenCalledTimes(2));
-    expect(within(report()).queryByRole('table')).not.toBeInTheDocument();
-    await act(async () => refreshed.resolve(allocationPreview(scope, 2)));
-    await within(report()).findByRole('table');
-    expect(
-      within(report()).queryByText(/different saved resource revision/),
-    ).not.toBeInTheDocument();
-    expect(getAllocationPreview).toHaveBeenLastCalledWith(scope);
+    vi.mocked(createSemesterAllocationRun).mockRejectedValueOnce(new Error('Lost response'));
+    fireEvent.click(captureButton());
+    const retry = await within(report()).findByRole('button', { name: 'Retry semester capture' });
+    await waitFor(() => expect(retry).toBeEnabled());
+    const original = vi.mocked(createSemesterAllocationRun).mock.calls[0][0];
+    fireEvent.click(retry);
+    await within(report()).findByText('Last semester capture in this tab');
+    expect(createSemesterAllocationRun).toHaveBeenLastCalledWith(original);
     expect(professors()).toHaveValue(17);
-    expect(professors()).toBeEnabled();
-    expect(storage.has(journalKey)).toBe(false);
+    expect(saveResources).not.toHaveBeenCalled();
   });
 });
