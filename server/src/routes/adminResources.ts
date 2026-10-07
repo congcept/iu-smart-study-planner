@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   CreateAllocationRunSchema,
+  CreateSemesterAllocationRunSchema,
   CreateAllocationJobSchema,
   ExecuteAllocationJobSchema,
   ListAllocationRunsSchema,
@@ -20,6 +21,8 @@ import { readCohortResourceSnapshot } from '../services/cohortResourceSnapshot';
 
 import { readAllocationPreview } from '../services/allocationPreview';
 import { readSemesterAllocationPreview } from '../services/semesterAllocationPreview';
+import { captureSemesterAllocationRun } from '../services/semesterAllocationCapture';
+import { readSemesterAllocationRun } from '../services/semesterAllocationStorage';
 import {
   createAllocationRun,
   readAllocationRun,
@@ -39,6 +42,9 @@ const RunParamsSchema = z
   })
   .strict();
 const JobParamsSchema = z.object({ id: CreateAllocationJobSchema.shape.requestId }).strict();
+const SemesterRunParamsSchema = z
+  .object({ id: CreateSemesterAllocationRunSchema.shape.requestId })
+  .strict();
 const QuerySchema = ResourceScopeSchema.extend({
   year: z
     .string()
@@ -84,6 +90,38 @@ function failure(
   console.error('Resource configuration error:', error);
   return res.status(500).json({ success: false, error: fallback });
 }
+router.post('/semester-allocation-runs', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({}).strict().parse(req.query);
+    const { run, created } = await captureSemesterAllocationRun(
+      req.userId,
+      CreateSemesterAllocationRunSchema.parse(req.body),
+    );
+    return res.status(created ? 201 : 200).json({ success: true, data: run });
+  } catch (error) {
+    return failure(
+      error,
+      res,
+      'Could not confirm the simulation save; retry with the same request key',
+    );
+  }
+});
+router.get('/semester-allocation-runs/:id', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { id } = SemesterRunParamsSchema.parse(req.params);
+    z.object({}).strict().parse(req.query);
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    return res.json({ success: true, data: await readSemesterAllocationRun(req.userId, id) });
+  } catch (error) {
+    return failure(error, res, 'Could not load semester simulation');
+  }
+});
 router.get('/semester-allocation-preview', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
