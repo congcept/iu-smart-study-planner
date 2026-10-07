@@ -189,6 +189,29 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-07
 
+### Validated browser own-history readers — 2026-10-07
+
+Client GET adapters validate the local expected owner and check the fresh cookie account
+before and after successful or failed reads. Local identity never overrides server identity;
+historical role/major changes remain supported. Strict frozen schemas reject private fields,
+wrong page echoes, boundary/order violations, immutable selected-receipt changes and invalid
+credits. Continuations require the confirmed prior boundary; exact reads require their selected
+receipt. These readers perform no writes, polling or browser storage changes. Mounted UI still
+needs generation isolation before publishing the results. The 40s data transport accommodates
+explicit server budgets without promising latency; account reads retain their own timeout.
+
+Twenty-six client reader cases pass. Exact isolated build/types/zero-warning lint and
+2416 server / 1632 client tests pass. Independent reviewer verdict: Ship; the corrected
+invalid-preflight mock uses an empty ID rather than a type-invalid null. Existing unrelated
+staged/interface drafts and live app/database remain preserved. See
+docs/phase-4/own-semester-allocation-readers.md.
+
+Next: student own-history/result panel in Planner with exact page/selection retries, account
+remount isolation and all evidence hidden during pending/failed confirmation. Then separate
+semester jobs. No automatic activation, assignment or verified registration claims.
+PR #108 is merged; this increment is published through its verified GitHub PR. Attachment
+capacity remains at 100, so new PR links remain available directly. Automation stays canceled.
+
 ### Protected own semester result discovery — 2026-10-07
 
 Cookie-account GET /api/users/me/semester-allocation-runs discovers at most five historical own
@@ -1575,7 +1598,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 2416 server tests and 1606 client tests. Continue prioritizing what can silently corrupt data:
+Current suites contain 2416 server tests and 1632 client tests. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
