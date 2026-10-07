@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
+  CreateSemesterAllocationJobSchema,
   CreateAllocationRunSchema,
   CreateSemesterAllocationRunSchema,
   CreateAllocationJobSchema,
@@ -31,6 +32,10 @@ import {
 import { enqueueAllocationJob, readAllocationJob } from '../services/allocationJobs';
 import { listAllocationJobs } from '../services/allocationJobHistory';
 import { readAllocationJobOutcome, executeAllocationJob } from '../services/allocationJobExecution';
+import {
+  enqueueSemesterAllocationJob,
+  readSemesterAllocationJob,
+} from '../services/semesterAllocationJobs';
 
 const router = Router();
 const RunParamsSchema = z
@@ -90,6 +95,41 @@ function failure(
   console.error('Resource configuration error:', error);
   return res.status(500).json({ success: false, error: fallback });
 }
+router.post('/semester-allocation-jobs', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({}).strict().parse(req.query);
+    const { job, created } = await enqueueSemesterAllocationJob(
+      req.userId,
+      CreateSemesterAllocationJobSchema.parse(req.body),
+    );
+    return res.status(created ? 201 : 200).json({ success: true, data: job });
+  } catch (error) {
+    return failure(
+      error,
+      res,
+      'Could not confirm the queued semester simulation; retry with the same request key',
+    );
+  }
+});
+router.get('/semester-allocation-jobs/:id', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { id } = z
+      .object({ id: CreateSemesterAllocationJobSchema.shape.requestId })
+      .strict()
+      .parse(req.params);
+    z.object({}).strict().parse(req.query);
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    return res.json({ success: true, data: await readSemesterAllocationJob(req.userId, id) });
+  } catch (error) {
+    return failure(error, res, 'Could not load the queued semester simulation');
+  }
+});
 router.post('/semester-allocation-runs', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
