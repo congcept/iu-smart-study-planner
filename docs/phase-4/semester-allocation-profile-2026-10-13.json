@@ -1,0 +1,436 @@
+{
+  "kind": "SYNTHETIC_SEMESTER_PROFILE",
+  "reportVersion": 1,
+  "recordedAt": "2026-10-13T13:18:45.500Z",
+  "runtime": {
+    "node": "v25.2.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpuModel": "Apple M2",
+    "logicalCpus": 8
+  },
+  "options": {
+    "scenario": "all",
+    "samples": 3,
+    "warmup": 1,
+    "timeoutMs": 60000
+  },
+  "childOldSpaceLimitMiB": 512,
+  "totalProcessMemoryCapped": false,
+  "model": "SEMESTER_CREDIT_BUDGET_V1",
+  "scope": "PURE_ALLOCATOR_AND_ADDITIONAL_INTERNAL_REPLAY_ONLY",
+  "databaseMeasured": false,
+  "workerOrHistoryLatencyMeasured": false,
+  "baselineEfficacyCompared": false,
+  "timingGuaranteeEstablished": false,
+  "results": [
+    {
+      "scenario": "reference",
+      "status": "COMPLETED",
+      "wallMs": 69.29220899999999,
+      "report": {
+        "scenario": "reference",
+        "inputDigest": "44fa7f0730f362de55c991b0e1a089d3c01d7439030da59f2df86dd4c92053bf",
+        "resultDigest": "25513406addd39bd2d5523ed989b99a4451531e5bfe7e34c1815e2d1c6405690",
+        "resultJsonBytes": 20859,
+        "outcome": {
+          "studentCount": 12,
+          "catalogCourseCount": 8,
+          "totalChoices": 48,
+          "assignedCourseCount": 36,
+          "assignedStudentCount": 12,
+          "totalTargetCredits": 108,
+          "totalAssignedCredits": 108,
+          "totalRemainingCredits": 0,
+          "usedSections": 8,
+          "rounds": 3,
+          "meanAssignedUtility": 0.75,
+          "stopReasonCounts": {
+            "TARGET_REACHED": 12,
+            "NO_REMAINING_CHOICES": 0,
+            "CREDIT_LIMIT": 0,
+            "RESOURCE_UNKNOWN": 0,
+            "CAPACITY_EXHAUSTED": 0
+          }
+        },
+        "deterministicSamplesAndReversedInput": true,
+        "timings": {
+          "allocationIncludingInputOutputValidationMs": {
+            "sampleCount": 3,
+            "minMs": 0.8121669999999952,
+            "medianMs": 1.4010839999999973,
+            "maxMs": 1.5121660000000006
+          },
+          "resultSerializationMs": {
+            "sampleCount": 3,
+            "minMs": 0.03037500000000648,
+            "medianMs": 0.03733299999999673,
+            "maxMs": 0.0382499999999979
+          },
+          "jsonParseAndAdditionalInternalReplayMs": {
+            "sampleCount": 3,
+            "minMs": 0.568792000000002,
+            "medianMs": 0.5709579999999974,
+            "maxMs": 0.6652500000000003
+          }
+        },
+        "samples": {
+          "allocationMs": [1.5121660000000006, 1.4010839999999973, 0.8121669999999952],
+          "serializationMs": [0.0382499999999979, 0.03733299999999673, 0.03037500000000648],
+          "replayMs": [0.6652500000000003, 0.568792000000002, 0.5709579999999974]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 8704984,
+            "rss": 61079552
+          },
+          "after": {
+            "heapUsed": 17374096,
+            "rss": 73089024
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "max-students",
+      "status": "COMPLETED",
+      "wallMs": 24986.068375000003,
+      "report": {
+        "scenario": "max-students",
+        "inputDigest": "4bdcbbe3cadb0bbb4e808c2c48f012d98334d5d23f5faa5b494792049ed1b58b",
+        "resultDigest": "12207fe851c14069ab6b882edca055108835a0447d23b7b2a4f5adefe14f8b53",
+        "resultJsonBytes": 3936717,
+        "outcome": {
+          "studentCount": 500,
+          "catalogCourseCount": 20,
+          "totalChoices": 10000,
+          "assignedCourseCount": 10000,
+          "assignedStudentCount": 500,
+          "totalTargetCredits": 15000,
+          "totalAssignedCredits": 0,
+          "totalRemainingCredits": 15000,
+          "usedSections": 20,
+          "rounds": 20,
+          "meanAssignedUtility": 0.5250000000000051,
+          "stopReasonCounts": {
+            "TARGET_REACHED": 0,
+            "NO_REMAINING_CHOICES": 500,
+            "CREDIT_LIMIT": 0,
+            "RESOURCE_UNKNOWN": 0,
+            "CAPACITY_EXHAUSTED": 0
+          }
+        },
+        "deterministicSamplesAndReversedInput": true,
+        "timings": {
+          "allocationIncludingInputOutputValidationMs": {
+            "sampleCount": 3,
+            "minMs": 3451.571667,
+            "medianMs": 3641.2165419999983,
+            "maxMs": 3901.3115000000007
+          },
+          "resultSerializationMs": {
+            "sampleCount": 3,
+            "minMs": 4.4742500000029395,
+            "medianMs": 5.200875000000451,
+            "maxMs": 5.681916999999885
+          },
+          "jsonParseAndAdditionalInternalReplayMs": {
+            "sampleCount": 3,
+            "minMs": 1687.7980829999997,
+            "medianMs": 1740.533958,
+            "maxMs": 1777.3301249999968
+          }
+        },
+        "samples": {
+          "allocationMs": [3901.3115000000007, 3451.571667, 3641.2165419999983],
+          "serializationMs": [5.681916999999885, 5.200875000000451, 4.4742500000029395],
+          "replayMs": [1687.7980829999997, 1740.533958, 1777.3301249999968]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 14713480,
+            "rss": 104349696
+          },
+          "after": {
+            "heapUsed": 140904136,
+            "rss": 278921216
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "max-rounds",
+      "status": "COMPLETED",
+      "wallMs": 24137.860167000003,
+      "report": {
+        "scenario": "max-rounds",
+        "inputDigest": "15ee393f08f6de0b4e5abe9061c4ff9139e78d1d6f8bba87aa2fecd89c4895ec",
+        "resultDigest": "6097108e452af998066769377a54b2172f43f4e56d496525f8f88dfeba4e9122",
+        "resultJsonBytes": 3956764,
+        "outcome": {
+          "studentCount": 100,
+          "catalogCourseCount": 100,
+          "totalChoices": 10000,
+          "assignedCourseCount": 10000,
+          "assignedStudentCount": 100,
+          "totalTargetCredits": 3000,
+          "totalAssignedCredits": 0,
+          "totalRemainingCredits": 3000,
+          "usedSections": 100,
+          "rounds": 100,
+          "meanAssignedUtility": 0.5050000000000008,
+          "stopReasonCounts": {
+            "TARGET_REACHED": 0,
+            "NO_REMAINING_CHOICES": 100,
+            "CREDIT_LIMIT": 0,
+            "RESOURCE_UNKNOWN": 0,
+            "CAPACITY_EXHAUSTED": 0
+          }
+        },
+        "deterministicSamplesAndReversedInput": true,
+        "timings": {
+          "allocationIncludingInputOutputValidationMs": {
+            "sampleCount": 3,
+            "minMs": 3356.6687079999992,
+            "medianMs": 3380.5384590000012,
+            "maxMs": 3507.8475000000008
+          },
+          "resultSerializationMs": {
+            "sampleCount": 3,
+            "minMs": 4.344667000001209,
+            "medianMs": 5.506416000000172,
+            "maxMs": 5.703165999999328
+          },
+          "jsonParseAndAdditionalInternalReplayMs": {
+            "sampleCount": 3,
+            "minMs": 1673.5696249999983,
+            "medianMs": 1681.2666659999995,
+            "maxMs": 1823.395125000001
+          }
+        },
+        "samples": {
+          "allocationMs": [3507.8475000000008, 3380.5384590000012, 3356.6687079999992],
+          "serializationMs": [5.703165999999328, 5.506416000000172, 4.344667000001209],
+          "replayMs": [1823.395125000001, 1673.5696249999983, 1681.2666659999995]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 12816792,
+            "rss": 104038400
+          },
+          "after": {
+            "heapUsed": 82955776,
+            "rss": 332857344
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "max-catalog",
+      "status": "COMPLETED",
+      "wallMs": 34134.033125,
+      "report": {
+        "scenario": "max-catalog",
+        "inputDigest": "76e0c4debc9c2acfe77baa23c229e474d0af8a790c082e7092661e391f1c0683",
+        "resultDigest": "c62f8f934270a1b84e5050e3c1f411a5af98cebc0a5892959f912a7c1f3699be",
+        "resultJsonBytes": 6052373,
+        "outcome": {
+          "studentCount": 500,
+          "catalogCourseCount": 10000,
+          "totalChoices": 10000,
+          "assignedCourseCount": 10000,
+          "assignedStudentCount": 500,
+          "totalTargetCredits": 15000,
+          "totalAssignedCredits": 0,
+          "totalRemainingCredits": 15000,
+          "usedSections": 10000,
+          "rounds": 20,
+          "meanAssignedUtility": 0.5250000000000051,
+          "stopReasonCounts": {
+            "TARGET_REACHED": 0,
+            "NO_REMAINING_CHOICES": 500,
+            "CREDIT_LIMIT": 0,
+            "RESOURCE_UNKNOWN": 0,
+            "CAPACITY_EXHAUSTED": 0
+          }
+        },
+        "deterministicSamplesAndReversedInput": true,
+        "timings": {
+          "allocationIncludingInputOutputValidationMs": {
+            "sampleCount": 3,
+            "minMs": 4681.621625000001,
+            "medianMs": 4842.805540999998,
+            "maxMs": 4857.759458
+          },
+          "resultSerializationMs": {
+            "sampleCount": 3,
+            "minMs": 10.439665999998397,
+            "medianMs": 11.587124999998196,
+            "maxMs": 11.880334000001312
+          },
+          "jsonParseAndAdditionalInternalReplayMs": {
+            "sampleCount": 3,
+            "minMs": 2455.224875,
+            "medianMs": 2502.3207920000023,
+            "maxMs": 2667.054082999999
+          }
+        },
+        "samples": {
+          "allocationMs": [4681.621625000001, 4857.759458, 4842.805540999998],
+          "serializationMs": [10.439665999998397, 11.587124999998196, 11.880334000001312],
+          "replayMs": [2455.224875, 2502.3207920000023, 2667.054082999999]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 48495168,
+            "rss": 128040960
+          },
+          "after": {
+            "heapUsed": 67785480,
+            "rss": 310231040
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "scarce",
+      "status": "COMPLETED",
+      "wallMs": 816.6817919999885,
+      "report": {
+        "scenario": "scarce",
+        "inputDigest": "cc4a2f5a2ec90dc2bd7a185520ab9926494351c5f76f8c898f2268fbaeac86ad",
+        "resultDigest": "8c6ed557974187de1e85b53bfc069e84493586682c9c110020c534cc31f3d0ae",
+        "resultJsonBytes": 874917,
+        "outcome": {
+          "studentCount": 500,
+          "catalogCourseCount": 20,
+          "totalChoices": 10000,
+          "assignedCourseCount": 40,
+          "assignedStudentCount": 40,
+          "totalTargetCredits": 9000,
+          "totalAssignedCredits": 120,
+          "totalRemainingCredits": 8880,
+          "usedSections": 4,
+          "rounds": 1,
+          "meanAssignedUtility": 0.5999999999999999,
+          "stopReasonCounts": {
+            "TARGET_REACHED": 0,
+            "NO_REMAINING_CHOICES": 0,
+            "CREDIT_LIMIT": 0,
+            "RESOURCE_UNKNOWN": 0,
+            "CAPACITY_EXHAUSTED": 500
+          }
+        },
+        "deterministicSamplesAndReversedInput": true,
+        "timings": {
+          "allocationIncludingInputOutputValidationMs": {
+            "sampleCount": 3,
+            "minMs": 71.268959,
+            "medianMs": 71.71908299999996,
+            "maxMs": 72.48591700000003
+          },
+          "resultSerializationMs": {
+            "sampleCount": 3,
+            "minMs": 1.095792000000074,
+            "medianMs": 1.3407920000000217,
+            "maxMs": 1.3759579999999687
+          },
+          "jsonParseAndAdditionalInternalReplayMs": {
+            "sampleCount": 3,
+            "minMs": 36.020167000000015,
+            "medianMs": 36.56991599999992,
+            "maxMs": 49.321957999999995
+          }
+        },
+        "samples": {
+          "allocationMs": [72.48591700000003, 71.268959, 71.71908299999996],
+          "serializationMs": [1.3407920000000217, 1.3759579999999687, 1.095792000000074],
+          "replayMs": [49.321957999999995, 36.020167000000015, 36.56991599999992]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 14923560,
+            "rss": 103940096
+          },
+          "after": {
+            "heapUsed": 109485744,
+            "rss": 313376768
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "missing-resources",
+      "status": "COMPLETED",
+      "wallMs": 59.201416999989306,
+      "report": {
+        "scenario": "missing-resources",
+        "inputDigest": "b28b25f4a4454c31dd2f9d26b2b1c7f88295b4eb36f1fa0844b52859d5be3a64",
+        "resultDigest": "72b3cbd4284b80f54f086f2e080b000a0b856f0a7d91f3be45df0f16254dd5c1",
+        "resultJsonBytes": 9768,
+        "outcome": {
+          "studentCount": 12,
+          "catalogCourseCount": 8,
+          "totalChoices": 48,
+          "assignedCourseCount": 0,
+          "assignedStudentCount": 0,
+          "totalTargetCredits": 108,
+          "totalAssignedCredits": 0,
+          "totalRemainingCredits": 108,
+          "usedSections": 0,
+          "rounds": 0,
+          "meanAssignedUtility": null,
+          "stopReasonCounts": {
+            "TARGET_REACHED": 0,
+            "NO_REMAINING_CHOICES": 0,
+            "CREDIT_LIMIT": 0,
+            "RESOURCE_UNKNOWN": 12,
+            "CAPACITY_EXHAUSTED": 0
+          }
+        },
+        "deterministicSamplesAndReversedInput": true,
+        "timings": {
+          "allocationIncludingInputOutputValidationMs": {
+            "sampleCount": 3,
+            "minMs": 0.31441699999999884,
+            "medianMs": 0.7862500000000026,
+            "maxMs": 1.0722499999999968
+          },
+          "resultSerializationMs": {
+            "sampleCount": 3,
+            "minMs": 0.016708000000001277,
+            "medianMs": 0.018000000000000682,
+            "maxMs": 0.018875000000001307
+          },
+          "jsonParseAndAdditionalInternalReplayMs": {
+            "sampleCount": 3,
+            "minMs": 0.2526250000000019,
+            "medianMs": 0.39750000000000085,
+            "maxMs": 1.0479169999999982
+          }
+        },
+        "samples": {
+          "allocationMs": [1.0722499999999968, 0.7862500000000026, 0.31441699999999884],
+          "serializationMs": [0.018875000000001307, 0.018000000000000682, 0.016708000000001277],
+          "replayMs": [0.39750000000000085, 1.0479169999999982, 0.2526250000000019]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 8698040,
+            "rss": 60817408
+          },
+          "after": {
+            "heapUsed": 11086160,
+            "rss": 69042176
+          },
+          "peakMeasured": false
+        }
+      }
+    }
+  ]
+}
