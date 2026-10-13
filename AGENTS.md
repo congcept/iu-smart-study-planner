@@ -213,7 +213,12 @@ Lost selected replies hide IDs/results; exact retry confirms the same request, u
 row and focuses the detail heading. Older paging and terminal details were exercised using
 simulated fixture data only. Temporary fixture files/screenshots are review artifacts, not
 published source; viewport is restored. See `docs/phase-4/semester-request-history-browser.md`.
-The API is merged in PR #116; the screen will be published through its separate verified PR.
+The API is merged in [PR #116](https://github.com/congcept/iu-smart-study-planner/pull/116);
+the screen is merged in [PR #117](https://github.com/congcept/iu-smart-study-planner/pull/117).
+Both fetched main trees matched the independently reviewed, verified feature trees. GitHub
+reported no configured status checks; local quality gates and independent review supplied
+the recorded validation. Post-merge API health succeeds and the actual frontend serves the
+new history module. No source feature drafts remain; only unrelated local edits are pending.
 Normal GitHub authentication succeeds after the user's login refresh. Attachment capacity
 is full, so direct PR links remain available. The automation stays canceled.
 
