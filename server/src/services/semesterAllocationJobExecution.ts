@@ -24,7 +24,7 @@ import {
 
 type StoredRun = SimulationSemesterRun & { participants: SimulationSemesterParticipant[] };
 type StoredExecution = SimulationSemesterAllocationExecution & { run: StoredRun | null };
-const include = {
+export const semesterAllocationJobOutcomeInclude = {
   execution: {
     include: {
       run: {
@@ -33,6 +33,7 @@ const include = {
     },
   },
 };
+const include = semesterAllocationJobOutcomeInclude;
 const uuid = SemesterAllocationJobSchema.shape.id;
 const storedError = () => new Error('Stored semester simulation outcome could not be verified');
 

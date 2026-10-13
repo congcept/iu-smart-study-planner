@@ -9,6 +9,7 @@ import {
   ExecuteAllocationJobSchema,
   ListAllocationRunsSchema,
   ListAllocationJobsSchema,
+  ListSemesterAllocationJobsSchema,
   ResourceScopeSchema,
   SemesterAllocationScopeV1Schema,
   UpsertResourcesSchema,
@@ -32,6 +33,7 @@ import {
 } from '../services/allocationRuns';
 import { enqueueAllocationJob, readAllocationJob } from '../services/allocationJobs';
 import { listAllocationJobs } from '../services/allocationJobHistory';
+import { listSemesterAllocationJobs } from '../services/semesterAllocationJobHistory';
 import { readAllocationJobOutcome, executeAllocationJob } from '../services/allocationJobExecution';
 import {
   enqueueSemesterAllocationJob,
@@ -86,6 +88,14 @@ const SemesterPreviewQuerySchema = SemesterAllocationScopeV1Schema.extend({
     .transform(Number)
     .pipe(SemesterAllocationScopeV1Schema.shape.year),
 });
+const SemesterJobHistoryQuerySchema = ListSemesterAllocationJobsSchema.extend({
+  year: z
+    .string()
+    .length(4)
+    .regex(/^\d{4}$/)
+    .transform(Number)
+    .pipe(ListSemesterAllocationJobsSchema.shape.year),
+});
 function failure(
   error: unknown,
   res: Response,
@@ -100,6 +110,19 @@ function failure(
   console.error('Resource configuration error:', error);
   return res.status(500).json({ success: false, error: fallback });
 }
+router.get('/semester-allocation-jobs', requireAdmin, async (req: Request, res: Response) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    const query = SemesterJobHistoryQuerySchema.parse(req.query);
+    return res.json({ success: true, data: await listSemesterAllocationJobs(req.userId, query) });
+  } catch (error) {
+    return failure(error, res, 'Could not load semester request history');
+  }
+});
 router.post('/semester-allocation-jobs', requireAdmin, async (req: Request, res: Response) => {
   if (!req.userId)
     return res.status(401).json({ success: false, error: 'Authentication required' });
