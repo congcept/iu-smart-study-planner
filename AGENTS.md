@@ -189,6 +189,40 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-13
 
+### Read-only admin semester request history screen
+
+The confirmed admin scenario now mounts its independent history screen beside semester
+request controls. Latest/older pages show at most five requests; selected checks confirm the
+exact immutable queue receipt and current outcome. Pending/error hides all evidence, exact
+retry refs retain original inputs, and owner/scenario remounts plus generation/busy/intent
+guards reject stale handlers and replies. Confirmed terminal results cannot change/regress;
+selected PENDING-to-terminal confirmation updates its restored page row consistently.
+Historical failure copy describes execution-time conditions rather than current availability.
+Parent session invalidation masks/remounts the panel without losing dirty resource fields.
+No history POST, storage writes, polling, focus reload or automatic execution is introduced.
+
+Independent source/test review: Ship after historical-copy correction. Final isolated
+production build, types, zero-warning lint and 78 client suites / 1910 tests pass. The final
+build first caught an inferred test-fixture failure-code type that excluded a valid variant;
+the helper now uses its precise shared DTO type, without suppression, and all gates were
+rerun. Backend/shared files are byte-identical to the fresh 97-suite / 2658 real PostgreSQL
+test run for PR #116. Unrelated interface/staged drafts remain excluded and preserved.
+
+Read-only browser fixtures at 1280 and 390 show no horizontal overflow and 44px controls.
+Lost selected replies hide IDs/results; exact retry confirms the same request, updates its
+row and focuses the detail heading. Older paging and terminal details were exercised using
+simulated fixture data only. Temporary fixture files/screenshots are review artifacts, not
+published source; viewport is restored. See `docs/phase-4/semester-request-history-browser.md`.
+The API is merged in PR #116; the screen will be published through its separate verified PR.
+Normal GitHub authentication succeeds after the user's login refresh. Attachment capacity
+is full, so direct PR links remain available. The automation stays canceled.
+
+Next: profile the semester model at its supported bounds with reproducible simulated data,
+and document evaluation limits before expanding the model. Investigate old Docker startup's
+waiting migration command and outdated dependency volume without touching academic data.
+Official CS/IT/DS validation, assignment/context editing, complete planning/calendar/staff/lab,
+deployment and thesis gates remain open; the roadmap is not complete.
+
 ### Bounded semester request history API
 
 ADMIN scenario history now returns five strictly paired original queue receipts and coherent
@@ -201,8 +235,8 @@ See `docs/phase-4/semester-request-history.md` for contract and transaction limi
 Independent source/test review: Ship. Fresh isolated production build, types, zero-warning
 lint and 97 server suites / 2658 real PostgreSQL tests plus 75 client suites / 1831 client
 tests pass on October 13. Exact owned source matches that snapshot. These gates exclude
-unrelated staged/interface drafts and the separate history-screen increment. Publication
-will use this branch's verified PR; do not infer a merge until recorded below.
+unrelated staged/interface drafts and the separate history-screen increment. Published and
+merged in PR #116; its remote main tree was checked against the verified feature commit.
 
 Docker and all three app containers were initially stopped. Existing containers/data were
 resumed, with no reset/reseed/recreation. Separate compiled shared output now exports the
