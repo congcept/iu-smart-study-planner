@@ -187,6 +187,66 @@ Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
+## Active Checkpoint — 2026-10-13
+
+### Bounded semester request history API
+
+ADMIN scenario history now returns five strictly paired original queue receipts and coherent
+outcomes, with immutable queued-time/ID continuation. Current role authorization, cursor,
+page and complete private V1 validation share one RepeatableRead snapshot; cursor and six-row
+lookahead are verified before public projection. Wrong/deleted/foreign continuations conflict
+uniformly; orphan/mismatched run links fail closed. No execution, academic writes or migration.
+See `docs/phase-4/semester-request-history.md` for contract and transaction limits.
+
+Independent source/test review: Ship. Fresh isolated production build, types, zero-warning
+lint and 97 server suites / 2658 real PostgreSQL tests plus 75 client suites / 1831 client
+tests pass on October 13. Exact owned source matches that snapshot. These gates exclude
+unrelated staged/interface drafts and the separate history-screen increment. Publication
+will use this branch's verified PR; do not infer a merge until recorded below.
+
+Docker and all three app containers were initially stopped. Existing containers/data were
+resumed, with no reset/reseed/recreation. Separate compiled shared output now exports the
+new schema in the backend and frontend. Backend startup's old `migrate dev` command remains
+waiting; a separate read-only status check confirms all 21 migrations are up to date. The
+older backend dependency volume lacks `concurrently`, so existing server/shared watchers
+were launched directly from `/app` inside that same container. API health is confirmed and
+frontend serves successfully. This is an in-place runtime recovery, not a durable startup
+configuration fix; investigate the old startup wait/dependency volume in a later increment.
+
+Next: separately publish the read-only admin semester history screen after its final client
+gates/visual review. Preserve strict owner/scenario confirmation, exact retries, bounded
+terminal observations and dirty resource edits. Then assess maximum supported semester
+workloads and remaining curriculum/context/planning gates. The repeating automation stays
+canceled. GitHub authentication was refreshed by the user after the normal check failed;
+the rejected direct-keychain workaround was not used.
+
+## Handoff Checkpoint — 2026-10-09
+
+The user requested a master transfer prompt, saved at
+`documentation/thesis/AGENT_HANDOFF_PROMPT.md`. This handoff changes documentation only;
+no new feature is published. Last verified merge is PR #115, local HEAD `0f97131`, on
+`codex/semester-request-history`. Remote main was last verified on October 8; recheck it
+before publication. Preserve unrelated staged/interface drafts and the running database.
+
+Increment 116 (bounded semester request history API/contracts) remains uncommitted.
+Its seven source/test files match the isolated checked snapshot: 57 focused cases and
+build/types/zero-warning lint plus 2658 server / 1831 client tests passed on October 8.
+Those checks exclude unrelated edits and the unfinished 117 client history draft.
+Final independent 116 review did not complete; old agents hit usage limits.
+
+Increment 117 has draft adapter, panel and test files, but is not mounted in
+`AdminResourceDashboard.tsx`; parent integration coverage and final quality/review remain.
+Neither working increment number identifies an actual PR. The transfer prompt lists exact
+owned paths, preservation boundaries, scanning instructions and completion criteria.
+
+Fresh October 9 backend health check reset the connection. Logs show TS2724 for missing
+`ListSemesterAllocationJobsSchema` in the resolved shared package, despite its source export.
+Stale Docker compiled output/package resolution is a hypothesis, not a confirmed cause;
+an earlier shared build did not establish recovery. First diagnose and repair the existing
+runtime without reset/reseed/container recreation, then independently finish and publish
+116 and 117. Frontend health was not freshly verified. The repeating automation stays canceled.
+The dated healthy-runtime statements below describe earlier checkpoints, not current health.
+
 ## Active Checkpoint — 2026-10-08
 
 ### Explicit semester request browser controls — 2026-10-08
