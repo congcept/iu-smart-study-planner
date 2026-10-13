@@ -32,6 +32,9 @@ function MockSemesterJobPanel(props: { userId: string; scope: ResourceScopeDTO }
     </section>
   );
 }
+vi.mock('../SemesterAllocationJobHistoryPanel', () => ({
+  SemesterAllocationJobHistoryPanel: () => null,
+}));
 vi.mock('../SemesterAllocationJobPanel', () => ({
   SemesterAllocationJobPanel: MockSemesterJobPanel,
 }));

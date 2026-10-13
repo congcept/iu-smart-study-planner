@@ -20,6 +20,7 @@ import { AllocationPreviewPanel } from './AllocationPreviewPanel';
 import { SemesterAllocationPreviewPanel } from './SemesterAllocationPreviewPanel';
 import { SemesterAllocationRunCapturePanel } from './SemesterAllocationRunCapturePanel';
 import { SemesterAllocationJobPanel } from './SemesterAllocationJobPanel';
+import { SemesterAllocationJobHistoryPanel } from './SemesterAllocationJobHistoryPanel';
 import { AllocationRunCapturePanel } from './AllocationRunCapturePanel';
 import { AllocationRunHistoryPanel } from './AllocationRunHistoryPanel';
 import { AllocationJobPanel } from './AllocationJobPanel';
@@ -517,6 +518,16 @@ function ResourceSession({ userId }: { userId: string }) {
           )}
           {active && !loading && !loadError && !semesterSessionBlocked && (
             <SemesterAllocationJobPanel
+              userId={userId}
+              scope={{
+                curriculumId: active.snapshot.curriculum.id,
+                semester: active.snapshot.semester,
+                year: active.snapshot.year,
+              }}
+            />
+          )}
+          {active && !loading && !loadError && !semesterSessionBlocked && (
+            <SemesterAllocationJobHistoryPanel
               userId={userId}
               scope={{
                 curriculumId: active.snapshot.curriculum.id,

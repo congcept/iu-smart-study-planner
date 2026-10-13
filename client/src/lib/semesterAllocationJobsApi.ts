@@ -4,10 +4,13 @@ import {
   SemesterAllocationJobOutcomeSchema,
   SemesterAllocationJobExecutionSchema,
   ExecuteSemesterAllocationJobSchema,
+  ListSemesterAllocationJobsSchema,
+  SemesterAllocationJobHistorySchema,
   type ApiResponse,
   type CreateSemesterAllocationJobDTO,
   type SemesterAllocationJobDTO,
   type SemesterAllocationJobOutcomeDTO,
+  type ListSemesterAllocationJobsDTO,
 } from '@iu-study-planner/shared';
 import apiClient, { getSession } from './api';
 
@@ -197,5 +200,56 @@ export async function executeSemesterAllocationJob(
     assertOutcome(result.outcome, receipt);
     assertTransition(result.outcome, prior);
     return result;
+  });
+}
+
+function beforeQueueBoundary(job: SemesterAllocationJobDTO, boundary: SemesterAllocationJobDTO) {
+  const difference = Date.parse(job.queuedAt) - Date.parse(boundary.queuedAt);
+  if (difference !== 0) return difference < 0;
+  const left = /\.(\d+)Z$/.exec(job.queuedAt)?.[1] ?? '';
+  const right = /\.(\d+)Z$/.exec(boundary.queuedAt)?.[1] ?? '';
+  const precision = Math.max(left.length, right.length);
+  const comparison = left.padEnd(precision, '0').localeCompare(right.padEnd(precision, '0'));
+  return comparison < 0 || (comparison === 0 && job.id < boundary.id);
+}
+
+/** Read one coherent scenario page; continuation retains the last confirmed queued receipt. */
+export async function listSemesterAllocationJobs(
+  ownerId: string,
+  input: ListSemesterAllocationJobsDTO,
+  boundary?: SemesterAllocationJobDTO,
+) {
+  const owner = uuid.parse(ownerId);
+  const request = ListSemesterAllocationJobsSchema.parse(input);
+  const scope = SemesterAllocationJobSchema.shape.scope.parse({
+    curriculumId: request.curriculumId,
+    semester: request.semester,
+    year: request.year,
+  });
+  const checkedBoundary =
+    boundary === undefined ? undefined : SemesterAllocationJobSchema.parse(boundary);
+  if (
+    (request.after !== undefined &&
+      (!checkedBoundary ||
+        checkedBoundary.id !== request.after ||
+        !sameScope(checkedBoundary.scope, scope))) ||
+    (request.after === undefined && checkedBoundary !== undefined)
+  )
+    throw invalid();
+  return underAdmin(owner, async () => {
+    const response = await apiClient.get<ApiResponse<unknown>>('/admin/semester-allocation-jobs', {
+      ...options,
+      params: request,
+    });
+    if (response.data?.success !== true) throw invalid();
+    const page = SemesterAllocationJobHistorySchema.parse(response.data.data);
+    if (
+      !sameScope(page.scope, scope) ||
+      page.after !== (request.after ?? null) ||
+      (checkedBoundary &&
+        page.requests.some(({ job }) => !beforeQueueBoundary(job, checkedBoundary)))
+    )
+      throw invalid();
+    return page;
   });
 }
