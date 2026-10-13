@@ -189,6 +189,42 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-13
 
+### Reproducible supported-bound semester profiling
+
+Added a production-output CLI and deterministic synthetic fixture/evaluation helpers for
+six selected scenarios: reference credits, maximum students/choices, hundred-round zero
+credits, ten-thousand disjoint catalog/section entries, scarce capacity and missing resources.
+Separate child deadlines, explicit old-space limits, SIGINT/SIGTERM/exit cleanup, strict
+options, raw millisecond samples, median/min/max, result sizes and sampled memory make runs
+repeatable. Full result digests agree across repeats and reversed inputs; input digests prove
+no mutation. Strict internal replay is supplemented by independent expected outcomes and
+linear roster/catalog/demand/student-credit/seat/round accounting. No DB, auth, configuration,
+academic records, frozen model or curriculum activation is changed by the tool.
+
+Independent final source/test review: Ship. Ninety-three new pure cases cover actual fixture
+bounds, direct independent forgery checks, aggregate privacy, digests, statistics and options.
+Final isolated build, types, zero-warning lint and 98 server suites / 2751 tests against the
+existing PostgreSQL plus 78 client suites / 1910 tests pass. Exact source matches its checked
+snapshot, with unrelated staged/interface drafts excluded. Initial verification found a
+missing independent usage guard, now fixed; an unchanged capture student-read case also
+returned 401 instead of 403 once. Its cause is unconfirmed. The fresh full run passes without
+auth changes, suppression or altered test budgets.
+
+Actual compiled CLI deadline and SIGINT/SIGTERM checks passed with no surviving child.
+All six default measurement scenarios completed, one warmup plus three samples each, without
+concurrent quality tests. On Apple M2/macOS arm64/Node v25.2.1, maximum-case allocation
+medians are 3381–4843ms and additional replay medians 1681–2502ms. Allocation already includes
+its internal output replay; the additional interval includes JSON parsing and summary work.
+The largest internal result serializes to 6,052,373 bytes. These are local observations, not
+database-worker/history latency, peak-memory, efficacy or optimality guarantees.
+See `docs/phase-4/semester-allocation-profile.md` and its dated raw JSON report.
+
+Next: measure the complete persisted V1 replay/capture/worker/history path before expanding
+supported workloads or changing transaction limits. Repair durable Docker startup/dependency
+handling without resetting data, then resume student/context/planning features behind verified
+curriculum gates. Deployment/thesis and official CS/IT/DS/calendar/staff/lab remain open.
+App/database and unrelated user edits remain preserved; recurring automation stays canceled.
+
 ### Read-only admin semester request history screen
 
 The confirmed admin scenario now mounts its independent history screen beside semester
