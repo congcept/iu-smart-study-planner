@@ -187,6 +187,43 @@ Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
+## Active Checkpoint — 2026-10-15
+
+### Actual persisted-result verification CPU profiling
+
+Extracted the existing saved V1 run/job/history-pair verifiers and public projections into
+a database-independent module, with compatible original exports. AST review confirms all
+six moved function bodies preserve semantics. Authorization, transactions, queries, pinned
+models, curricula and academic state are unchanged. A separate compiled CLI measures actual
+verification/projection functions, including six-row history lookahead and cursor validation.
+Each sample performs seventeen full private replays against seven separate decoded records.
+Defaults are one observational sample, no warmup, 120-second supervised scenario deadline.
+
+Independent source/test review: Ship. Profile-only isolated build/types/zero-warning lint,
+99 server suites / 2769 PostgreSQL tests and 78 client suites / 1910 tests pass. A subsequent
+integrated candidate on UI PR #120 passes build/types/lint, 100 server suites / 2791 tests,
+81 client suites / 1965 tests and 10 lifecycle tests; this includes the separately prepared
+startup and saved-plan increments. Original workspace edits and staging are excluded.
+An initial empty disposable database exposed an existing test's required reference-course
+fixture; initializing only that test database yields the clean full run without test/code
+suppression. App data was not reset/reseeded. Another local test run prompted isolation.
+
+Fresh raw measurements complete all six scenarios. On Apple M2/macOS arm64/Node v25.2.1,
+maximum single-run observations are 1698–2493ms, initial history 10359–14468ms and continued
+history 12143–17747ms. One sample is not a statistical performance estimate. The intervals
+exclude SQL/auth/capture/worker/HTTP latency and fixture construction, and synthetic decoded
+container memory does not model database materialization. Actual timeout/SIGINT/SIGTERM
+cleanup checks pass. No worker/transaction budget or supported limit is increased.
+See `docs/phase-4/semester-stored-verification-profile.md` and dated raw JSON.
+
+Next: publish the independently reviewed startup and own saved-plan metadata increments,
+then read-only selected-plan semester summaries. Complete database-backed capture/worker/
+history evaluation remains open before performance promises. Verified curriculum, assignment,
+prerequisite/GPA/calendar scheduling, staff/lab, deployment and thesis gates remain open.
+Use the `planner-continuation` managed checkout for publication; main received UI PR #120
+during verification. The original checkout's unrelated edits/index remain untouched.
+Recurring automation remains canceled.
+
 ## Active Checkpoint — 2026-10-13
 
 ### Reproducible supported-bound semester profiling

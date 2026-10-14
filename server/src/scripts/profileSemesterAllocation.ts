@@ -77,11 +77,15 @@ function measureScenario(scenario: ProfileScenario, options: Options) {
   };
 }
 
-async function runChild(scenario: ProfileScenario, options: Options) {
+export async function runProfileChild(
+  scriptPath: string,
+  scenario: ProfileScenario,
+  options: Options,
+) {
   const started = performance.now();
   return new Promise<unknown>((resolve) => {
     const child = fork(
-      __filename,
+      scriptPath,
       [
         '--scenario',
         scenario,
@@ -157,7 +161,8 @@ async function main() {
   }
   const scenarios = options.scenario === 'all' ? PROFILE_SCENARIOS : [options.scenario];
   const results: unknown[] = [];
-  for (const scenario of scenarios) results.push(await runChild(scenario, options));
+  for (const scenario of scenarios)
+    results.push(await runProfileChild(__filename, scenario, options));
   console.log(
     JSON.stringify(
       {
