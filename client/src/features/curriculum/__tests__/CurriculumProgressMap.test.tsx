@@ -55,7 +55,9 @@ async function showCurriculum(courses: Course[], userId?: string) {
     data: [{ year: 1, semester: 1, courses }],
   });
   render(<CurriculumProgressMap userId={userId} />);
-  await screen.findByText(courses[0].code);
+  await screen.findByRole('button', {
+    name: new RegExp(`^${courses[0].code} Course ${courses[0].code}:`),
+  });
 }
 
 beforeEach(() => {
@@ -102,6 +104,18 @@ afterEach(() => {
 });
 
 describe('prerequisite interactions', () => {
+  it('resets map scrolling without changing course selections', async () => {
+    useAppStore.setState({ completedIds: { A: null }, plannedIds: ['B'] });
+    await showCurriculum([course('A'), course('B')]);
+    const map = screen.getByRole('region', { name: 'Semester curriculum map' });
+    map.scrollTop = 160;
+    map.scrollLeft = 240;
+    fireEvent.click(screen.getByRole('button', { name: 'Reset view' }));
+    expect(map.scrollTop).toBe(0);
+    expect(map.scrollLeft).toBe(0);
+    expect(useAppStore.getState().completedIds).toEqual({ A: null });
+    expect(useAppStore.getState().plannedIds).toEqual(['B']);
+  });
   it('reconciles a signed-in cascade with server-only dependents and blocks clicks during saving', async () => {
     useAppStore.getState().setProgressOwner('alice');
     vi.mocked(getScopedStudentProgress).mockResolvedValue({
@@ -153,7 +167,7 @@ describe('prerequisite interactions', () => {
     render(<CurriculumProgressMap userId="alice" />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Offline');
     expect(screen.queryByText('A')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry progress' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved progress' }));
     await screen.findByText('A');
     await waitFor(() => expect(useAppStore.getState().progressStatus).toBe('ready'));
   });
@@ -161,11 +175,17 @@ describe('prerequisite interactions', () => {
     await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU'])]);
     fireEvent.contextMenu(screen.getByText('IT002IU'));
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
-    fireEvent.click(screen.getByText('IT002IU'));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'IT002IU Course IT002IU: Show prerequisites' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'IT002IU Course IT002IU: Show prerequisites' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Requires')).toBeVisible();
     expect(useAppStore.getState().completedIds).toEqual({});
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
 
-    fireEvent.click(screen.getByText('IT001IU'));
+    fireEvent.click(screen.getByRole('button', { name: 'IT001IU Course IT001IU: Mark complete' }));
     fireEvent.click(screen.getByText('IT002IU'));
     expect(useAppStore.getState().completedIds).toEqual({ IT001IU: null, IT002IU: null });
     expect(useAppStore.getState().plannedIds).toEqual([]);
@@ -179,7 +199,7 @@ describe('prerequisite interactions', () => {
     expect(useAppStore.getState().completedIds).toEqual({});
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
 
-    fireEvent.click(screen.getByText('IT001IU'));
+    fireEvent.click(screen.getByRole('button', { name: 'IT001IU Course IT001IU: Mark complete' }));
     fireEvent.click(screen.getByText('IT002IU'));
     expect(useAppStore.getState().completedIds.IT002IU).toBe('Group 1');
   });

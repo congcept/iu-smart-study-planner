@@ -1,6 +1,12 @@
 import type { CourseDifficultyDTO } from '@iu-study-planner/shared';
 
-export function CourseRatingBadge({ course }: { course: Partial<CourseDifficultyDTO> }) {
+export function CourseRatingBadge({
+  course,
+  compact = false,
+}: {
+  course: Partial<CourseDifficultyDTO>;
+  compact?: boolean;
+}) {
   const { ratingDifficulty, ratingCount } = course;
   if (
     ratingDifficulty === undefined ||
@@ -14,11 +20,16 @@ export function CourseRatingBadge({ course }: { course: Partial<CourseDifficulty
     return null;
 
   return (
-    <p className="mt-1 text-xs leading-snug text-gray-700 tabular-nums">
-      <span className="block">Difficulty {ratingDifficulty.toFixed(1)} / 5</span>
-      <span className="block">
+    <p
+      className={`mt-1 leading-snug text-gray-700 tabular-nums ${compact ? 'text-[10px]' : 'text-xs'}`}
+    >
+      <span>Difficulty {ratingDifficulty.toFixed(1)} / 5</span>
+      {' · '}
+      <span>
         {ratingCount === 0
-          ? 'No ratings yet'
+          ? compact
+            ? '0 ratings'
+            : 'No ratings yet'
           : `${ratingCount} ${ratingCount === 1 ? 'rating' : 'ratings'}`}
       </span>
       <span className="sr-only">

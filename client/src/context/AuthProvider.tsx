@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setStatus('unauthenticated');
         setSessionError(
-          'Could not check your session. Check that the server is running and try again.',
+          'Could not check whether you are signed in. Check your internet connection and try again.',
         );
       }
     }

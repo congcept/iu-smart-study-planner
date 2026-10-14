@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -78,14 +78,37 @@ function AppShell() {
         >
           {user ? (
             <>
-              <Link to="/curriculum" className="text-primary-700 underline">
+              <NavLink
+                to="/curriculum"
+                className="inline-flex min-h-11 items-center text-primary-700 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+              >
                 My curriculum
-              </Link>
-              <Link to="/grades" className="text-primary-700 underline">Grades</Link>
-              <Link to="/ratings" className="text-primary-700 underline">Ratings</Link>
-              <Link to="/planner" className="inline-flex min-h-11 items-center text-primary-700 underline">Planner</Link>
+              </NavLink>
+              <NavLink
+                to="/grades"
+                className="inline-flex min-h-11 items-center text-primary-700 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+              >
+                Grades
+              </NavLink>
+              <NavLink
+                to="/ratings"
+                className="inline-flex min-h-11 items-center text-primary-700 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+              >
+                Ratings
+              </NavLink>
+              <NavLink
+                to="/planner"
+                className="inline-flex min-h-11 items-center text-primary-700 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+              >
+                Planner
+              </NavLink>
               {user.role === 'ADMIN' && (
-                <Link to="/admin" className="inline-flex min-h-11 items-center text-primary-700 underline">Simulation resources</Link>
+                <NavLink
+                  to="/admin"
+                  className="inline-flex min-h-11 items-center text-primary-700 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+                >
+                  Simulation resources
+                </NavLink>
               )}
               <span className="text-gray-600">{user.name}</span>
               <span className="rounded-full bg-primary-50 px-2 py-1 text-primary-700">
@@ -97,21 +120,30 @@ function AppShell() {
             </>
           ) : (
             <>
-              <Link to="/" className="text-gray-600 underline">
+              <NavLink
+                to="/"
+                className="inline-flex min-h-11 items-center text-gray-600 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+              >
                 Demo curriculum
-              </Link>
-              <Link to="/login" className="text-primary-700 underline">
+              </NavLink>
+              <NavLink
+                to="/login"
+                className="inline-flex min-h-11 items-center text-primary-700 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+              >
                 Sign in
-              </Link>
-              <Link to="/register" className="text-primary-700 underline">
+              </NavLink>
+              <NavLink
+                to="/register"
+                className="inline-flex min-h-11 items-center text-primary-700 underline aria-[current=page]:font-bold aria-[current=page]:decoration-2"
+              >
                 Create account
-              </Link>
+              </NavLink>
             </>
           )}
         </nav>
         {apiStatus === 'error' && (
           <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full ml-auto">
-            API Disconnected
+            Cannot connect to the planner. Reload the page to try again.
           </span>
         )}
       </header>
@@ -127,7 +159,7 @@ function AppShell() {
             <p role="alert" className="mb-4 text-red-700">
               {sessionError}
             </p>
-            <Button onClick={() => void refresh()}>Retry</Button>
+            <Button onClick={() => void refresh()}>Try again</Button>
           </div>
         ) : (
           <>
@@ -139,12 +171,29 @@ function AppShell() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route element={<AuthGuard />}>
-                <Route path="/curriculum" element={user ? <AccountCurriculum key={user.id} userId={user.id} /> : null} />
-                <Route path="/grades" element={user ? <GradeDashboard key={user.id} userId={user.id} /> : null} />
-                <Route path="/ratings" element={user ? <RatingDashboard key={user.id} userId={user.id} /> : null} />
-                <Route path="/planner" element={user ? <PlannerDashboard key={user.id} userId={user.id} /> : null} />
+                <Route
+                  path="/curriculum"
+                  element={user ? <AccountCurriculum key={user.id} userId={user.id} /> : null}
+                />
+                <Route
+                  path="/grades"
+                  element={user ? <GradeDashboard key={user.id} userId={user.id} /> : null}
+                />
+                <Route
+                  path="/ratings"
+                  element={user ? <RatingDashboard key={user.id} userId={user.id} /> : null}
+                />
+                <Route
+                  path="/planner"
+                  element={user ? <PlannerDashboard key={user.id} userId={user.id} /> : null}
+                />
                 <Route element={<AdminGuard />}>
-                  <Route path="/admin" element={user ? <AdminResourceDashboard key={user.id} userId={user.id} /> : null} />
+                  <Route
+                    path="/admin"
+                    element={
+                      user ? <AdminResourceDashboard key={user.id} userId={user.id} /> : null
+                    }
+                  />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
