@@ -9,6 +9,7 @@ import { PlannerDashboard } from '../PlannerDashboard';
 vi.mock('../OwnSemesterAllocationHistoryPanel', () => ({
   OwnSemesterAllocationHistoryPanel: () => null,
 }));
+vi.mock('../SavedStudyPlansPanel', () => ({ SavedStudyPlansPanel: () => null }));
 
 const children = vi.hoisted(() => ({ workload: vi.fn(), recommendations: vi.fn() }));
 vi.mock('@/lib/api', () => ({

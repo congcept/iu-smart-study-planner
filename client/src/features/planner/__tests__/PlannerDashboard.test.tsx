@@ -11,6 +11,13 @@ import { PlannerDashboard } from '../PlannerDashboard';
 vi.mock('../OwnSemesterAllocationHistoryPanel', () => ({
   OwnSemesterAllocationHistoryPanel: () => null,
 }));
+vi.mock('../SavedStudyPlansPanel', () => ({
+  SavedStudyPlansPanel: ({ ownerId, blocked }: { ownerId: string; blocked: boolean }) => (
+    <section aria-label="Saved study plans child">
+      {ownerId}:{String(blocked)}
+    </section>
+  ),
+}));
 
 const children = vi.hoisted(() => ({
   workload: vi.fn(),
@@ -102,6 +109,14 @@ beforeEach(() => {
   }));
   progress.mockResolvedValue(saved);
   catalog.mockResolvedValue(catalogResponse);
+});
+
+it('mounts saved study plan references for the planner account', async () => {
+  render(dashboard());
+  expect(screen.getByRole('region', { name: 'Saved study plans child' })).toHaveTextContent(
+    'one:false',
+  );
+  await screen.findByRole('region', { name: 'Workload child' });
 });
 afterEach(() => {
   cleanup();
