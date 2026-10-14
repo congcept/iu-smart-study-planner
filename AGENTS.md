@@ -21,7 +21,7 @@ npm run dev                                # Build shared, then run shared/clien
 - `npm run build` - Build shared, then client + server for production
 - `npm run lint` - Lint all packages (zero warnings allowed)
 - `npm run typecheck` - Type-check all packages (tsc --noEmit)
-- `npm run test` - Run all tests (server Jest first, then client Vitest)
+- `npm run test` - Build shared, run startup lifecycle cases, then server Jest and client Vitest
 - `npm run format` - Format all files with Prettier
 
 ### Server (server/)
@@ -126,7 +126,7 @@ npm run dev                                # Build shared, then run shared/clien
 - **ElectiveSelector**: **deleted** in Thesis Phase 2 — it imported a non-existent `Checkbox` and duplicated the sidebar UX. Do not reintroduce it
 - **Prisma P2025 errors**: Use `isNotFoundError()` helper to handle "record not found"
 - **Shared types not updating**: After changing `shared/src/`, run `npm run build` in `shared/` — client/server import from compiled `dist/`
-- **Production migration**: `docker-compose.yml` runs `prisma migrate dev` (dev-only). Deployments must use `prisma migrate deploy`
+- **Migration startup**: Docker applies reviewed migrations with `prisma migrate deploy`. Use `db:migrate` only when authoring a development migration; startup never resets or seeds data.
 
 ## Git Workflow
 
@@ -188,6 +188,30 @@ and the sidebar overlay/pan bounds in uncommitted interface work. Those interfac
 edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-15
+
+### Durable development startup supervision
+
+Root/split-app startup now uses Node built-ins rather than requiring concurrently in an old
+dependency volume. Shared output is built before watchers start. Failed builds/spawns or an
+unexpected watcher exit stop siblings; POSIX process groups include descendants and receive
+graceful then forced shutdown. Future Docker backend startups apply reviewed migrations with
+`prisma migrate deploy`, then use the same supervisor. No reset, seed, volume deletion or
+container recreation is introduced. See `docs/development-startup.md`.
+
+Independent source review: Ship for the documented Mac/POSIX scope. Ten real-process host
+lifecycle tests, syntax/format and Compose configuration validation pass. The exact combined
+candidate on UI PR #120 passed build/types/zero-warning lint, 2791 PostgreSQL server and
+1965 client tests, including the separately prepared saved-plan increment. Existing server/
+client source in this startup-only commit is unchanged from the checked profiling source.
+Fresh Linux container execution is unavailable because only PostgreSQL is cached; Windows
+execution is unverified. Historical Linux results are distinguished from current host checks.
+No app containers were started/recreated for validation. PR #121 profiling is merged and its
+remote tree matched the reviewed feature tree. Publication remains in the isolated checkout;
+original workspace edits/staging and the app database remain preserved.
+
+Next: publish the checked read-only own saved-plan metadata browser, then selected-plan
+semester summaries. Official curriculum/assignment, verified scheduling, database-backed
+maximum-workload performance, staff/lab, deployment and thesis gates remain open.
 
 ### Actual persisted-result verification CPU profiling
 
