@@ -1,0 +1,490 @@
+{
+  "kind": "SYNTHETIC_STORED_SEMESTER_VERIFICATION_PROFILE",
+  "reportVersion": 1,
+  "recordedAt": "2026-10-14T17:12:07.775Z",
+  "runtime": {
+    "node": "v25.2.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpuModel": "Apple M2",
+    "logicalCpus": 8
+  },
+  "options": {
+    "scenario": "all",
+    "samples": 1,
+    "warmup": 0,
+    "timeoutMs": 120000
+  },
+  "childOldSpaceLimitMiB": 512,
+  "totalProcessMemoryCapped": false,
+  "scope": "ACTUAL_PERSISTED_V1_VERIFICATION_AND_PROJECTION_CPU_ONLY",
+  "decodedFixtureMemoryRepresentsDatabaseMaterialization": false,
+  "databaseOperationsAttempted": false,
+  "authorizationOrSqlMeasured": false,
+  "captureOrWorkerMeasured": false,
+  "endpointLatencyGuaranteeEstablished": false,
+  "results": [
+    {
+      "scenario": "reference",
+      "status": "COMPLETED",
+      "wallMs": 88.100834,
+      "report": {
+        "scenario": "reference",
+        "inputDigest": "6e897f8662a1844eaa5f51500ab80aecc227c092f2c5763e9e53624dc2a80c82",
+        "fingerprints": {
+          "singleRunMs": "4f363f187b45dac28b7e37044f85b55275e98fd22904c046b89396e87627343f",
+          "adminProjectionMs": "1e83fe5f2ad8bb97704deff40aca1f57036e016b59cd929639aa44106091e5db",
+          "ownProjectionMs": "777c736a166febcd4a8ee856aecdc40c7c07a7129a25a37a6a3a92e0b0ee8eb3",
+          "jobOutcomeMs": "d76c43d0df9958f00f71e2bae3e3b78185d854b922be2b59c9b32e49052a9ca9",
+          "initialHistoryMs": "5fa4cce42c9853685a39c5fc3f7f727404732e2370892ddfefe357bdefe7b7bf",
+          "continuationHistoryMs": "2c15cfbc5ce25aede8b9a81854ae75f641727d8c551108d677e3e01ea76a4c88"
+        },
+        "decodedResultCount": 7,
+        "participantCountPerResult": 12,
+        "modeledResultJsonBytes": 20859,
+        "timings": {
+          "singleRunMs": {
+            "sampleCount": 1,
+            "minMs": 1.9306669999999997,
+            "medianMs": 1.9306669999999997,
+            "maxMs": 1.9306669999999997
+          },
+          "adminProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 1.0168749999999989,
+            "medianMs": 1.0168749999999989,
+            "maxMs": 1.0168749999999989
+          },
+          "ownProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 1.144167000000003,
+            "medianMs": 1.144167000000003,
+            "maxMs": 1.144167000000003
+          },
+          "jobOutcomeMs": {
+            "sampleCount": 1,
+            "minMs": 0.982332999999997,
+            "medianMs": 0.982332999999997,
+            "maxMs": 0.982332999999997
+          },
+          "initialHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 11.351833,
+            "medianMs": 11.351833,
+            "maxMs": 11.351833
+          },
+          "continuationHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 5.0547499999999985,
+            "medianMs": 5.0547499999999985,
+            "maxMs": 5.0547499999999985
+          }
+        },
+        "samples": {
+          "singleRunMs": [1.9306669999999997],
+          "adminProjectionMs": [1.0168749999999989],
+          "ownProjectionMs": [1.144167000000003],
+          "jobOutcomeMs": [0.982332999999997],
+          "initialHistoryMs": [11.351833],
+          "continuationHistoryMs": [5.0547499999999985]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 10754928,
+            "rss": 67403776
+          },
+          "after": {
+            "heapUsed": 18915480,
+            "rss": 91684864
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "max-students",
+      "status": "COMPLETED",
+      "wallMs": 35448.748708,
+      "report": {
+        "scenario": "max-students",
+        "inputDigest": "4c9597564ac934ea8caa387f1bda2429227cdbf618733c8b527be20d56ebe31d",
+        "fingerprints": {
+          "singleRunMs": "958f3ece46f4db4f828cd05b23fbf6dce93f3e59d1b8f05451930f6d73a101e3",
+          "adminProjectionMs": "eb617c8c39fa7fa4d8ff7623c03b1103e2afa6cba3849d924b3b978cf2eb022e",
+          "ownProjectionMs": "567d6761890f25cbe736389a660b37852b9f0562d27ef4449c1e061e1e5eca66",
+          "jobOutcomeMs": "d76c43d0df9958f00f71e2bae3e3b78185d854b922be2b59c9b32e49052a9ca9",
+          "initialHistoryMs": "5fa4cce42c9853685a39c5fc3f7f727404732e2370892ddfefe357bdefe7b7bf",
+          "continuationHistoryMs": "2c15cfbc5ce25aede8b9a81854ae75f641727d8c551108d677e3e01ea76a4c88"
+        },
+        "decodedResultCount": 7,
+        "participantCountPerResult": 500,
+        "modeledResultJsonBytes": 3936717,
+        "timings": {
+          "singleRunMs": {
+            "sampleCount": 1,
+            "minMs": 1698.293583999999,
+            "medianMs": 1698.293583999999,
+            "maxMs": 1698.293583999999
+          },
+          "adminProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 1728.0569169999999,
+            "medianMs": 1728.0569169999999,
+            "maxMs": 1728.0569169999999
+          },
+          "ownProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 1724.5475419999984,
+            "medianMs": 1724.5475419999984,
+            "maxMs": 1724.5475419999984
+          },
+          "jobOutcomeMs": {
+            "sampleCount": 1,
+            "minMs": 1698.2948749999996,
+            "medianMs": 1698.2948749999996,
+            "maxMs": 1698.2948749999996
+          },
+          "initialHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 10581.636041000002,
+            "medianMs": 10581.636041000002,
+            "maxMs": 10581.636041000002
+          },
+          "continuationHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 12143.395458000003,
+            "medianMs": 12143.395458000003,
+            "maxMs": 12143.395458000003
+          }
+        },
+        "samples": {
+          "singleRunMs": [1698.293583999999],
+          "adminProjectionMs": [1728.0569169999999],
+          "ownProjectionMs": [1724.5475419999984],
+          "jobOutcomeMs": [1698.2948749999996],
+          "initialHistoryMs": [10581.636041000002],
+          "continuationHistoryMs": [12143.395458000003]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 124857304,
+            "rss": 565903360
+          },
+          "after": {
+            "heapUsed": 229602776,
+            "rss": 596115456
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "max-rounds",
+      "status": "COMPLETED",
+      "wallMs": 35503.953417,
+      "report": {
+        "scenario": "max-rounds",
+        "inputDigest": "aef1840192bce5debf31c6744088044467de7d22d451cfe004ddc23185256ea7",
+        "fingerprints": {
+          "singleRunMs": "2cfcfedd3b1175079f14415db20d08d834c0d6493375344a000ffd00651de82b",
+          "adminProjectionMs": "bd796c5067d477a7214eca52e011311be1aa2412891a86973fe275c8ecce6c66",
+          "ownProjectionMs": "6a99364c7ab36ceb7106c36884bda93e162c16cb36b91651b4031f0ffc1a98a8",
+          "jobOutcomeMs": "d76c43d0df9958f00f71e2bae3e3b78185d854b922be2b59c9b32e49052a9ca9",
+          "initialHistoryMs": "5fa4cce42c9853685a39c5fc3f7f727404732e2370892ddfefe357bdefe7b7bf",
+          "continuationHistoryMs": "2c15cfbc5ce25aede8b9a81854ae75f641727d8c551108d677e3e01ea76a4c88"
+        },
+        "decodedResultCount": 7,
+        "participantCountPerResult": 100,
+        "modeledResultJsonBytes": 3956764,
+        "timings": {
+          "singleRunMs": {
+            "sampleCount": 1,
+            "minMs": 1719.6458750000002,
+            "medianMs": 1719.6458750000002,
+            "maxMs": 1719.6458750000002
+          },
+          "adminProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 1699.1053340000008,
+            "medianMs": 1699.1053340000008,
+            "maxMs": 1699.1053340000008
+          },
+          "ownProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 1764.108875,
+            "medianMs": 1764.108875,
+            "maxMs": 1764.108875
+          },
+          "jobOutcomeMs": {
+            "sampleCount": 1,
+            "minMs": 1719.234708,
+            "medianMs": 1719.234708,
+            "maxMs": 1719.234708
+          },
+          "initialHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 10359.377042000002,
+            "medianMs": 10359.377042000002,
+            "maxMs": 10359.377042000002
+          },
+          "continuationHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 12335.322166000002,
+            "medianMs": 12335.322166000002,
+            "maxMs": 12335.322166000002
+          }
+        },
+        "samples": {
+          "singleRunMs": [1719.6458750000002],
+          "adminProjectionMs": [1699.1053340000008],
+          "ownProjectionMs": [1764.108875],
+          "jobOutcomeMs": [1719.234708],
+          "initialHistoryMs": [10359.377042000002],
+          "continuationHistoryMs": [12335.322166000002]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 121144888,
+            "rss": 555352064
+          },
+          "after": {
+            "heapUsed": 154132656,
+            "rss": 566820864
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "max-catalog",
+      "status": "COMPLETED",
+      "wallMs": 49922.519541,
+      "report": {
+        "scenario": "max-catalog",
+        "inputDigest": "109b286e6329a207600947a343f3e5540fc8dbb80bdb7b901c46785bd501c1c5",
+        "fingerprints": {
+          "singleRunMs": "8ee725f2c6f96ca7a95cb842af496a0100a2ac74da75fd4925e86e08259e2cc1",
+          "adminProjectionMs": "a79b407a9f3035aa94cc3fd3de138506af883e8900b968d981ad9a9fe7229742",
+          "ownProjectionMs": "567d6761890f25cbe736389a660b37852b9f0562d27ef4449c1e061e1e5eca66",
+          "jobOutcomeMs": "d76c43d0df9958f00f71e2bae3e3b78185d854b922be2b59c9b32e49052a9ca9",
+          "initialHistoryMs": "5fa4cce42c9853685a39c5fc3f7f727404732e2370892ddfefe357bdefe7b7bf",
+          "continuationHistoryMs": "2c15cfbc5ce25aede8b9a81854ae75f641727d8c551108d677e3e01ea76a4c88"
+        },
+        "decodedResultCount": 7,
+        "participantCountPerResult": 500,
+        "modeledResultJsonBytes": 6052373,
+        "timings": {
+          "singleRunMs": {
+            "sampleCount": 1,
+            "minMs": 2492.644624999999,
+            "medianMs": 2492.644624999999,
+            "maxMs": 2492.644624999999
+          },
+          "adminProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 2398.882375000001,
+            "medianMs": 2398.882375000001,
+            "maxMs": 2398.882375000001
+          },
+          "ownProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 2300.364708000001,
+            "medianMs": 2300.364708000001,
+            "maxMs": 2300.364708000001
+          },
+          "jobOutcomeMs": {
+            "sampleCount": 1,
+            "minMs": 2327.3772499999995,
+            "medianMs": 2327.3772499999995,
+            "maxMs": 2327.3772499999995
+          },
+          "initialHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 14467.535541999998,
+            "medianMs": 14467.535541999998,
+            "maxMs": 14467.535541999998
+          },
+          "continuationHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 17746.804292,
+            "medianMs": 17746.804292,
+            "maxMs": 17746.804292
+          }
+        },
+        "samples": {
+          "singleRunMs": [2492.644624999999],
+          "adminProjectionMs": [2398.882375000001],
+          "ownProjectionMs": [2300.364708000001],
+          "jobOutcomeMs": [2327.3772499999995],
+          "initialHistoryMs": [14467.535541999998],
+          "continuationHistoryMs": [17746.804292]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 191532008,
+            "rss": 568688640
+          },
+          "after": {
+            "heapUsed": 220422160,
+            "rss": 662700032
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "scarce",
+      "status": "COMPLETED",
+      "wallMs": 1126.385083000001,
+      "report": {
+        "scenario": "scarce",
+        "inputDigest": "6e2dfbef932f21cfe6a021884e1f4b73a5485a61ff2702cf166fb87e3431fcd3",
+        "fingerprints": {
+          "singleRunMs": "f46edd75c1d2439786279617d32dace7eacf56e1f58149e5afdebab3cf5d9780",
+          "adminProjectionMs": "e27e523ddaec7e4034bb473851dfcd95dd01148898ac40516ac1e1b3bc85e8df",
+          "ownProjectionMs": "5d13e7bfd0af7cc0ead6f27a720efa9efa0c80930d797a73cf1110f868d30671",
+          "jobOutcomeMs": "d76c43d0df9958f00f71e2bae3e3b78185d854b922be2b59c9b32e49052a9ca9",
+          "initialHistoryMs": "5fa4cce42c9853685a39c5fc3f7f727404732e2370892ddfefe357bdefe7b7bf",
+          "continuationHistoryMs": "2c15cfbc5ce25aede8b9a81854ae75f641727d8c551108d677e3e01ea76a4c88"
+        },
+        "decodedResultCount": 7,
+        "participantCountPerResult": 500,
+        "modeledResultJsonBytes": 874917,
+        "timings": {
+          "singleRunMs": {
+            "sampleCount": 1,
+            "minMs": 48.93458300000003,
+            "medianMs": 48.93458300000003,
+            "maxMs": 48.93458300000003
+          },
+          "adminProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 39.81104099999999,
+            "medianMs": 39.81104099999999,
+            "maxMs": 39.81104099999999
+          },
+          "ownProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 56.56729200000001,
+            "medianMs": 56.56729200000001,
+            "maxMs": 56.56729200000001
+          },
+          "jobOutcomeMs": {
+            "sampleCount": 1,
+            "minMs": 43.666083999999955,
+            "medianMs": 43.666083999999955,
+            "maxMs": 43.666083999999955
+          },
+          "initialHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 266.63729100000006,
+            "medianMs": 266.63729100000006,
+            "maxMs": 266.63729100000006
+          },
+          "continuationHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 285.73187500000006,
+            "medianMs": 285.73187500000006,
+            "maxMs": 285.73187500000006
+          }
+        },
+        "samples": {
+          "singleRunMs": [48.93458300000003],
+          "adminProjectionMs": [39.81104099999999],
+          "ownProjectionMs": [56.56729200000001],
+          "jobOutcomeMs": [43.666083999999955],
+          "initialHistoryMs": [266.63729100000006],
+          "continuationHistoryMs": [285.73187500000006]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 89029400,
+            "rss": 290291712
+          },
+          "after": {
+            "heapUsed": 96034976,
+            "rss": 381190144
+          },
+          "peakMeasured": false
+        }
+      }
+    },
+    {
+      "scenario": "missing-resources",
+      "status": "COMPLETED",
+      "wallMs": 74.62012500000128,
+      "report": {
+        "scenario": "missing-resources",
+        "inputDigest": "6aba0508bc63fcf1a1a9cc8964023a81f09200707a1db4c34871d2a003fbaaf7",
+        "fingerprints": {
+          "singleRunMs": "c4723f88180ef323147cf61ab01b3be87a650dd11a88ef53c38378467a42fd8d",
+          "adminProjectionMs": "534cebe29d126fdfc20063a0da295b08eb7864a991272af7378fae8385861adf",
+          "ownProjectionMs": "eb960c556df2abb985a112f59963d1ffc391a6ff753c5cbb68aa8b6b562c97c6",
+          "jobOutcomeMs": "d76c43d0df9958f00f71e2bae3e3b78185d854b922be2b59c9b32e49052a9ca9",
+          "initialHistoryMs": "5fa4cce42c9853685a39c5fc3f7f727404732e2370892ddfefe357bdefe7b7bf",
+          "continuationHistoryMs": "2c15cfbc5ce25aede8b9a81854ae75f641727d8c551108d677e3e01ea76a4c88"
+        },
+        "decodedResultCount": 7,
+        "participantCountPerResult": 12,
+        "modeledResultJsonBytes": 9768,
+        "timings": {
+          "singleRunMs": {
+            "sampleCount": 1,
+            "minMs": 1.408959000000003,
+            "medianMs": 1.408959000000003,
+            "maxMs": 1.408959000000003
+          },
+          "adminProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 0.788917000000005,
+            "medianMs": 0.788917000000005,
+            "maxMs": 0.788917000000005
+          },
+          "ownProjectionMs": {
+            "sampleCount": 1,
+            "minMs": 1.225166999999999,
+            "medianMs": 1.225166999999999,
+            "maxMs": 1.225166999999999
+          },
+          "jobOutcomeMs": {
+            "sampleCount": 1,
+            "minMs": 0.7132500000000022,
+            "medianMs": 0.7132500000000022,
+            "maxMs": 0.7132500000000022
+          },
+          "initialHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 10.079749999999997,
+            "medianMs": 10.079749999999997,
+            "maxMs": 10.079749999999997
+          },
+          "continuationHistoryMs": {
+            "sampleCount": 1,
+            "minMs": 3.752292000000004,
+            "medianMs": 3.752292000000004,
+            "maxMs": 3.752292000000004
+          }
+        },
+        "samples": {
+          "singleRunMs": [1.408959000000003],
+          "adminProjectionMs": [0.788917000000005],
+          "ownProjectionMs": [1.225166999999999],
+          "jobOutcomeMs": [0.7132500000000022],
+          "initialHistoryMs": [10.079749999999997],
+          "continuationHistoryMs": [3.752292000000004]
+        },
+        "sampledMemoryBytes": {
+          "before": {
+            "heapUsed": 11354040,
+            "rss": 65388544
+          },
+          "after": {
+            "heapUsed": 17035584,
+            "rss": 81657856
+          },
+          "peakMeasured": false
+        }
+      }
+    }
+  ]
+}

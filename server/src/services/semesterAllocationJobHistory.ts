@@ -7,37 +7,13 @@ import {
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { SchoolResourceError } from './schoolResources';
-import {
-  semesterAllocationJobOutcomeInclude,
-  verifyStoredSemesterAllocationJobOutcome,
-} from './semesterAllocationJobExecution';
+import { semesterAllocationJobOutcomeInclude } from './semesterAllocationJobExecution';
+import { verifySemesterHistoryRequest } from './semesterStoredVerification';
 
 const include = {
   ...semesterAllocationJobOutcomeInclude,
   run: { select: { id: true } },
 };
-type HistoryRow = Prisma.SimulationSemesterAllocationJobGetPayload<{ include: typeof include }>;
-
-function verifiedRequest(row: HistoryRow) {
-  const outcome = verifyStoredSemesterAllocationJobOutcome(row, row.execution);
-  // Nonterminal/failed requests must not hide a linked orphan. A success links the exact run.
-  if (
-    (outcome.status === 'SUCCEEDED' && row.run?.id !== outcome.runId) ||
-    (outcome.status !== 'SUCCEEDED' && row.run !== null)
-  )
-    throw new Error('Stored semester request history could not be verified');
-  const job = SemesterAllocationJobSchema.parse({
-    id: outcome.jobId,
-    kind: 'SIMULATION',
-    usage: 'REFERENCE_ONLY',
-    model: outcome.model,
-    scope: outcome.scope,
-    status: 'QUEUED',
-    queuedAt: outcome.queuedAt,
-    inputsCaptured: false,
-  });
-  return { job, outcome };
-}
 
 function serializationFailure(error: Prisma.PrismaClientKnownRequestError) {
   return (
@@ -91,7 +67,7 @@ export async function listSemesterAllocationJobs(
                 'Semester request continuation does not match this scenario; reload history',
                 409,
               );
-            verifiedRequest(cursor);
+            verifySemesterHistoryRequest(cursor);
             boundary = {
               OR: [
                 { createdAt: { lt: cursor.createdAt } },
@@ -106,7 +82,7 @@ export async function listSemesterAllocationJobs(
             take: 6,
           });
           // Verify the lookahead too; never truncate a corrupt result into a valid-looking page.
-          const verified = rows.map(verifiedRequest);
+          const verified = rows.map(verifySemesterHistoryRequest);
           const requests = verified.slice(0, 5);
           return SemesterAllocationJobHistorySchema.parse({
             kind: 'SIMULATION',

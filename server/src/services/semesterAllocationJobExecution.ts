@@ -1,29 +1,21 @@
 import { randomUUID } from 'node:crypto';
-import {
-  Prisma,
-  type SimulationSemesterAllocationExecution,
-  type SimulationSemesterAllocationJob,
-  type SimulationSemesterParticipant,
-  type SimulationSemesterRun,
-} from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   SemesterAllocationJobSchema,
-  SemesterAllocationJobOutcomeSchema,
   ExecuteSemesterAllocationJobSchema,
   SemesterAllocationJobExecutionSchema,
   type ExecuteSemesterAllocationJobDTO,
-  type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { SchoolResourceError } from './schoolResources';
 import { produceSemesterAllocationPreview } from './semesterAllocationPreview';
 import {
-  storeSemesterAllocationRunInTransaction,
-  verifyStoredSemesterAllocationRun,
-} from './semesterAllocationStorage';
+  verifyStoredSemesterAllocationJobOutcome,
+  type StoredRun,
+} from './semesterStoredVerification';
+export { verifyStoredSemesterAllocationJobOutcome } from './semesterStoredVerification';
+import { storeSemesterAllocationRunInTransaction } from './semesterAllocationStorage';
 
-type StoredRun = SimulationSemesterRun & { participants: SimulationSemesterParticipant[] };
-type StoredExecution = SimulationSemesterAllocationExecution & { run: StoredRun | null };
 export const semesterAllocationJobOutcomeInclude = {
   execution: {
     include: {
@@ -36,66 +28,6 @@ export const semesterAllocationJobOutcomeInclude = {
 const include = semesterAllocationJobOutcomeInclude;
 const uuid = SemesterAllocationJobSchema.shape.id;
 const storedError = () => new Error('Stored semester simulation outcome could not be verified');
-
-/** Full private replay and exact job provenance precede the small public projection. */
-export function verifyStoredSemesterAllocationJobOutcome(
-  job: SimulationSemesterAllocationJob,
-  execution: StoredExecution | null,
-): SemesterAllocationJobOutcomeDTO {
-  const receipt = SemesterAllocationJobSchema.safeParse({
-    id: job.id,
-    kind: 'SIMULATION',
-    usage: 'REFERENCE_ONLY',
-    model: job.model,
-    scope: { curriculumId: job.curriculumId, semester: job.semester, year: job.year },
-    status: 'QUEUED',
-    queuedAt: job.createdAt.toISOString(),
-    inputsCaptured: false,
-  });
-  if (
-    !receipt.success ||
-    !uuid.safeParse(job.requestId).success ||
-    (job.createdById !== null && !uuid.safeParse(job.createdById).success) ||
-    (execution !== null && execution.jobId !== receipt.data.id)
-  )
-    throw storedError();
-  if (execution?.status === 'SUCCEEDED') {
-    const row = execution.run;
-    if (
-      !row ||
-      row.id !== execution.runId ||
-      row.jobId !== receipt.data.id ||
-      row.createdById !== job.createdById
-    )
-      throw storedError();
-    const run = verifyStoredSemesterAllocationRun(row);
-    if (
-      run.result.model !== receipt.data.model ||
-      JSON.stringify(run.result.envelope.scope) !== JSON.stringify(receipt.data.scope) ||
-      row.capturedAt < job.createdAt ||
-      row.createdAt < row.capturedAt ||
-      execution.completedAt < row.createdAt
-    )
-      throw storedError();
-  } else if (execution?.run !== null && execution?.run !== undefined) {
-    throw storedError();
-  }
-  const outcome = SemesterAllocationJobOutcomeSchema.safeParse({
-    jobId: receipt.data.id,
-    kind: 'SIMULATION',
-    usage: 'REFERENCE_ONLY',
-    model: receipt.data.model,
-    scope: receipt.data.scope,
-    queuedAt: receipt.data.queuedAt,
-    executionModel: 'ATOMIC_SINGLE_JOB',
-    status: execution?.status ?? 'PENDING',
-    runId: execution?.runId ?? null,
-    completedAt: execution?.completedAt.toISOString() ?? null,
-    failureCode: execution?.failureCode ?? null,
-  });
-  if (!outcome.success) throw storedError();
-  return outcome.data;
-}
 
 function retryable(error: unknown) {
   return (
