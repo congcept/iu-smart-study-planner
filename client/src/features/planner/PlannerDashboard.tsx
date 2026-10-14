@@ -14,6 +14,7 @@ import { Recommendations } from '../recommendations/Recommendations';
 import { WorkloadAnalyzer } from './WorkloadAnalyzer';
 import { CurriculumPlannerPreview } from './CurriculumPlannerPreview';
 import { OwnSemesterAllocationHistoryPanel } from './OwnSemesterAllocationHistoryPanel';
+import { SavedStudyPlansPanel } from './SavedStudyPlansPanel';
 
 type IntensityMode = PlanSemesterDTO['intensityMode'];
 type PlannerIdentity = { ownerId: string; key: string; request: number };
@@ -307,6 +308,7 @@ export function PlannerDashboard({ userId }: { userId: string }) {
           <Recommendations key={`recommendations:${userId}:${current.revision}`} userId={userId} />
         </>
       )}
+      <SavedStudyPlansPanel ownerId={userId} blocked={invalidOwner === userId} />
       <OwnSemesterAllocationHistoryPanel ownerId={userId} blocked={invalidOwner === userId} />
     </div>
   );

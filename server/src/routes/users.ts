@@ -4,6 +4,7 @@ import {
   CreateUserSchema,
   CreateSemesterAllocationRunSchema,
   ListOwnSemesterAllocationRunsSchema,
+  ListOwnStudyPlansSchema,
   CompleteCourseSchema,
   UpsertProgressSchema,
   ToggleStudentRecordSchema,
@@ -22,8 +23,30 @@ import { readStudentProfileView, readStudentRecordsView } from '../services/stud
 import { readOwnSemesterAllocationRun } from '../services/semesterAllocationStorage';
 import { listOwnSemesterAllocationRuns } from '../services/ownSemesterAllocationHistory';
 import { SchoolResourceError } from '../services/schoolResources';
+import { listOwnStudyPlans, OwnStudyPlansError } from '../services/ownStudyPlans';
 
 const router = Router();
+
+router.get('/me/study-plans', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const query = ListOwnStudyPlansSchema.parse(req.query);
+    z.object({})
+      .strict()
+      .parse(req.body ?? {});
+    return res.json({ success: true, data: await listOwnStudyPlans(req.userId, query) });
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return res
+        .status(400)
+        .json({ success: false, error: 'Validation failed', details: error.errors });
+    if (error instanceof OwnStudyPlansError)
+      return res.status(error.status).json({ success: false, error: error.message });
+    console.error('Own saved study plan read error:', error);
+    return res.status(500).json({ success: false, error: 'Could not load your saved study plans' });
+  }
+});
 
 router.get('/me/semester-allocation-runs', requireAuth, async (req, res) => {
   if (!req.userId)
