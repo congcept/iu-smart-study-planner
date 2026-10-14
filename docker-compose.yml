@@ -44,7 +44,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npx prisma migrate dev --skip-seed && npm --prefix /app run dev:backend"
+    command: sh -c "npx prisma migrate deploy && exec npm --prefix /app run dev:backend"
     networks:
       - isp-network
 
