@@ -11,11 +11,13 @@ import {
   listSavedStudyPlans,
   SavedStudyPlansSessionChangedError,
 } from '@/lib/savedStudyPlansApi';
+import { SavedStudyPlanSemestersPanel } from './SavedStudyPlanSemestersPanel';
 
 type Request = { after?: string; boundary?: OwnStudyPlanMetadataDTO; curriculumId?: string | null };
 type State =
   | { status: 'loading' }
   | { status: 'error'; account: boolean; cursor: boolean }
+  | { status: 'selected'; planId: string; curriculumId: string | null }
   | { status: 'ready'; page: OwnStudyPlansDTO };
 
 function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
@@ -96,6 +98,22 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
     };
   }, [read, invalidate]);
 
+  const returnToList = useCallback(() => {
+    void read({});
+  }, [read]);
+
+  const renderGeneration = generation.current;
+
+  if (state.status === 'selected')
+    return (
+      <SavedStudyPlanSemestersPanel
+        ownerId={ownerId}
+        planId={state.planId}
+        expectedCurriculumId={state.curriculumId}
+        onBack={returnToList}
+      />
+    );
+
   const pending = state.status === 'loading';
   return (
     <section
@@ -157,7 +175,7 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
             </p>
           ) : (
             <ul className="divide-y divide-gray-200">
-              {state.page.plans.map((plan) => (
+              {state.page.plans.map((plan, index) => (
                 <li key={plan.id} className="space-y-2 py-3 text-sm text-gray-700">
                   <h4 className="break-words font-semibold text-gray-900">{plan.name}</h4>
                   {plan.description && (
@@ -179,6 +197,24 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
                       {new Date(plan.updatedAt).toLocaleString()}
                     </time>
                   </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11"
+                    aria-label={`View semesters for ${plan.name || 'Unnamed saved plan'} (plan ${index + 1})`}
+                    onClick={() => {
+                      if (!mounted.current || generation.current !== renderGeneration) return;
+                      generation.current++;
+                      controller.current?.abort();
+                      setState({
+                        status: 'selected',
+                        planId: plan.id,
+                        curriculumId: state.page.scope.curriculumId,
+                      });
+                    }}
+                  >
+                    View semesters
+                  </Button>
                 </li>
               ))}
             </ul>

@@ -10,6 +10,26 @@ vi.mock('@/lib/savedStudyPlansApi', async (original) => ({
   ...(await original<typeof import('@/lib/savedStudyPlansApi')>()),
   listSavedStudyPlans: vi.fn(),
 }));
+vi.mock('../SavedStudyPlanSemestersPanel', () => ({
+  SavedStudyPlanSemestersPanel: ({
+    ownerId: owner,
+    planId,
+    expectedCurriculumId,
+    onBack,
+  }: {
+    ownerId: string;
+    planId: string;
+    expectedCurriculumId: string | null;
+    onBack: () => void;
+  }) => (
+    <div aria-label="Selected semester references">
+      <span data-testid="selected-plan">{planId}</span>
+      <span data-testid="selected-owner">{owner}</span>
+      <span data-testid="selected-curriculum">{expectedCurriculumId ?? 'unassigned'}</span>
+      <button onClick={onBack}>Back to saved plans</button>
+    </div>
+  ),
+}));
 const read = vi.mocked(listSavedStudyPlans);
 const metadata = (n = 1): OwnStudyPlanMetadataDTO => ({
   id: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
@@ -47,6 +67,61 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('saved study plan reference browser', () => {
+  it('opens only the selected plan and requires a fresh list read when returning', async () => {
+    const pending = deferred<OwnStudyPlansDTO>();
+    read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    fireEvent.click(await screen.findByRole('button', { name: /View semesters for Reference 1/ }));
+    expect(screen.getByTestId('selected-plan')).toHaveTextContent(metadata().id);
+    expect(screen.getByTestId('selected-owner')).toHaveTextContent(ownerId);
+    expect(screen.getByTestId('selected-curriculum')).toHaveTextContent('unassigned');
+    expect(screen.queryByRole('heading', { name: 'Reference 1' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to saved plans' }));
+    expect(screen.queryByTestId('selected-plan')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Reference 1' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading your saved study plans');
+    expect(read).toHaveBeenCalledTimes(2);
+    await act(async () => pending.resolve(page([metadata(2)])));
+    expect(await screen.findByRole('heading', { name: 'Reference 2' })).toBeInTheDocument();
+  });
+  it('drops selected details on focus and pins a new selection to the freshly confirmed scope', async () => {
+    const pending = deferred<OwnStudyPlansDTO>();
+    read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    fireEvent.click(await screen.findByRole('button', { name: /View semesters for Reference 1/ }));
+    act(() => window.dispatchEvent(new Event('focus')));
+    expect(screen.queryByTestId('selected-plan')).not.toBeInTheDocument();
+    const fresh = page([metadata(2)]);
+    fresh.scope.curriculumId = referenceId;
+    await act(async () => pending.resolve(fresh));
+    fireEvent.click(await screen.findByRole('button', { name: /View semesters for Reference 2/ }));
+    expect(screen.getByTestId('selected-plan')).toHaveTextContent(metadata(2).id);
+    expect(screen.getByTestId('selected-curriculum')).toHaveTextContent(referenceId);
+  });
+  it('ignores a batched old selection after a fresh page read has begun', async () => {
+    const pending = deferred<OwnStudyPlansDTO>();
+    read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    const oldSelection = await screen.findByRole('button', {
+      name: /View semesters for Reference 1/,
+    });
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+      fireEvent.click(oldSelection);
+    });
+    expect(screen.queryByTestId('selected-plan')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading your saved study plans');
+    await act(async () => pending.resolve(page([metadata(2)])));
+    expect(await screen.findByRole('heading', { name: 'Reference 2' })).toBeInTheDocument();
+  });
+  it('hides selected semester references when the parent account is blocked', async () => {
+    const view = render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    fireEvent.click(await screen.findByRole('button', { name: /View semesters for Reference 1/ }));
+    view.rerender(<SavedStudyPlansPanel ownerId={ownerId} blocked />);
+    expect(screen.queryByTestId('selected-plan')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Sign in as this account');
+  });
+
   it('shows escaped metadata and honest active-marker wording without editing controls', async () => {
     read.mockResolvedValue(page([{ ...metadata(), description: '<script>untrusted</script>' }]));
     render(<SavedStudyPlansPanel ownerId={ownerId} />);
