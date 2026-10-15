@@ -61,6 +61,15 @@ export {
   type OwnStudyPlansDTO,
 } from './ownStudyPlans';
 export {
+  ListOwnStudyPlanSemestersSchema,
+  OwnStudyPlanSemestersParamsSchema,
+  OwnStudyPlanSemesterMetadataSchema,
+  OwnStudyPlanSemestersSchema,
+  type ListOwnStudyPlanSemestersDTO,
+  type OwnStudyPlanSemesterMetadataDTO,
+  type OwnStudyPlanSemestersDTO,
+} from './ownStudyPlanSemesters';
+export {
   CreateAllocationJobSchema,
   AllocationJobSchema,
   type CreateAllocationJobDTO,

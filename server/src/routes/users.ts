@@ -24,8 +24,11 @@ import { readOwnSemesterAllocationRun } from '../services/semesterAllocationStor
 import { listOwnSemesterAllocationRuns } from '../services/ownSemesterAllocationHistory';
 import { SchoolResourceError } from '../services/schoolResources';
 import { listOwnStudyPlans, OwnStudyPlansError } from '../services/ownStudyPlans';
+import ownStudyPlanSemestersRouter from './ownStudyPlanSemesters';
 
 const router = Router();
+
+router.use('/me/study-plans', ownStudyPlanSemestersRouter);
 
 router.get('/me/study-plans', requireAuth, async (req, res) => {
   if (!req.userId)
