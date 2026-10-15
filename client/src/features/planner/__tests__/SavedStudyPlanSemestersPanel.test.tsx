@@ -16,6 +16,23 @@ vi.mock('@/lib/savedStudyPlanSemestersApi', async (original) => ({
   ...(await original<typeof import('@/lib/savedStudyPlanSemestersApi')>()),
   listSavedStudyPlanSemesters: vi.fn(),
 }));
+vi.mock('../SavedStudyPlanCoursesPanel', () => ({
+  SavedStudyPlanCoursesPanel: ({
+    semesterId,
+    expectedCurriculumId,
+    onBack,
+  }: {
+    semesterId: string;
+    expectedCurriculumId: string | null;
+    onBack: () => void;
+  }) => (
+    <div>
+      <span data-testid="selected-semester">{semesterId}</span>
+      <span data-testid="selected-context">{expectedCurriculumId ?? 'unassigned'}</span>
+      <button onClick={onBack}>Back to saved semesters</button>
+    </div>
+  ),
+}));
 const read = vi.mocked(listSavedStudyPlanSemesters);
 const planId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const semester = (n = 1): OwnStudyPlanSemesterMetadataDTO => ({
@@ -72,6 +89,48 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('saved plan semester references', () => {
+  it('opens the selected semester and returns through a fresh metadata read', async () => {
+    const pending = deferred<OwnStudyPlanSemestersDTO>();
+    read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
+    render(panel());
+    fireEvent.click(await screen.findByRole('button', { name: /View courses for Spring 2026/ }));
+    expect(screen.getByTestId('selected-semester')).toHaveTextContent(semester().id);
+    expect(screen.getByTestId('selected-context')).toHaveTextContent('unassigned');
+    expect(screen.queryByText('Stored credit total: 1 · not verified')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to saved semesters' }));
+    expect(screen.queryByTestId('selected-semester')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading saved semester references');
+    await act(async () => pending.resolve(page([semester(2)])));
+    expect(await screen.findByText('Stored credit total: 2 · not verified')).toBeInTheDocument();
+  });
+  it('rejects a batched old course-selection event after focus refresh begins', async () => {
+    const pending = deferred<OwnStudyPlanSemestersDTO>();
+    read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
+    render(panel());
+    const old = await screen.findByRole('button', { name: /View courses for Spring 2026/ });
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+      fireEvent.click(old);
+    });
+    expect(screen.queryByTestId('selected-semester')).not.toBeInTheDocument();
+    await act(async () => pending.resolve(page([semester(2)])));
+    expect(await screen.findByText('Stored credit total: 2 · not verified')).toBeInTheDocument();
+  });
+  it('hides selected course references when the expected curriculum changes', async () => {
+    const view = render(panel());
+    fireEvent.click(await screen.findByRole('button', { name: /View courses for Spring 2026/ }));
+    const pending = deferred<OwnStudyPlanSemestersDTO>();
+    read.mockReturnValueOnce(pending.promise);
+    view.rerender(panel({ expectedCurriculumId: referenceId }));
+    expect(screen.queryByTestId('selected-semester')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading saved semester references');
+    const fresh = page();
+    fresh.scope.curriculumId = referenceId;
+    await act(async () => pending.resolve(fresh));
+    fireEvent.click(await screen.findByRole('button', { name: /View courses for Spring 2026/ }));
+    expect(screen.getByTestId('selected-context')).toHaveTextContent(referenceId);
+  });
+
   it('shows stored labels and credits without claiming current validation or academic ordering', async () => {
     render(panel());
     await screen.findByRole('heading', { name: 'Saved reference' });

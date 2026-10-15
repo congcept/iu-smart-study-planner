@@ -12,6 +12,8 @@ import {
   SavedStudyPlanSemestersSessionChangedError,
 } from '@/lib/savedStudyPlanSemestersApi';
 
+import { SavedStudyPlanCoursesPanel } from './SavedStudyPlanCoursesPanel';
+
 type Props = {
   ownerId: string;
   planId: string;
@@ -20,6 +22,7 @@ type Props = {
 };
 type Request = { after?: string; boundary?: OwnStudyPlanSemesterMetadataDTO };
 type State =
+  | { status: 'selected'; semesterId: string }
   | { status: 'loading' }
   | { status: 'error'; account: boolean; unavailable: boolean; cursor: boolean }
   | { status: 'ready'; page: OwnStudyPlanSemestersDTO };
@@ -102,6 +105,21 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
     };
   }, [read, invalidate]);
 
+  const returnToSemesters = useCallback(() => {
+    void read({});
+  }, [read]);
+  const renderGeneration = generation.current;
+  if (state.status === 'selected')
+    return (
+      <SavedStudyPlanCoursesPanel
+        ownerId={ownerId}
+        planId={planId}
+        semesterId={state.semesterId}
+        expectedCurriculumId={expectedCurriculumId}
+        onBack={returnToSemesters}
+      />
+    );
+
   const pending = state.status === 'loading';
   return (
     <section
@@ -176,12 +194,26 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
             </p>
           ) : (
             <ul className="divide-y divide-gray-200">
-              {state.page.semesters.map((semester) => (
+              {state.page.semesters.map((semester, index) => (
                 <li key={semester.id} className="space-y-2 py-3 text-sm text-gray-700">
                   <h5 className="font-semibold text-gray-900">
                     {semesterNames[semester.semester]} {semester.year}
                   </h5>
                   <p>Stored credit total: {semester.storedTotalCredits} · not verified</p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11"
+                    aria-label={`View courses for ${semesterNames[semester.semester]} ${semester.year} (semester ${index + 1})`}
+                    onClick={() => {
+                      if (!mounted.current || generation.current !== renderGeneration) return;
+                      generation.current++;
+                      controller.current?.abort();
+                      setState({ status: 'selected', semesterId: semester.id });
+                    }}
+                  >
+                    View courses
+                  </Button>
                   <p>
                     Saved{' '}
                     <time dateTime={semester.createdAt}>
