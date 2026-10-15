@@ -11,6 +11,12 @@ import {
 import { createAllocationPreviewSchema } from './allocationPreview';
 import { createSimulationSemesterAllocationResultSchema } from './simulationSemesterAllocation';
 export {
+  OwnStudyPlanCoursesSchema,
+  OwnStudyPlanCoursesParamsSchema,
+  OwnStudyPlanCourseReferencesSchema,
+  type OwnStudyPlanCoursesDTO,
+} from './ownStudyPlanCourses';
+export {
   SemesterAllocationPreviewSchema,
   type SemesterAllocationPreviewDTO,
 } from './semesterAllocationPreview';
