@@ -34,6 +34,7 @@ export function savedCourseFixture(
         {
           courseId: savedCourseId,
           storedPosition: -5,
+          currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
           catalog: { code: 'CS101', name: 'Reference course' },
         },
       ],

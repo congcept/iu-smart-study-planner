@@ -121,6 +121,17 @@ export function readOwnStudyPlanCourses(
             where: { id: { in: parsed.data.map(({ courseId }) => courseId) } },
             select: { id: true, code: true, name: true },
           });
+          const placedMembers = owner.curriculumId
+            ? await tx.curriculumCourse.findMany({
+                where: {
+                  curriculumId: owner.curriculumId,
+                  courseId: { in: parsed.data.map(({ courseId }) => courseId) },
+                  placements: { some: {} },
+                },
+                select: { courseId: true },
+              })
+            : [];
+          const placedCourseIds = new Set(placedMembers.map(({ courseId }) => courseId));
           const catalog = new Map(courses.map(({ id, code, name }) => [id, { code, name }]));
           courseReferences = {
             status: 'RECOGNIZED',
@@ -128,6 +139,12 @@ export function readOwnStudyPlanCourses(
             entries: parsed.data.map(({ courseId, position }) => ({
               courseId,
               storedPosition: position,
+              currentCurriculumMembership:
+                owner.curriculumId === null
+                  ? 'NO_ASSIGNED_CURRICULUM'
+                  : placedCourseIds.has(courseId)
+                    ? 'PLACED_MEMBER'
+                    : 'NO_CURRENT_PLACEMENT',
               catalog: catalog.get(courseId) ?? null,
             })),
           };

@@ -22,6 +22,26 @@ beforeEach(() => {
   get.mockResolvedValue({ data: { success: true, data: savedCourseFixture() } });
 });
 describe('saved course reference reads', () => {
+  it.each(['PLACED_MEMBER', 'NO_CURRENT_PLACEMENT'] as const)(
+    'rejects %s membership without an assigned curriculum',
+    async (membership) => {
+      const value = savedCourseFixture();
+      if (value.courseReferences.status === 'RECOGNIZED')
+        value.courseReferences.entries[0].currentCurriculumMembership = membership;
+      get.mockResolvedValue({ data: { success: true, data: value } });
+      await expect(read()).rejects.toThrow();
+    },
+  );
+  it('rejects missing membership evidence rather than guessing from labels', async () => {
+    const value = savedCourseFixture();
+    const raw = JSON.parse(JSON.stringify(value)) as {
+      courseReferences: { entries: Array<{ currentCurriculumMembership?: string }> };
+    };
+    delete raw.courseReferences.entries[0].currentCurriculumMembership;
+    get.mockResolvedValue({ data: { success: true, data: raw } });
+    await expect(read()).rejects.toThrow();
+  });
+
   it('normalizes identifiers, verifies both sessions and issues only the selected read', async () => {
     expect(
       await getSavedStudyPlanCourses(
@@ -43,7 +63,11 @@ describe('saved course reference reads', () => {
     async (kind) => {
       const value = savedCourseFixture();
       if (kind === 'owner') value.scope.userId = referenceId;
-      if (kind === 'scope') value.scope.curriculumId = referenceId;
+      if (kind === 'scope') {
+        value.scope.curriculumId = referenceId;
+        if (value.courseReferences.status === 'RECOGNIZED')
+          value.courseReferences.entries[0].currentCurriculumMembership = 'NO_CURRENT_PLACEMENT';
+      }
       if (kind === 'plan') value.plan.id = referenceId;
       if (kind === 'semester') value.semester.id = referenceId;
       get.mockResolvedValue({ data: { success: true, data: value } });
@@ -90,6 +114,8 @@ describe('saved course reference reads', () => {
     session.mockResolvedValue(referenceSession(referenceId));
     const value = savedCourseFixture();
     value.scope.curriculumId = referenceId;
+    if (value.courseReferences.status === 'RECOGNIZED')
+      value.courseReferences.entries[0].currentCurriculumMembership = 'PLACED_MEMBER';
     get.mockResolvedValue({ data: { success: true, data: value } });
     expect(
       await getSavedStudyPlanCourses(ownerId, savedPlanId, savedSemesterId, referenceId),

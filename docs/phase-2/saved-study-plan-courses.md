@@ -5,8 +5,9 @@ recognized course references. Current catalog codes/names are shown in stored ar
 Missing catalog rows are explicitly unavailable; no labels or credit totals are invented.
 Back to saved semesters performs a fresh semester-list read before displaying it again.
 
-These references do not establish the original curriculum, current placed membership,
-prerequisite/GPA eligibility or timetable validity. The view is read-only: no course progress,
+Each recognized reference also shows whether it has a placement in your currently assigned
+curriculum. These references do not establish the original curriculum, prerequisite/GPA
+eligibility or timetable validity. The view is read-only: no course progress,
 plan activation, academic records or stored JSON are changed.
 
 ## Recognition policy
@@ -31,7 +32,7 @@ administrator receives only their own selected plan/semester. Missing and foreig
 semesters share one 404 response.
 
 The account/current curriculum scope, owned plan, owned semester metadata, guarded JSON and
-current catalog labels share one RepeatableRead snapshot. The ordinary semester query does
+current catalog labels and current-curriculum placements share one RepeatableRead snapshot. The ordinary semester query does
 not select `courses`. A PostgreSQL nested CASE returns its JSON payload only for arrays within
 both bounds, avoiding arbitrary JSON materialization in Node. Nonarray inspection cannot
 call `jsonb_array_length`. Exact PostgreSQL numeric checks reject fractional or unsafe
@@ -40,9 +41,26 @@ mathematically integral values such as `1.0` remain recognized. This bounds tran
 it does not establish a hard limit on PostgreSQL JSON inspection cost or total endpoint memory.
 
 Recognized references resolve only current catalog ID/code/name. The response excludes raw
-JSON, grades, difficulty, progress, inferred membership and calculated totals. A null catalog
+JSON, grades, difficulty, progress and calculated totals. A null catalog
 entry preserves the saved reference without claiming the course still exists. Strict shared
 DTOs always retain `studyPlansValidated: false`.
+
+## Current curriculum indicators
+
+Each recognized entry includes `currentCurriculumMembership`:
+
+- `NO_ASSIGNED_CURRICULUM`: the account has no assigned curriculum; membership is not assessed.
+- `PLACED_MEMBER`: a matching `CurriculumCourse` has at least one `CurriculumPlacement` in
+  the account's current curriculum.
+- `NO_CURRENT_PLACEMENT`: no such placement exists, including bare membership rows without
+  placements, courses placed only in other curricula and missing current catalog entries.
+
+The query is restricted to the bounded recognized course IDs and the account's current
+curriculum. Duplicate placements produce one indicator. Labels alone never imply membership;
+legacy global course placement fields are not consulted. Strict DTOs reject indicators
+inconsistent with the scope and placed members lacking a catalog entry. The historical plan
+has no captured curriculum identity: these indicators do not establish its original major,
+course availability or degree/timetable validity. No assignment or activation is introduced.
 
 ## Browser recovery and verification
 
@@ -60,6 +78,6 @@ is recorded in AGENTS.md. Real PostgreSQL cases cover ownership, uniform errors,
 projection/guards, malformed/oversized content, normalization, historical ordering, coherent
 concurrent changes and no writes. Browser geometry is not claimed without a real visual run.
 
-Next planning work must preserve these reference boundaries. Current curriculum membership
-annotations or verified saving require separate explicit policy and checks; recognizing a
-stored course ID alone does not complete those gates.
+Next planning work must preserve these reference boundaries. Verified saving requires
+atomic prerequisite/GPA checks and an explicit reference-slot/calendar policy; recognizing a
+stored course ID and its current placement does not complete those gates.

@@ -42,6 +42,72 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('saved semester course references', () => {
+  it('does not assess membership for an unassigned account', async () => {
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    expect(
+      await screen.findByText(/No curriculum assigned — membership not assessed/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Listed in your current curriculum.')).not.toBeInTheDocument();
+  });
+  it('distinguishes current placements from historical labels without asserting eligibility', async () => {
+    const value = savedCourseFixture();
+    value.scope.curriculumId = referenceId;
+    value.courseReferences = {
+      status: 'RECOGNIZED',
+      order: 'STORED_ARRAY_ORDER',
+      entries: [
+        {
+          courseId: savedCourseId,
+          storedPosition: 5,
+          catalog: { code: 'CS101', name: 'Placed reference' },
+          currentCurriculumMembership: 'PLACED_MEMBER',
+        },
+        {
+          courseId: referenceId,
+          storedPosition: -2,
+          catalog: { code: 'CS102', name: 'Unplaced reference' },
+          currentCurriculumMembership: 'NO_CURRENT_PLACEMENT',
+        },
+        {
+          courseId: ownerId,
+          storedPosition: 0,
+          catalog: null,
+          currentCurriculumMembership: 'NO_CURRENT_PLACEMENT',
+        },
+      ],
+    };
+    read.mockResolvedValue(value);
+    render(<SavedStudyPlanCoursesPanel {...props} expectedCurriculumId={referenceId} />);
+    await screen.findByText(/Placed reference/);
+    const entries = screen.getAllByRole('listitem');
+    expect(entries[0]).toHaveTextContent('Listed in your current curriculum.');
+    expect(entries[1]).toHaveTextContent('No placement in your current curriculum.');
+    expect(entries[2]).toHaveTextContent('Current catalog entry unavailable');
+    expect(entries[2]).toHaveTextContent('No placement in your current curriculum.');
+    expect(screen.getByText(/do not establish the original curriculum/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^(save|activate|complete)\b/i }),
+    ).not.toBeInTheDocument();
+  });
+  it('hides membership indicators while refreshing and after a read failure', async () => {
+    read.mockResolvedValueOnce(savedCourseFixture()).mockRejectedValueOnce(new Error('offline'));
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    await screen.findByText(/membership not assessed/);
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved courses' }));
+    expect(screen.queryByText(/membership not assessed/)).not.toBeInTheDocument();
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+  it('rejects membership inconsistent with the confirmed curriculum', async () => {
+    const value = savedCourseFixture();
+    if (value.courseReferences.status === 'RECOGNIZED')
+      value.courseReferences.entries[0].currentCurriculumMembership = 'PLACED_MEMBER';
+    read.mockResolvedValue(value);
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
   it('shows escaped current labels with honest reference-only wording', async () => {
     const value = savedCourseFixture();
     if (value.courseReferences.status === 'RECOGNIZED')
@@ -68,9 +134,15 @@ describe('saved semester course references', () => {
             {
               courseId: savedCourseId,
               storedPosition: 99,
+              currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
               catalog: { code: 'LAST', name: 'Saved first' },
             },
-            { courseId: referenceId, storedPosition: -9, catalog: null },
+            {
+              courseId: referenceId,
+              storedPosition: -9,
+              catalog: null,
+              currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
+            },
           ],
         },
       }),
