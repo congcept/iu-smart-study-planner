@@ -25,9 +25,22 @@ export const OwnStudyPlanCourseReferencesSchema = z.discriminatedUnion('status',
             .object({
               courseId: uuid,
               storedPosition: signedInteger,
+              currentCurriculumMembership: z.enum([
+                'NO_ASSIGNED_CURRICULUM',
+                'PLACED_MEMBER',
+                'NO_CURRENT_PLACEMENT',
+              ]),
               catalog: z.object({ code: z.string(), name: z.string() }).strict().nullable(),
             })
-            .strict(),
+            .strict()
+            .superRefine((entry, ctx) => {
+              if (entry.currentCurriculumMembership === 'PLACED_MEMBER' && entry.catalog === null)
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  path: ['currentCurriculumMembership'],
+                  message: 'A placed member must have a current catalog reference',
+                });
+            }),
         )
         .max(100)
         .superRefine((entries, ctx) => {
@@ -61,6 +74,18 @@ export const OwnStudyPlanCoursesSchema = z
     semester: OwnStudyPlanSemesterMetadataSchema,
     courseReferences: OwnStudyPlanCourseReferencesSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.courseReferences.status !== 'RECOGNIZED') return;
+    value.courseReferences.entries.forEach((entry, index) => {
+      const unassigned = entry.currentCurriculumMembership === 'NO_ASSIGNED_CURRICULUM';
+      if ((value.scope.curriculumId === null) !== unassigned)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['courseReferences', 'entries', index, 'currentCurriculumMembership'],
+          message: 'Course placement annotations must match the current curriculum scope',
+        });
+    });
+  });
 
 export type OwnStudyPlanCoursesDTO = z.infer<typeof OwnStudyPlanCoursesSchema>;

@@ -96,8 +96,8 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
           <h3 className="text-lg font-semibold text-gray-900">Saved semester course references</h3>
           <p className="mt-2 max-w-prose text-sm text-gray-700">
             Course names are current catalog labels, shown in stored list order. They do not
-            establish the original curriculum, current membership, prerequisites, GPA eligibility or
-            a valid timetable.
+            establish the original curriculum, prerequisites, GPA eligibility or a valid timetable.
+            Membership indicators describe placements in your currently assigned curriculum only.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -168,6 +168,13 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
                   ) : (
                     <span>Current catalog entry unavailable for saved reference {index + 1}.</span>
                   )}
+                  <p className="mt-1 text-sm text-gray-600">
+                    {entry.currentCurriculumMembership === 'NO_ASSIGNED_CURRICULUM'
+                      ? 'No curriculum assigned — membership not assessed.'
+                      : entry.currentCurriculumMembership === 'PLACED_MEMBER'
+                        ? 'Listed in your current curriculum.'
+                        : 'No placement in your current curriculum.'}
+                  </p>
                 </li>
               ))}
             </ol>

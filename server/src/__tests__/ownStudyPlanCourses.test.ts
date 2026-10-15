@@ -16,6 +16,9 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
   const course = randomUUID();
   const missing = randomUUID();
   const curriculum = randomUUID();
+  const otherCurriculum = randomUUID();
+  const bareCourse = randomUUID();
+  const otherCourse = randomUUID();
   let plan: string;
   let otherPlan: string;
   let semester: string;
@@ -23,6 +26,7 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
   let tracing = false;
   const selects: unknown[] = [];
   const catalogReads: { where: unknown; select: unknown }[] = [];
+  const membershipReads: { where: unknown; select: unknown }[] = [];
   const cookie = (id = owner) => `${AUTH_COOKIE_NAME}=${issueToken(id)}`;
   const get = (id = owner, selectedPlan = plan, selectedSemester = semester) =>
     request(app)
@@ -42,6 +46,8 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
         selects.push(params.args?.select);
       if (tracing && params.model === 'Course' && params.action === 'findMany')
         catalogReads.push({ where: params.args?.where, select: params.args?.select });
+      if (tracing && params.model === 'CurriculumCourse' && params.action === 'findMany')
+        membershipReads.push({ where: params.args?.where, select: params.args?.select });
       if (
         afterOwnerRead &&
         params.runInTransaction &&
@@ -55,15 +61,15 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
       }
       return result;
     });
-    await prisma.curriculum.create({
-      data: {
-        id: curriculum,
-        code: prefix,
+    await prisma.curriculum.createMany({
+      data: [curriculum, otherCurriculum].map((id, index) => ({
+        id,
+        code: `${prefix}-${index}`,
         name: 'Current context',
         school: 'CSE',
         degree: 'Bachelor',
         programUrl: 'https://example.test/reference',
-      },
+      })),
     });
     await prisma.user.createMany({
       data: [owner, admin].map((id, index) => ({
@@ -74,17 +80,27 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
         role: index ? 'ADMIN' : 'STUDENT',
       })),
     });
-    await prisma.course.create({
-      data: { id: course, code: prefix, name: 'Original label', credits: 9, difficultyLevel: 5 },
+    await prisma.course.createMany({
+      data: [course, bareCourse, otherCourse].map((id, index) => ({
+        id,
+        code: index ? `${prefix}-${index}` : prefix,
+        name: 'Original label',
+        credits: 9,
+        difficultyLevel: 5,
+      })),
     });
   });
   beforeEach(async () => {
     tracing = false;
     selects.length = 0;
     catalogReads.length = 0;
+    membershipReads.length = 0;
     afterOwnerRead = undefined;
     await prisma.studyPlan.deleteMany({ where: { userId: { in: [owner, admin] } } });
     await prisma.user.update({ where: { id: owner }, data: { curriculumId: null } });
+    await prisma.curriculumCourse.deleteMany({
+      where: { curriculumId: { in: [curriculum, otherCurriculum] } },
+    });
     await prisma.course.update({ where: { id: course }, data: { name: 'Original label' } });
     const row = await prisma.studyPlan.create({
       data: {
@@ -111,8 +127,8 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
   afterAll(async () => {
     afterOwnerRead = undefined;
     await prisma.user.deleteMany({ where: { id: { in: [owner, admin] } } });
-    await prisma.course.delete({ where: { id: course } });
-    await prisma.curriculum.delete({ where: { id: curriculum } });
+    await prisma.curriculum.deleteMany({ where: { id: { in: [curriculum, otherCurriculum] } } });
+    await prisma.course.deleteMany({ where: { id: { in: [course, bareCourse, otherCourse] } } });
     await prisma.$disconnect();
   });
   it('requires a live cookie account including direct service calls', async () => {
@@ -149,9 +165,104 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
       status: 'RECOGNIZED',
       order: 'STORED_ARRAY_ORDER',
       entries: [
-        { courseId: missing, storedPosition: -8, catalog: null },
-        { courseId: course, storedPosition: -8, catalog: { code: prefix, name: 'Original label' } },
+        {
+          courseId: missing,
+          storedPosition: -8,
+          currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
+          catalog: null,
+        },
+        {
+          courseId: course,
+          storedPosition: -8,
+          currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
+          catalog: { code: prefix, name: 'Original label' },
+        },
       ],
+    });
+  });
+  it('reports only placed membership in the current assigned curriculum, without rewriting history', async () => {
+    await prisma.user.update({ where: { id: owner }, data: { curriculumId: curriculum } });
+    await prisma.curriculumCourse.create({
+      data: {
+        curriculumId: curriculum,
+        courseId: course,
+        placements: { create: [{ sourceOrder: 0 }, { sourceOrder: 1 }] },
+      },
+    });
+    await prisma.curriculumCourse.create({
+      data: { curriculumId: curriculum, courseId: bareCourse },
+    });
+    await prisma.curriculumCourse.create({
+      data: {
+        curriculumId: otherCurriculum,
+        courseId: otherCourse,
+        placements: { create: { sourceOrder: 0 } },
+      },
+    });
+    const ids = [missing, bareCourse, course, otherCourse];
+    await save(ids.map((courseId, position) => ({ courseId, position })));
+    const before = await prisma.plannedSemester.findUnique({ where: { id: semester } });
+    tracing = true;
+    const received = await read();
+    tracing = false;
+    expect(membershipReads).toEqual([
+      {
+        where: { curriculumId: curriculum, courseId: { in: ids }, placements: { some: {} } },
+        select: { courseId: true },
+      },
+    ]);
+    expect(received.scope).toMatchObject({ curriculumId: curriculum, studyPlansValidated: false });
+    expect(received.courseReferences).toMatchObject({
+      status: 'RECOGNIZED',
+      entries: [
+        { courseId: missing, catalog: null, currentCurriculumMembership: 'NO_CURRENT_PLACEMENT' },
+        { courseId: bareCourse, currentCurriculumMembership: 'NO_CURRENT_PLACEMENT' },
+        { courseId: course, currentCurriculumMembership: 'PLACED_MEMBER' },
+        { courseId: otherCourse, currentCurriculumMembership: 'NO_CURRENT_PLACEMENT' },
+      ],
+    });
+    expect(await prisma.plannedSemester.findUnique({ where: { id: semester } })).toEqual(before);
+    await prisma.user.update({ where: { id: owner }, data: { curriculumId: null } });
+    expect((await read()).courseReferences).toMatchObject({
+      entries: ids.map((courseId) => ({
+        courseId,
+        currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
+      })),
+    });
+  });
+  it('keeps placement annotations in the same snapshot while placements and membership change', async () => {
+    await prisma.user.update({ where: { id: owner }, data: { curriculumId: curriculum } });
+    const member = await prisma.curriculumCourse.create({
+      data: {
+        curriculumId: curriculum,
+        courseId: course,
+        placements: { create: { sourceOrder: 0 } },
+      },
+    });
+    afterOwnerRead = async () => {
+      await prisma.curriculumPlacement.deleteMany({ where: { curriculumCourseId: member.id } });
+    };
+    expect((await read()).courseReferences).toMatchObject({
+      entries: [{ courseId: course, currentCurriculumMembership: 'PLACED_MEMBER' }],
+    });
+    expect((await read()).courseReferences).toMatchObject({
+      entries: [{ courseId: course, currentCurriculumMembership: 'NO_CURRENT_PLACEMENT' }],
+    });
+    afterOwnerRead = async () => {
+      await prisma.curriculumCourse.delete({ where: { id: member.id } });
+      await prisma.curriculumCourse.create({
+        data: {
+          curriculumId: curriculum,
+          courseId: course,
+          placements: { create: { sourceOrder: 0 } },
+        },
+      });
+    };
+    expect((await read()).courseReferences).toMatchObject({
+      entries: [{ courseId: course, currentCurriculumMembership: 'NO_CURRENT_PLACEMENT' }],
+    });
+    expect((await read()).courseReferences).toMatchObject({
+      entries: [{ courseId: course, currentCurriculumMembership: 'PLACED_MEMBER' }],
     });
   });
   it('recognizes an empty saved array', async () => {
@@ -179,6 +290,7 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
       reason: 'UNSUPPORTED_FORMAT',
     });
     expect(catalogReads).toHaveLength(0);
+    expect(membershipReads).toHaveLength(0);
     tracing = false;
   });
   it.each(['1.0', '9007199254740991.0', '-9007199254740991.0'])(
@@ -215,6 +327,7 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
       reason: 'UNSUPPORTED_FORMAT',
     });
     expect(catalogReads).toHaveLength(0);
+    expect(membershipReads).toHaveLength(0);
     tracing = false;
   });
   it.each(
@@ -232,6 +345,7 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
       reason: 'READER_LIMIT',
     });
     expect(catalogReads).toHaveLength(0);
+    expect(membershipReads).toHaveLength(0);
     tracing = false;
   });
   it('does not select arbitrary JSON through Prisma and looks up only bounded id/code/name references', async () => {
@@ -251,6 +365,7 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
     expect(catalogReads).toEqual([
       { where: { id: { in: [course] } }, select: { id: true, code: true, name: true } },
     ]);
+    expect(membershipReads).toHaveLength(0);
     expect(received.semester.storedTotalCredits).toBe(-17);
     for (const field of [
       'difficultyScore',
@@ -287,14 +402,22 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
     expect(previous.plan.name).toBe('Saved reference');
     expect(previous.semester.year).toBe(2026);
     expect(previous.courseReferences).toMatchObject({
-      entries: [{ courseId: course, catalog: { name: 'Original label' } }],
+      entries: [
+        {
+          courseId: course,
+          catalog: { name: 'Original label' },
+          currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
+        },
+      ],
     });
     const fresh = await read();
     expect(fresh.scope.curriculumId).toBe(curriculum);
     expect(fresh.plan.name).toBe('Changed plan');
     expect(fresh.semester.year).toBe(2030);
     expect(fresh.courseReferences).toMatchObject({
-      entries: [{ courseId: missing, catalog: null }],
+      entries: [
+        { courseId: missing, catalog: null, currentCurriculumMembership: 'NO_CURRENT_PLACEMENT' },
+      ],
     });
   });
   it('coexists with plan and semester lists and never rewrites saved history', async () => {
@@ -316,10 +439,82 @@ describe('cookie-owned saved course references (PostgreSQL)', () => {
 });
 
 describe('saved course reference contract', () => {
+  const reply = (
+    curriculumId: string | null,
+    membership: string,
+    catalog: { code: string; name: string } | null = { code: 'CS', name: 'Current label' },
+  ) => ({
+    visibility: 'CURRENT_ACCOUNT_ONLY',
+    scope: { userId: randomUUID(), curriculumId, studyPlansValidated: false },
+    plan: {
+      id: randomUUID(),
+      name: 'Saved',
+      description: null,
+      isActive: false,
+      createdAt: '2026-10-15T00:00:00.000Z',
+      updatedAt: '2026-10-15T00:00:00.000Z',
+      semesterCount: 1,
+    },
+    semester: {
+      id: randomUUID(),
+      semester: 'FALL',
+      year: 2026,
+      storedTotalCredits: 3,
+      createdAt: '2026-10-15T00:00:00.000Z',
+      updatedAt: '2026-10-15T00:00:00.000Z',
+    },
+    courseReferences: {
+      status: 'RECOGNIZED',
+      order: 'STORED_ARRAY_ORDER',
+      entries: [
+        {
+          courseId: randomUUID(),
+          storedPosition: 0,
+          currentCurriculumMembership: membership,
+          catalog,
+        },
+      ],
+    },
+  });
+  it.each(['PLACED_MEMBER', 'NO_CURRENT_PLACEMENT'])(
+    'rejects %s without an assigned curriculum',
+    (membership) => {
+      expect(OwnStudyPlanCoursesSchema.safeParse(reply(null, membership)).success).toBe(false);
+    },
+  );
+  it('rejects an unassigned annotation under an assigned scope and unknown annotations', () => {
+    expect(
+      OwnStudyPlanCoursesSchema.safeParse(reply(randomUUID(), 'NO_ASSIGNED_CURRICULUM')).success,
+    ).toBe(false);
+    expect(
+      OwnStudyPlanCoursesSchema.safeParse(reply(randomUUID(), 'VALIDATED_MEMBER')).success,
+    ).toBe(false);
+  });
+  it('rejects placed membership without a catalog identity while permitting missing nonmembers', () => {
+    expect(
+      OwnStudyPlanCoursesSchema.safeParse(reply(randomUUID(), 'PLACED_MEMBER', null)).success,
+    ).toBe(false);
+    expect(
+      OwnStudyPlanCoursesSchema.safeParse(reply(randomUUID(), 'NO_CURRENT_PLACEMENT', null))
+        .success,
+    ).toBe(true);
+    expect(
+      OwnStudyPlanCoursesSchema.safeParse(reply(null, 'NO_ASSIGNED_CURRICULUM', null)).success,
+    ).toBe(true);
+  });
+  it.each(['PLACED_MEMBER', 'NO_CURRENT_PLACEMENT'])(
+    'accepts current scoped %s without changing validation status',
+    (membership) => {
+      expect(OwnStudyPlanCoursesSchema.safeParse(reply(randomUUID(), membership)).success).toBe(
+        true,
+      );
+    },
+  );
   it('rejects extra private fields and invalid unavailable combinations', () => {
     const entry = {
       courseId: randomUUID(),
       storedPosition: -3,
+      currentCurriculumMembership: 'NO_ASSIGNED_CURRICULUM',
       catalog: { code: 'CS', name: 'Current label' },
     };
     expect(
