@@ -6,6 +6,7 @@ import {
   getSavedStudyPlanCourses,
   SavedStudyPlanCoursesSessionChangedError,
 } from '@/lib/savedStudyPlanCoursesApi';
+import { SavedSemesterReferenceReview } from './SavedSemesterReferenceReview';
 
 type Props = {
   ownerId: string;
@@ -22,6 +23,9 @@ const semesterNames = { FALL: 'Fall', SPRING: 'Spring', SUMMER: 'Summer' };
 
 function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, onBack }: Props) {
   const [state, setState] = useState<State>({ status: 'loading' });
+  const onReviewInvalidated = useCallback((kind: 'account' | 'unavailable') => {
+    setState({ status: 'error', account: kind === 'account', unavailable: kind === 'unavailable' });
+  }, []);
   const generation = useRef(0);
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
@@ -179,6 +183,13 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
               ))}
             </ol>
           )}
+          <SavedSemesterReferenceReview
+            ownerId={ownerId}
+            planId={planId}
+            semesterId={semesterId}
+            expectedCurriculumId={expectedCurriculumId}
+            onInvalidated={onReviewInvalidated}
+          />
         </div>
       )}
     </section>

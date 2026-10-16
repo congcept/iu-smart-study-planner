@@ -4,8 +4,10 @@ import {
   ListOwnStudyPlanSemestersSchema,
   OwnStudyPlanSemestersParamsSchema,
   OwnStudyPlanCoursesParamsSchema,
+  OwnStudyPlanReferenceReviewBodySchema,
 } from '@iu-study-planner/shared';
 import { requireAuth } from '../middleware/auth';
+import { reviewOwnStudyPlanReferenceSlot } from '../services/ownStudyPlanReferenceReview';
 import { readOwnStudyPlanCourses } from '../services/ownStudyPlanCourses';
 import {
   listOwnStudyPlanSemesters,
@@ -13,6 +15,31 @@ import {
 } from '../services/ownStudyPlanSemesters';
 
 const router = Router();
+
+router.post('/:planId/semesters/:semesterId/reference-review', requireAuth, async (req, res) => {
+  if (!req.userId)
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  try {
+    const { planId, semesterId } = OwnStudyPlanCoursesParamsSchema.parse(req.params);
+    z.object({}).strict().parse(req.query);
+    const input = OwnStudyPlanReferenceReviewBodySchema.parse(req.body);
+    return res.json({
+      success: true,
+      data: await reviewOwnStudyPlanReferenceSlot(req.userId, planId, semesterId, input),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return res
+        .status(400)
+        .json({ success: false, error: 'Validation failed', details: error.errors });
+    if (error instanceof OwnStudyPlanSemestersError)
+      return res.status(error.status).json({ success: false, error: error.message });
+    console.error('Own saved semester reference review error:', error);
+    return res
+      .status(500)
+      .json({ success: false, error: 'Could not review your saved semester references' });
+  }
+});
 
 router.get('/:planId/semesters/:semesterId/courses', requireAuth, async (req, res) => {
   if (!req.userId)

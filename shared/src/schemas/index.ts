@@ -715,3 +715,11 @@ export {
   type ListSemesterAllocationJobsDTO,
   type SemesterAllocationJobHistoryDTO,
 } from './semesterAllocationJobHistory';
+
+export {
+  OwnStudyPlanReferenceReviewBodySchema,
+  OwnStudyPlanReferenceReviewSchema,
+  SavedCourseReferenceBlockerSchema,
+  type OwnStudyPlanReferenceReviewBodyDTO,
+  type OwnStudyPlanReferenceReviewDTO,
+} from './ownStudyPlanReferenceReview';
