@@ -14,11 +14,16 @@ import {
   savedCourseId,
 } from '@/test/fixtures/savedStudyPlanCourses';
 import { SavedStudyPlanCoursesPanel } from '../SavedStudyPlanCoursesPanel';
+import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 
 vi.mock('@/lib/savedStudyPlanCoursesApi', async (original) => ({
   ...(await original<typeof import('@/lib/savedStudyPlanCoursesApi')>()),
   getSavedStudyPlanCourses: vi.fn(),
 }));
+vi.mock('@/lib/savedStudyPlanReferenceReviewApi', () => ({
+  reviewSavedStudyPlanSemester: vi.fn(),
+}));
+const review = vi.mocked(reviewSavedStudyPlanSemester);
 const read = vi.mocked(getSavedStudyPlanCourses);
 const props = {
   ownerId,
@@ -42,6 +47,22 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('saved semester course references', () => {
+  it('mounts review only after confirmed references and hides all evidence on session invalidation', async () => {
+    review.mockRejectedValue(new SavedStudyPlanCoursesSessionChangedError());
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    await screen.findByText(/Reference course/);
+    fireEvent.change(screen.getByLabelText('Reference academic year'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Reference academic semester'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Review reference slot' }));
+    await screen.findByRole('alert');
+    expect(screen.queryByText(/Reference course/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Saved semester reference review' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('does not assess membership for an unassigned account', async () => {
     render(<SavedStudyPlanCoursesPanel {...props} />);
     expect(
