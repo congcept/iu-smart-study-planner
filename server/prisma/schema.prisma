@@ -200,18 +200,19 @@ model User {
   curriculumId         String?  @map("curriculum_id")
 
   // Relations
-  studentRecords         StudentRecord[]
-  gradeAttempts          GradeAttempt[]
-  ratings                CourseRating[]
-  ratingWriteLimit       RatingWriteLimit?
-  studyPlans             StudyPlan[]
-  updatedResources       SchoolResource[]
-  allocationRuns         SimulationAllocationRun[]
-  allocationJobs         SimulationAllocationJob[]
-  semesterRuns           SimulationSemesterRun[]
-  semesterAllocationJobs SimulationSemesterAllocationJob[]
-  semesterResults        SimulationSemesterParticipant[]
-  curriculum             Curriculum?                       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  studentRecords             StudentRecord[]
+  referenceSelectionReceipts ReferenceSelectionReceipt[]
+  gradeAttempts              GradeAttempt[]
+  ratings                    CourseRating[]
+  ratingWriteLimit           RatingWriteLimit?
+  studyPlans                 StudyPlan[]
+  updatedResources           SchoolResource[]
+  allocationRuns             SimulationAllocationRun[]
+  allocationJobs             SimulationAllocationJob[]
+  semesterRuns               SimulationSemesterRun[]
+  semesterAllocationJobs     SimulationSemesterAllocationJob[]
+  semesterResults            SimulationSemesterParticipant[]
+  curriculum                 Curriculum?                       @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -458,8 +459,11 @@ model PlannedSemester {
   // JSON field to store course IDs and their positions
   courses Json // Array of { courseId: string, position: number }
 
-  totalCredits    Int    @default(0) @map("total_credits")
-  difficultyScore Float? @map("difficulty_score")
+  totalCredits               Int                         @default(0) @map("total_credits")
+  difficultyScore            Float?                      @map("difficulty_score")
+  revision                   Int                         @default(0)
+  referenceMetadata          Json?                       @map("reference_metadata")
+  referenceSelectionReceipts ReferenceSelectionReceipt[]
 
   studyPlan StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
 
@@ -469,6 +473,23 @@ model PlannedSemester {
   @@unique([studyPlanId, semester, year])
   @@index([studyPlanId])
   @@map("planned_semesters")
+}
+
+// Immutable retry acknowledgements, scoped to the cookie actor and an owned semester.
+model ReferenceSelectionReceipt {
+  id          String          @id @default(uuid())
+  userId      String          @map("user_id")
+  requestId   String          @map("request_id")
+  semesterId  String          @map("semester_id")
+  requestJson Json            @map("request_json")
+  receiptJson Json            @map("receipt_json")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  semester    PlannedSemester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@unique([userId, requestId])
+  @@index([semesterId])
+  @@map("reference_selection_receipts")
 }
 
 enum CourseCategory {

@@ -55,7 +55,7 @@ async function authorizePlan(tx: Prisma.TransactionClient, planId: string, actor
   return plan;
 }
 
-async function calculateTotals(
+export async function calculateTotals(
   tx: Prisma.TransactionClient,
   entries: CreateSemesterDTO['courses'],
   curriculumId: string | null,
@@ -145,16 +145,29 @@ export async function updatePlannedSemester(
     const plan = await authorizePlan(tx, planId, actorId);
     const semester = await tx.plannedSemester.findFirst({
       where: { id: semesterId, studyPlanId: planId },
-      select: { id: true },
+      select: { id: true, revision: true },
     });
     if (!semester) throw new PlannedSemesterError('Semester not found', 404);
     assertExpectedScope(expectedScope, plan);
+    if (semester.revision === 2147483647)
+      throw new PlannedSemesterError('Saved semester revision limit reached', 409);
     const totals = fields.courses
       ? await calculateTotals(tx, fields.courses, plan.user.curriculumId)
       : {};
     return tx.plannedSemester.update({
       where: { id: semester.id },
-      data: { ...fields, ...totals },
+      data: { ...fields, ...totals, revision: { increment: 1 }, referenceMetadata: Prisma.DbNull },
     });
+  });
+}
+
+/** Recheck live authorization and plan/semester pairing in the deletion transaction. */
+export function deletePlannedSemester(planId: string, semesterId: string, actorId: string) {
+  return writeSnapshot(async (tx) => {
+    await authorizePlan(tx, planId, actorId);
+    const result = await tx.plannedSemester.deleteMany({
+      where: { id: semesterId, studyPlanId: planId },
+    });
+    if (result.count !== 1) throw new PlannedSemesterError('Semester not found', 404);
   });
 }

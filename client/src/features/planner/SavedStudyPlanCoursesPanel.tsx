@@ -6,6 +6,7 @@ import {
   getSavedStudyPlanCourses,
   SavedStudyPlanCoursesSessionChangedError,
 } from '@/lib/savedStudyPlanCoursesApi';
+import { SavedReferenceSelectionEditor } from './SavedReferenceSelectionEditor';
 import { SavedSemesterReferenceReview } from './SavedSemesterReferenceReview';
 
 type Props = {
@@ -23,6 +24,11 @@ const semesterNames = { FALL: 'Fall', SPRING: 'Spring', SUMMER: 'Summer' };
 
 function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, onBack }: Props) {
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [reviewVersion, setReviewVersion] = useState(0);
+  const onSelectionSnapshot = useCallback((snapshot: OwnStudyPlanCoursesDTO) => {
+    setState({ status: 'ready', result: snapshot });
+    setReviewVersion((value) => value + 1);
+  }, []);
   const onReviewInvalidated = useCallback((kind: 'account' | 'unavailable') => {
     setState({ status: 'error', account: kind === 'account', unavailable: kind === 'unavailable' });
   }, []);
@@ -183,7 +189,16 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
               ))}
             </ol>
           )}
+          <SavedReferenceSelectionEditor
+            ownerId={ownerId}
+            planId={planId}
+            semesterId={semesterId}
+            expectedCurriculumId={expectedCurriculumId}
+            onInvalidated={onReviewInvalidated}
+            onSnapshot={onSelectionSnapshot}
+          />
           <SavedSemesterReferenceReview
+            key={reviewVersion}
             ownerId={ownerId}
             planId={planId}
             semesterId={semesterId}
