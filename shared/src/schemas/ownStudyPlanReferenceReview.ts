@@ -27,7 +27,7 @@ export const SavedCourseReferenceBlockerSchema = z.enum([
   'UNMET_PREREQUISITE',
 ]);
 
-const entry = z
+export const SavedCourseReferenceAssessmentSchema = z
   .object({
     courseId: uuid,
     blockers: z.array(SavedCourseReferenceBlockerSchema).max(5),
@@ -72,7 +72,7 @@ export const OwnStudyPlanReferenceReviewSchema = z
           status: z.literal('ASSESSED'),
           basis: z.literal('CURRENT_COMPLETIONS_ONLY'),
           gpaPath: z.enum(['THESIS', 'ALTERNATIVE']).nullable(),
-          entries: z.array(entry).max(100),
+          entries: z.array(SavedCourseReferenceAssessmentSchema).max(100),
         })
         .strict(),
       z

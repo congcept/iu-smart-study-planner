@@ -7,6 +7,10 @@ import {
   OwnStudyPlanReferenceSelectionStateSchema,
   OwnStudyPlanReferenceSelectionResultSchema,
   ReferenceSaveMetadataSchema,
+  OwnStudyPlanReferenceSelectionPreviewBodySchema,
+  OwnStudyPlanReferenceSelectionPreviewSchema,
+  type OwnStudyPlanReferenceSelectionPreviewBodyDTO,
+  type OwnStudyPlanReferenceSelectionPreviewDTO,
   type OwnStudyPlanReferenceSelectionBodyDTO,
   type OwnStudyPlanReferenceSelectionResultDTO,
   type OwnStudyPlanReferenceSelectionStateDTO,
@@ -22,6 +26,87 @@ const actorUuid = z
   .length(36)
   .uuid()
   .transform((id) => id.toLowerCase());
+
+/** Read-only proposed selection assessment; later saves independently recheck all policy. */
+export function previewOwnStudyPlanReferenceSelection(
+  actorId: string,
+  selectedPlan: string,
+  selectedSemester: string,
+  input: OwnStudyPlanReferenceSelectionPreviewBodyDTO,
+): Promise<OwnStudyPlanReferenceSelectionPreviewDTO> {
+  actorId = actorUuid.parse(actorId);
+  const { planId, semesterId } = OwnStudyPlanCoursesParamsSchema.parse({
+    planId: selectedPlan,
+    semesterId: selectedSemester,
+  });
+  const body = OwnStudyPlanReferenceSelectionPreviewBodySchema.parse(input);
+  return prisma.$transaction(
+    async (tx) => {
+      const version = await ownedVersion(tx, actorId, planId, semesterId);
+      const snapshot = await readOwnStudyPlanCoursesInTransaction(tx, actorId, planId, semesterId);
+      if (
+        snapshot.scope.userId !== body.expectedScope.userId ||
+        snapshot.scope.curriculumId !== body.expectedScope.curriculumId
+      )
+        throw new OwnStudyPlanSemestersError(
+          'Your account or curriculum changed; reload before checking',
+          409,
+        );
+      if (version.revision !== body.expectedRevision)
+        throw new OwnStudyPlanSemestersError('Saved semester changed; reload before checking', 409);
+      if (snapshot.courseReferences.status !== 'RECOGNIZED')
+        throw new OwnStudyPlanSemestersError(
+          'Saved course references cannot be safely edited',
+          409,
+        );
+      const rows = await tx.curriculumCourse.findMany({
+        where: {
+          curriculumId: body.expectedScope.curriculumId,
+          courseId: { in: body.courseIds },
+          placements: { some: {} },
+        },
+        select: { course: { select: { id: true, code: true, name: true } } },
+      });
+      const catalog = new Map(rows.map(({ course }) => [course.id, course]));
+      // Internal adapter for the shared policy evaluator, never returned as saved evidence.
+      const proposed = {
+        ...snapshot,
+        courseReferences: {
+          status: 'RECOGNIZED' as const,
+          order: 'STORED_ARRAY_ORDER' as const,
+          entries: body.courseIds.map((courseId, storedPosition) => ({
+            courseId,
+            storedPosition,
+            currentCurriculumMembership: catalog.has(courseId)
+              ? ('PLACED_MEMBER' as const)
+              : ('NO_CURRENT_PLACEMENT' as const),
+            catalog: catalog.has(courseId)
+              ? { code: catalog.get(courseId)!.code, name: catalog.get(courseId)!.name }
+              : null,
+          })),
+        },
+      };
+      const reviewed = await reviewOwnStudyPlanReferenceSlotInTransaction(tx, proposed, body);
+      if (reviewed.review.status !== 'ASSESSED')
+        throw new OwnStudyPlanSemestersError('Proposed courses could not be assessed', 409);
+      return OwnStudyPlanReferenceSelectionPreviewSchema.parse({
+        scope: body.expectedScope,
+        planId,
+        semesterId,
+        revision: version.revision,
+        referenceSlot: { academicYear: body.academicYear, academicSemester: body.academicSemester },
+        courseIds: body.courseIds,
+        assessment: {
+          basis: reviewed.review.basis,
+          gpaPath: reviewed.review.gpaPath,
+          entries: reviewed.review.entries,
+        },
+        validation: { readOnly: true, calendarValidated: false, degreeValidated: false },
+      });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
+}
 
 async function ownedVersion(
   tx: Prisma.TransactionClient,

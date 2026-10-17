@@ -4,8 +4,11 @@ import {
   OwnStudyPlanReferenceSelectionBodySchema,
   OwnStudyPlanReferenceSelectionStateSchema,
   OwnStudyPlanReferenceSelectionResultSchema,
+  OwnStudyPlanReferenceSelectionPreviewBodySchema,
+  OwnStudyPlanReferenceSelectionPreviewSchema,
   type ApiResponse,
   type OwnStudyPlanReferenceSelectionBodyDTO,
+  type OwnStudyPlanReferenceSelectionPreviewBodyDTO,
 } from '@iu-study-planner/shared';
 import apiClient, { getSession } from './api';
 import { SavedStudyPlanCoursesSessionChangedError } from './savedStudyPlanCoursesApi';
@@ -117,5 +120,39 @@ export async function saveReferenceSelection(
     JSON.stringify(receipt.courseIds) !== JSON.stringify(body.courseIds)
   )
     throw new Error('Acknowledgement does not match the pending selection');
+  return result;
+}
+
+/** Current proposed-course diagnostics; never saved state or permission for a later save. */
+export async function previewReferenceSelection(
+  scope: ReferenceSelectionScope,
+  input: OwnStudyPlanReferenceSelectionPreviewBodyDTO,
+  signal?: AbortSignal,
+) {
+  const body = OwnStudyPlanReferenceSelectionPreviewBodySchema.parse(input);
+  if (
+    body.expectedScope.userId !== scope.ownerId.toLowerCase() ||
+    body.expectedScope.curriculumId !== scope.expectedCurriculumId?.toLowerCase()
+  )
+    throw new Error('Proposed selection scope changed');
+  const checked = await scopedRequest(scope, signal, async (path) => {
+    const response = await apiClient.post<ApiResponse<unknown>>(`${path}/preview`, body, {
+      signal,
+    });
+    if (response.data?.success !== true) throw new Error('Could not check proposed courses');
+    return response.data.data;
+  });
+  const result = OwnStudyPlanReferenceSelectionPreviewSchema.parse(checked.value);
+  if (
+    result.scope.userId !== checked.ownerId ||
+    result.scope.curriculumId !== checked.curriculumId ||
+    result.planId !== checked.planId ||
+    result.semesterId !== checked.semesterId ||
+    result.revision !== body.expectedRevision ||
+    result.referenceSlot.academicYear !== body.academicYear ||
+    result.referenceSlot.academicSemester !== body.academicSemester ||
+    JSON.stringify(result.courseIds) !== JSON.stringify(body.courseIds)
+  )
+    throw new Error('Proposed course check does not match the current selection');
   return result;
 }
