@@ -723,3 +723,15 @@ export {
   type OwnStudyPlanReferenceReviewBodyDTO,
   type OwnStudyPlanReferenceReviewDTO,
 } from './ownStudyPlanReferenceReview';
+
+export {
+  ReferenceSaveMetadataSchema,
+  OwnStudyPlanReferenceSelectionBodySchema,
+  OwnStudyPlanReferenceSelectionStateSchema,
+  OwnStudyPlanReferenceSelectionReceiptSchema,
+  OwnStudyPlanReferenceSelectionResultSchema,
+  type OwnStudyPlanReferenceSelectionBodyDTO,
+  type OwnStudyPlanReferenceSelectionStateDTO,
+  type OwnStudyPlanReferenceSelectionResultDTO,
+  type OwnStudyPlanReferenceSelectionReceiptDTO,
+} from './ownStudyPlanReferenceSelection';

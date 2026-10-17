@@ -13,6 +13,7 @@ import {
   savedSemesterId,
   savedCourseId,
 } from '@/test/fixtures/savedStudyPlanCourses';
+import { getSavedReferenceSelection } from '@/lib/savedStudyPlanReferenceSelectionApi';
 import { SavedStudyPlanCoursesPanel } from '../SavedStudyPlanCoursesPanel';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 
@@ -23,6 +24,11 @@ vi.mock('@/lib/savedStudyPlanCoursesApi', async (original) => ({
 vi.mock('@/lib/savedStudyPlanReferenceReviewApi', () => ({
   reviewSavedStudyPlanSemester: vi.fn(),
 }));
+vi.mock('@/lib/savedStudyPlanReferenceSelectionApi', () => ({
+  getSavedReferenceSelection: vi.fn(),
+  saveReferenceSelection: vi.fn(),
+}));
+const editRead = vi.mocked(getSavedReferenceSelection);
 const review = vi.mocked(reviewSavedStudyPlanSemester);
 const read = vi.mocked(getSavedStudyPlanCourses);
 const props = {
@@ -47,6 +53,20 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('saved semester course references', () => {
+  it('hides all course and review evidence when edit-session verification fails', async () => {
+    editRead.mockRejectedValue(new SavedStudyPlanCoursesSessionChangedError());
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    await screen.findByText(/Reference course/);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit saved course selection' }));
+    await screen.findByRole('alert');
+    expect(screen.queryByText(/Reference course/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Saved semester reference review' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Edit saved course selection' }),
+    ).not.toBeInTheDocument();
+  });
   it('mounts review only after confirmed references and hides all evidence on session invalidation', async () => {
     review.mockRejectedValue(new SavedStudyPlanCoursesSessionChangedError());
     render(<SavedStudyPlanCoursesPanel {...props} />);
@@ -142,7 +162,7 @@ describe('saved semester course references', () => {
     expect(document.querySelector('script')).toBeNull();
     expect(screen.getByText(/current catalog labels/)).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /save plan|edit|activate|complete/i }),
+      screen.queryByRole('button', { name: /save plan|activate|complete/i }),
     ).not.toBeInTheDocument();
   });
   it('preserves list order and exposes missing catalog entries without fabricating labels', async () => {

@@ -13,6 +13,7 @@ import { requireStudyPlanAccess } from '../middleware/studyPlanAccess';
 import {
   createPlannedSemester,
   updatePlannedSemester,
+  deletePlannedSemester,
   PlannedSemesterError,
 } from '../services/plannedSemesters';
 
@@ -232,11 +233,8 @@ router.delete(
   requireStudyPlanAccess,
   async (req: Request, res: Response) => {
     try {
-      const { semesterId } = req.params;
-
-      await prisma.plannedSemester.delete({
-        where: { id: semesterId },
-      });
+      const { planId, semesterId } = req.params;
+      await deletePlannedSemester(planId, semesterId, req.userId!);
 
       return res.json({
         success: true,
@@ -249,6 +247,8 @@ router.delete(
           error: 'Semester not found',
         });
       }
+      if (error instanceof PlannedSemesterError)
+        return res.status(error.status).json({ success: false, error: error.message });
       console.error('Error deleting semester:', error);
       return res.status(500).json({
         success: false,
