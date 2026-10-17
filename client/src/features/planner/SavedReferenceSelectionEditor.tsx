@@ -377,6 +377,19 @@ function EditorBody(props: Props) {
     setReceipt(null);
     setMessage('Unsaved selection. Choose an academic slot and save when ready.');
   };
+  const moveCourse = (index: number, direction: -1 | 1) => {
+    const destination = index + direction;
+    if (
+      index < 0 ||
+      index >= draft.courseIds.length ||
+      destination < 0 ||
+      destination >= draft.courseIds.length
+    )
+      return;
+    const courseIds = [...draft.courseIds];
+    [courseIds[index], courseIds[destination]] = [courseIds[destination], courseIds[index]];
+    change({ ...draft, courseIds });
+  };
   const parsed = OwnStudyPlanReferenceSelectionBodySchema.safeParse({
     requestId: '00000000-0000-4000-8000-000000000001',
     expectedScope: { userId: ownerId, curriculumId: expectedCurriculumId },
@@ -610,8 +623,9 @@ function EditorBody(props: Props) {
                   </label>
                 </div>
                 <p className="text-sm text-gray-700">
-                  Selected courses: {draft.courseIds.length} of 100. Existing order is retained;
-                  newly added courses follow it.
+                  Selected courses: {draft.courseIds.length} of 100. Newly added courses follow the
+                  existing list. Move courses up or down to change their display order. This does
+                  not change academic chronology, prerequisites or allocation priority.
                 </p>
                 {draft.courseIds.length === 0 && (
                   <p className="text-sm">
@@ -643,20 +657,42 @@ function EditorBody(props: Props) {
                             </p>
                           )}
                         </div>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-11"
-                          onClick={() =>
-                            change({
-                              ...draft,
-                              courseIds: draft.courseIds.filter((courseId) => courseId !== id),
-                            })
-                          }
-                          aria-label={`Remove selected course ${index + 1}`}
-                        >
-                          Remove
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-11"
+                            disabled={index === 0}
+                            onClick={() => moveCourse(index, -1)}
+                            aria-label={`Move selected course ${index + 1} up`}
+                          >
+                            Move up
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-11"
+                            disabled={index === draft.courseIds.length - 1}
+                            onClick={() => moveCourse(index, 1)}
+                            aria-label={`Move selected course ${index + 1} down`}
+                          >
+                            Move down
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-11"
+                            onClick={() =>
+                              change({
+                                ...draft,
+                                courseIds: draft.courseIds.filter((courseId) => courseId !== id),
+                              })
+                            }
+                            aria-label={`Remove selected course ${index + 1}`}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </li>
                     );
                   })}
