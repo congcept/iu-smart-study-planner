@@ -5,9 +5,11 @@ import { AxiosError } from 'axios';
 import {
   getSavedReferenceSelection,
   saveReferenceSelection,
+  previewReferenceSelection,
 } from '@/lib/savedStudyPlanReferenceSelectionApi';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import { referenceSelectionDraftKey } from '@/lib/savedReferenceSelectionDraft';
+import { proposedSelectionPreview } from '@/test/fixtures/proposedReferenceSelection';
 import { referenceId, ownerId } from '@/test/fixtures/curriculumReference';
 import { savedCourseId, savedPlanId, savedSemesterId } from '@/test/fixtures/savedStudyPlanCourses';
 import {
@@ -22,6 +24,7 @@ import { SavedReferenceSelectionEditor } from '../SavedReferenceSelectionEditor'
 vi.mock('@/lib/savedStudyPlanReferenceSelectionApi', () => ({
   getSavedReferenceSelection: vi.fn(),
   saveReferenceSelection: vi.fn(),
+  previewReferenceSelection: vi.fn(),
 }));
 const read = vi.mocked(getSavedReferenceSelection);
 const save = vi.mocked(saveReferenceSelection);
@@ -78,6 +81,29 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe('saved reference selection editing', () => {
+  it('clears proposed-course evidence on raw draft edits and reload without automatically checking or saving', async () => {
+    vi.mocked(previewReferenceSelection).mockImplementation(async (_scope, body) =>
+      proposedSelectionPreview(body),
+    );
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    slot();
+    expect(previewReferenceSelection).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Check proposed courses' }));
+    await screen.findByText(/0 of 1 proposed courses have blockers/);
+    fireEvent.change(screen.getByLabelText('Selection academic year'), {
+      target: { value: '2.0' },
+    });
+    expect(screen.queryByText(/0 of 1 proposed courses have blockers/)).not.toBeInTheDocument();
+    expect(previewReferenceSelection).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Check proposed courses' }));
+    await screen.findByText(/0 of 1 proposed courses have blockers/);
+    fireEvent.click(screen.getByRole('button', { name: 'Reload selection for editing' }));
+    await screen.findByRole('button', { name: 'Discard unsent draft' });
+    expect(screen.queryByText(/0 of 1 proposed courses have blockers/)).not.toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+    expect(previewReferenceSelection).toHaveBeenCalledTimes(2);
+  });
   it('rejects a scoped adapter response for another semester before publishing any snapshot', async () => {
     const value = referenceSelectionState();
     value.snapshot.semester.id = referenceId;

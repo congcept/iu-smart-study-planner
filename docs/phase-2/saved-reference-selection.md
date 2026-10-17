@@ -77,16 +77,43 @@ Empty/oversized/unsupported states, stale conflicts and uncertain outcomes are e
 is no polling, automatic server save, reordering UI, calendar editing or automatic advancement
 of degree requirements.
 
+## Check proposed courses before saving
+
+After choosing an academic year/semester and course list, select Check proposed courses. It
+explains each proposed course's missing mandatory prerequisite count, unavailable placement,
+wrong academic slot, GPA exclusion or unknown numeric GPA. Courses without blockers are
+described only as passing the current record check. An empty list has an explicit empty result.
+The check never saves courses or confirms a degree or timetable plan. Saving remains available
+as an independent action and always rechecks current policy.
+
+POST `/api/users/me/study-plans/:planId/semesters/:semesterId/reference-selection/preview`
+accepts the strict save fields except requestId. One RepeatableRead transaction confirms live
+cookie ownership, current scope, exact revision and recognized stored format, then evaluates
+the proposed ordered IDs with the same mandatory prerequisite/GPA policy used during saving.
+Unknown, foreign and unplaced IDs receive only NO_CURRENT_PLACEMENT with a null prerequisite
+count; foreign catalog labels are not exposed. The response binds scope, target, revision,
+explicit slot, ordered IDs and complete ordered assessments under literal read-only validation
+flags. It returns neither a synthetic saved snapshot nor a receipt. No academic row changes.
+The existing evaluator's assessment schema is exported for reuse without changing its policy.
+
+The adapter confirms the live session before and after successful or failed replies and binds
+every returned field to the request. The component validates that boundary again. Raw draft
+changes, order changes, reload, restoration, sending a save and account/context changes unmount
+the check, clear displayed evidence and abort outstanding reads. No preview runs automatically
+and no preview result updates saved-course evidence or a recovery journal. Parent labels are
+hidden when session confirmation fails. Previews never authorize later saves: later grades or
+progress can invalidate them without advancing the saved-semester revision.
+
 ## Verification and next steps
 
 Tests cover atomic rollback, two-writer conflicts, identical retries, later edits/context
 changes, malformed evidence, ownership, all prerequisite flags, GPA and legacy invalidation.
 Client cases cover recovery binding, denied storage, stale inputs, session failures, lower
 post-save revisions, explicit draft restore, changed revisions/candidates, pending-save priority
-and the actual parent focus refresh. Exact quality evidence is in AGENTS.md. No browser
+the actual parent focus refresh, bound proposed diagnostics, mandatory flag/GPA checks and
+concurrent progress/grade changes. Exact quality evidence is in AGENTS.md. No browser
 geometry pass is claimed without a real visual run.
 
-Next improve per-proposed-course blocker feedback. Reference metadata does not establish
-continuing eligibility: later
+Reference metadata and proposed-course checks do not establish continuing eligibility: later
 record/GPA/context changes require fresh checks. Chronological earlier-slot planning and
 verified curriculum, degree, timetable and capacity gates remain separate.

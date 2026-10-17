@@ -6,6 +6,7 @@ import {
   OwnStudyPlanCoursesParamsSchema,
   OwnStudyPlanReferenceReviewBodySchema,
   OwnStudyPlanReferenceSelectionBodySchema,
+  OwnStudyPlanReferenceSelectionPreviewBodySchema,
 } from '@iu-study-planner/shared';
 import { requireAuth } from '../middleware/auth';
 import { reviewOwnStudyPlanReferenceSlot } from '../services/ownStudyPlanReferenceReview';
@@ -18,9 +19,41 @@ import {
 import {
   readOwnStudyPlanReferenceSelection,
   saveOwnStudyPlanReferenceSelection,
+  previewOwnStudyPlanReferenceSelection,
 } from '../services/ownStudyPlanReferenceSelection';
 
 const router = Router();
+router.post(
+  '/:planId/semesters/:semesterId/reference-selection/preview',
+  requireAuth,
+  async (req, res) => {
+    if (!req.userId)
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    try {
+      const { planId, semesterId } = OwnStudyPlanCoursesParamsSchema.parse(req.params);
+      z.object({}).strict().parse(req.query);
+      const input = OwnStudyPlanReferenceSelectionPreviewBodySchema.parse(req.body);
+      const data = await previewOwnStudyPlanReferenceSelection(
+        req.userId,
+        planId,
+        semesterId,
+        input,
+      );
+      return res.json({ success: true, data });
+    } catch (error) {
+      if (error instanceof z.ZodError)
+        return res
+          .status(400)
+          .json({ success: false, error: 'Validation failed', details: error.errors });
+      if (error instanceof OwnStudyPlanSemestersError)
+        return res.status(error.status).json({ success: false, error: error.message });
+      console.error('Own proposed reference selection preview error:', error);
+      return res
+        .status(500)
+        .json({ success: false, error: 'Could not check your proposed course selection' });
+    }
+  },
+);
 for (const method of ['get', 'put'] as const) {
   router[method](
     '/:planId/semesters/:semesterId/reference-selection',

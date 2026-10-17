@@ -720,6 +720,7 @@ export {
   OwnStudyPlanReferenceReviewBodySchema,
   OwnStudyPlanReferenceReviewSchema,
   SavedCourseReferenceBlockerSchema,
+  SavedCourseReferenceAssessmentSchema,
   type OwnStudyPlanReferenceReviewBodyDTO,
   type OwnStudyPlanReferenceReviewDTO,
 } from './ownStudyPlanReferenceReview';
@@ -735,3 +736,10 @@ export {
   type OwnStudyPlanReferenceSelectionResultDTO,
   type OwnStudyPlanReferenceSelectionReceiptDTO,
 } from './ownStudyPlanReferenceSelection';
+
+export {
+  OwnStudyPlanReferenceSelectionPreviewBodySchema,
+  OwnStudyPlanReferenceSelectionPreviewSchema,
+  type OwnStudyPlanReferenceSelectionPreviewBodyDTO,
+  type OwnStudyPlanReferenceSelectionPreviewDTO,
+} from './ownStudyPlanReferenceSelectionPreview';

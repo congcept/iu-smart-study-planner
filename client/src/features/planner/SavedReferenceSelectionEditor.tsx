@@ -23,6 +23,7 @@ import {
   saveReferenceSelection,
   type ReferenceSelectionScope,
 } from '@/lib/savedStudyPlanReferenceSelectionApi';
+import { ProposedReferenceSelectionCheck } from './ProposedReferenceSelectionCheck';
 
 type Props = ReferenceSelectionScope & {
   onInvalidated: (kind: 'account' | 'unavailable') => void;
@@ -701,6 +702,24 @@ function EditorBody(props: Props) {
                     Add course
                   </Button>
                 </div>
+                {!locked && parsed.success && (
+                  <ProposedReferenceSelectionCheck
+                    key={JSON.stringify([generation.current, draft])}
+                    ownerId={ownerId}
+                    expectedCurriculumId={expectedCurriculumId}
+                    planId={planId}
+                    semesterId={semesterId}
+                    input={{
+                      expectedScope: parsed.data.expectedScope,
+                      expectedRevision: parsed.data.expectedRevision,
+                      academicYear: parsed.data.academicYear,
+                      academicSemester: parsed.data.academicSemester,
+                      courseIds: parsed.data.courseIds,
+                    }}
+                    courses={options}
+                    onInvalidated={onInvalidated}
+                  />
+                )}
                 <Button
                   type="submit"
                   className="min-h-11"

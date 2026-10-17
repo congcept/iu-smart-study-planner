@@ -16,6 +16,7 @@ import {
 import {
   getSavedReferenceSelection,
   saveReferenceSelection,
+  previewReferenceSelection,
 } from '@/lib/savedStudyPlanReferenceSelectionApi';
 import { referenceSelectionState } from '@/test/fixtures/savedReferenceSelection';
 import { SavedStudyPlanCoursesPanel } from '../SavedStudyPlanCoursesPanel';
@@ -31,6 +32,7 @@ vi.mock('@/lib/savedStudyPlanReferenceReviewApi', () => ({
 vi.mock('@/lib/savedStudyPlanReferenceSelectionApi', () => ({
   getSavedReferenceSelection: vi.fn(),
   saveReferenceSelection: vi.fn(),
+  previewReferenceSelection: vi.fn(),
 }));
 const editRead = vi.mocked(getSavedReferenceSelection);
 const review = vi.mocked(reviewSavedStudyPlanSemester);
@@ -58,6 +60,27 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('saved semester course references', () => {
+  it('hides parent course evidence when a proposed-course check loses its session', async () => {
+    const current = referenceSelectionState(0);
+    read.mockResolvedValue(current.snapshot);
+    editRead.mockResolvedValue(current);
+    vi.mocked(previewReferenceSelection).mockRejectedValue(
+      new SavedStudyPlanCoursesSessionChangedError(),
+    );
+    render(<SavedStudyPlanCoursesPanel {...props} expectedCurriculumId={referenceId} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit saved course selection' }));
+    fireEvent.change(await screen.findByLabelText('Selection academic year'), {
+      target: { value: '2' },
+    });
+    fireEvent.change(screen.getByLabelText('Selection academic semester'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check proposed courses' }));
+    await screen.findByText(/Your account or curriculum could not be confirmed/);
+    expect(screen.queryByRole('region', { name: 'Proposed course check' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/CS101/)).not.toBeInTheDocument();
+    expect(saveReferenceSelection).not.toHaveBeenCalled();
+  });
   it('retains partial unsent edits through the real focus refresh and restores only after an explicit fresh read', async () => {
     const current = referenceSelectionState(0);
     read.mockResolvedValue(current.snapshot);
