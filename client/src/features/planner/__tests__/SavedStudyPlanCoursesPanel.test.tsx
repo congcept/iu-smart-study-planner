@@ -13,7 +13,11 @@ import {
   savedSemesterId,
   savedCourseId,
 } from '@/test/fixtures/savedStudyPlanCourses';
-import { getSavedReferenceSelection } from '@/lib/savedStudyPlanReferenceSelectionApi';
+import {
+  getSavedReferenceSelection,
+  saveReferenceSelection,
+} from '@/lib/savedStudyPlanReferenceSelectionApi';
+import { referenceSelectionState } from '@/test/fixtures/savedReferenceSelection';
 import { SavedStudyPlanCoursesPanel } from '../SavedStudyPlanCoursesPanel';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 
@@ -49,10 +53,32 @@ function deferred() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  sessionStorage.clear();
   read.mockResolvedValue(savedCourseFixture());
 });
 afterEach(cleanup);
 describe('saved semester course references', () => {
+  it('retains partial unsent edits through the real focus refresh and restores only after an explicit fresh read', async () => {
+    const current = referenceSelectionState(0);
+    read.mockResolvedValue(current.snapshot);
+    editRead.mockResolvedValue(current);
+    render(<SavedStudyPlanCoursesPanel {...props} expectedCurriculumId={referenceId} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit saved course selection' }));
+    fireEvent.change(await screen.findByLabelText('Selection academic year'), {
+      target: { value: '2' },
+    });
+    fireEvent(window, new Event('focus'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit saved course selection' }));
+    expect(await screen.findByLabelText('Selection academic year')).toHaveValue(null);
+    expect(screen.getByLabelText('Selection academic year')).toBeDisabled();
+    expect(saveReferenceSelection).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore unsent draft' }));
+    await screen.findByText(/Unsent draft restored after checking/);
+    expect(editRead).toHaveBeenCalledTimes(3);
+    expect(screen.getByLabelText('Selection academic year')).toHaveValue(2);
+    expect(screen.getByLabelText('Selection academic semester')).toHaveValue('');
+    expect(saveReferenceSelection).not.toHaveBeenCalled();
+  });
   it('hides all course and review evidence when edit-session verification fails', async () => {
     editRead.mockRejectedValue(new SavedStudyPlanCoursesSessionChangedError());
     render(<SavedStudyPlanCoursesPanel {...props} />);

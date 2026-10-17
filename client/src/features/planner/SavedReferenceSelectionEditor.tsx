@@ -12,6 +12,13 @@ import {
 import { Button } from '@/components/ui';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import {
+  StoredReferenceSelectionDraftSchema,
+  loadReferenceSelectionDraft,
+  referenceSelectionDraftKey,
+  type DraftRecovery,
+  type ReferenceSelectionDraft as Draft,
+} from '@/lib/savedReferenceSelectionDraft';
+import {
   getSavedReferenceSelection,
   saveReferenceSelection,
   type ReferenceSelectionScope,
@@ -21,7 +28,6 @@ type Props = ReferenceSelectionScope & {
   onInvalidated: (kind: 'account' | 'unavailable') => void;
   onSnapshot: (snapshot: OwnStudyPlanCoursesDTO) => void;
 };
-type Draft = { year: string; semester: string; courseIds: string[] };
 type Phase = 'idle' | 'loading' | 'ready' | 'saving' | 'uncertain' | 'error' | 'blocked';
 const normalizedUuid = z
   .string()
@@ -41,6 +47,7 @@ const referenceSelectionRequestKey = (ownerId: string, planId: string, semesterI
 function EditorBody(props: Props) {
   const { ownerId, planId, semesterId, expectedCurriculumId, onInvalidated, onSnapshot } = props;
   const storageKey = referenceSelectionRequestKey(ownerId, planId, semesterId);
+  const draftKey = referenceSelectionDraftKey(props);
   const [journal] = useState(() => {
     try {
       const raw = sessionStorage.getItem(storageKey);
@@ -67,6 +74,10 @@ function EditorBody(props: Props) {
   const [message, setMessage] = useState('');
   const [draft, setDraft] = useState<Draft>({ year: '', semester: '', courseIds: [] });
   const currentDraft = useRef(draft);
+  const currentState = useRef(state);
+  const [draftRecovery, setDraftRecovery] = useState<DraftRecovery>({ status: 'NONE' });
+  const recoveryRef = useRef(draftRecovery);
+  const [storageWarning, setStorageWarning] = useState('');
   const [choice, setChoice] = useState('');
   const choiceRef = useRef('');
   const alive = useRef(false);
@@ -109,98 +120,169 @@ function EditorBody(props: Props) {
     choiceRef.current = '';
     setChoice('');
   }, []);
-  const read = useCallback(async () => {
-    if (!alive.current || busy.current) return;
-    busy.current = true;
-    const version = ++generation.current;
-    const active = new AbortController();
-    controller.current?.abort();
-    controller.current = active;
-    const current = () => alive.current && generation.current === version && !active.signal.aborted;
-    setPhase('loading');
-    setMessage('Loading the latest saved selection…');
-    try {
-      const received = await getSavedReferenceSelection(
-        { ownerId, planId, semesterId, expectedCurriculumId },
-        active.signal,
-      );
-      if (!current()) return;
-      const next = OwnStudyPlanReferenceSelectionStateSchema.parse(received);
+  const installRecovery = useCallback((value: DraftRecovery) => {
+    recoveryRef.current = value;
+    setDraftRecovery(value);
+  }, []);
+  const clearPromotedDraft = useCallback(
+    (body: OwnStudyPlanReferenceSelectionBodyDTO) => {
+      if (body.expectedScope.curriculumId !== expectedCurriculumId) return;
+      const recovery = loadReferenceSelectionDraft({
+        ownerId,
+        planId,
+        semesterId,
+        expectedCurriculumId,
+      });
+      if (recovery.status !== 'FOUND') return;
+      const old = recovery.value;
       if (
-        next.snapshot.scope.userId !== ownerId ||
-        next.snapshot.scope.curriculumId !== expectedCurriculumId ||
-        next.snapshot.plan.id !== planId ||
-        next.snapshot.semester.id !== semesterId
+        old.baseRevision === body.expectedRevision &&
+        old.draft.year.trim() !== '' &&
+        Number(old.draft.year) === body.academicYear &&
+        Number(old.draft.semester) === body.academicSemester &&
+        JSON.stringify(old.draft.courseIds) === JSON.stringify(body.courseIds)
       )
-        throw new SavedStudyPlanCoursesSessionChangedError();
-      if (
-        resolution.current === 'accepted' &&
-        (!acknowledgement.current || next.revision < acknowledgement.current.savedRevision)
-      )
-        throw new Error('Read predates the acknowledged save');
-      if (resolution.current) {
-        // A receipt is historical acknowledgement. The fresh read supplies displayed state.
-        sessionStorage.removeItem(storageKey);
-        pending.current = null;
-        if (resolution.current === 'accepted') {
-          setReceipt(acknowledgement.current);
-          setMessage('Selection saved. The latest saved courses are shown below.');
+        sessionStorage.removeItem(draftKey);
+    },
+    [ownerId, planId, semesterId, expectedCurriculumId, draftKey],
+  );
+  const read = useCallback(
+    async (restoring?: Extract<DraftRecovery, { status: 'FOUND' }>) => {
+      if (!alive.current || busy.current) return;
+      if (restoring && (pending.current || journal.error || recoveryRef.current !== restoring))
+        return;
+      busy.current = true;
+      const version = ++generation.current;
+      const active = new AbortController();
+      controller.current?.abort();
+      controller.current = active;
+      const current = () =>
+        alive.current && generation.current === version && !active.signal.aborted;
+      setPhase('loading');
+      setMessage('Loading the latest saved selection…');
+      try {
+        const received = await getSavedReferenceSelection(
+          { ownerId, planId, semesterId, expectedCurriculumId },
+          active.signal,
+        );
+        if (!current()) return;
+        const next = OwnStudyPlanReferenceSelectionStateSchema.parse(received);
+        if (
+          next.snapshot.scope.userId !== ownerId ||
+          next.snapshot.scope.curriculumId !== expectedCurriculumId ||
+          next.snapshot.plan.id !== planId ||
+          next.snapshot.semester.id !== semesterId
+        )
+          throw new SavedStudyPlanCoursesSessionChangedError();
+        if (
+          resolution.current === 'accepted' &&
+          (!acknowledgement.current || next.revision < acknowledgement.current.savedRevision)
+        )
+          throw new Error('Read predates the acknowledged save');
+        if (resolution.current) {
+          // A receipt is historical acknowledgement. The fresh read supplies displayed state.
+          if (pending.current) clearPromotedDraft(pending.current);
+          sessionStorage.removeItem(storageKey);
+          pending.current = null;
+          if (resolution.current === 'accepted') {
+            setReceipt(acknowledgement.current);
+            setMessage('Selection saved. The latest saved courses are shown below.');
+          } else {
+            setMessage(
+              'The save could not be confirmed. The latest saved courses have been reloaded; review the academic slot and prerequisites before trying again.',
+            );
+          }
+          resolution.current = null;
         } else {
           setMessage(
-            'The save could not be confirmed. The latest saved courses have been reloaded; review the academic slot and prerequisites before trying again.',
+            pending.current
+              ? 'A previous save is unresolved. Retry the same saved request to confirm its outcome before editing.'
+              : 'Changes are saved only when you choose Save course selection.',
           );
         }
-        resolution.current = null;
-      } else {
-        setMessage(
-          pending.current
-            ? 'A previous save is unresolved. Retry the same saved request to confirm its outcome before editing.'
-            : 'Changes are saved only when you choose Save course selection.',
-        );
-      }
-      setState(next);
-      if (pending.current) {
-        installDraft({
-          year: String(pending.current.academicYear),
-          semester: String(pending.current.academicSemester),
-          courseIds: [...pending.current.courseIds],
+        const recovered = loadReferenceSelectionDraft({
+          ownerId,
+          planId,
+          semesterId,
+          expectedCurriculumId,
         });
-      } else {
-        const entries =
-          next.snapshot.courseReferences.status === 'RECOGNIZED'
-            ? next.snapshot.courseReferences.entries
-            : [];
-        installDraft({
-          year: '',
-          semester: '',
-          courseIds: entries.map(({ courseId }) => courseId),
-        });
+        installRecovery(recovered);
+        currentState.current = next;
+        setState(next);
+        if (pending.current) {
+          installDraft({
+            year: String(pending.current.academicYear),
+            semester:
+              pending.current.academicSemester === 1
+                ? '1'
+                : pending.current.academicSemester === 2
+                  ? '2'
+                  : '3',
+            courseIds: [...pending.current.courseIds],
+          });
+        } else {
+          const entries =
+            next.snapshot.courseReferences.status === 'RECOGNIZED'
+              ? next.snapshot.courseReferences.entries
+              : [];
+          const restored =
+            restoring &&
+            recovered.status === 'FOUND' &&
+            recovered.raw === restoring.raw &&
+            recovered.value.baseRevision === next.revision &&
+            next.editing.status === 'AVAILABLE';
+          installDraft(
+            restored
+              ? recovered.value.draft
+              : {
+                  year: '',
+                  semester: '',
+                  courseIds: entries.map(({ courseId }) => courseId),
+                },
+          );
+          if (restored) {
+            installRecovery({ status: 'NONE' });
+            setStorageWarning('');
+            setReceipt(null);
+            setMessage(
+              'Unsent draft restored after checking the latest saved version. Review the selection and save when ready; it has not been submitted.',
+            );
+          } else if (restoring) {
+            setMessage(
+              'The draft or saved selection changed. The latest saved courses are shown; no draft was restored or submitted.',
+            );
+          }
+        }
+        onSnapshot(next.snapshot);
+        setPhase(journal.error ? 'blocked' : pending.current ? 'uncertain' : 'ready');
+      } catch (error) {
+        if (!current()) return;
+        currentState.current = null;
+        setState(null);
+        if (!invalidate(error)) {
+          setPhase(pending.current ? 'uncertain' : 'error');
+          setMessage(
+            'Could not confirm the latest selection. Reload it before editing. Any pending save has been retained.',
+          );
+        }
+      } finally {
+        if (current()) busy.current = false;
       }
-      onSnapshot(next.snapshot);
-      setPhase(journal.error ? 'blocked' : pending.current ? 'uncertain' : 'ready');
-    } catch (error) {
-      if (!current()) return;
-      setState(null);
-      if (!invalidate(error)) {
-        setPhase(pending.current ? 'uncertain' : 'error');
-        setMessage(
-          'Could not confirm the latest selection. Reload it before editing. Any pending save has been retained.',
-        );
-      }
-    } finally {
-      if (current()) busy.current = false;
-    }
-  }, [
-    ownerId,
-    planId,
-    semesterId,
-    expectedCurriculumId,
-    storageKey,
-    installDraft,
-    onSnapshot,
-    journal.error,
-    invalidate,
-  ]);
+    },
+    [
+      ownerId,
+      planId,
+      semesterId,
+      expectedCurriculumId,
+      storageKey,
+      installDraft,
+      installRecovery,
+      clearPromotedDraft,
+      onSnapshot,
+      journal.error,
+      invalidate,
+    ],
+  );
   const send = async (body: OwnStudyPlanReferenceSelectionBodyDTO) => {
     if (!alive.current || busy.current) return;
     busy.current = true;
@@ -220,6 +302,15 @@ function EditorBody(props: Props) {
       return;
     }
     pending.current = body;
+    installRecovery({ status: 'NONE' });
+    try {
+      clearPromotedDraft(body);
+      setStorageWarning('');
+    } catch {
+      setStorageWarning(
+        'The sent save is retained, but its older unsent draft could not be removed from this tab.',
+      );
+    }
     setPhase('saving');
     setMessage('Saving course selection…');
     try {
@@ -250,9 +341,37 @@ function EditorBody(props: Props) {
     if (current()) await read();
   };
   const locked =
-    phase !== 'ready' || pending.current !== null || state?.editing.status !== 'AVAILABLE';
+    phase !== 'ready' ||
+    pending.current !== null ||
+    state?.editing.status !== 'AVAILABLE' ||
+    draftRecovery.status !== 'NONE';
   const change = (next: Draft) => {
-    if (!alive.current || busy.current || locked || currentDraft.current !== draft) return;
+    if (
+      !alive.current ||
+      busy.current ||
+      locked ||
+      currentDraft.current !== draft ||
+      currentState.current !== state ||
+      !state
+    )
+      return;
+    try {
+      const envelope = StoredReferenceSelectionDraftSchema.parse({
+        version: 1,
+        ownerId,
+        curriculumId: expectedCurriculumId,
+        planId,
+        semesterId,
+        baseRevision: state.revision,
+        draft: next,
+      });
+      sessionStorage.setItem(draftKey, JSON.stringify(envelope));
+      setStorageWarning('');
+    } catch {
+      setStorageWarning(
+        'These edits could not be retained in this tab. Keep this view open; refreshing may lose them. Any older stored draft has not been replaced.',
+      );
+    }
     installDraft(next);
     setReceipt(null);
     setMessage('Unsaved selection. Choose an academic slot and save when ready.');
@@ -281,9 +400,9 @@ function EditorBody(props: Props) {
         a timetable or degree plan.
       </p>
       <p className="mt-2 max-w-prose text-sm text-gray-600">
-        Unsaved edits remain only while this view stays open. Returning to this tab, changing
-        windows or reloading can refresh the view and discard them. Sent save requests are retained
-        in this tab for recovery.
+        Unsent edits are retained in this tab when browser storage is available. After a refresh,
+        choose Restore unsent draft to check the latest saved version before restoring. Drafts are
+        never submitted automatically. Sent save requests have separate recovery controls.
       </p>
       {!opened ? (
         <Button
@@ -334,6 +453,100 @@ function EditorBody(props: Props) {
               </Button>
             )}
           </div>
+          {storageWarning && (
+            <p role="alert" className="text-sm text-amber-800">
+              {storageWarning}
+            </p>
+          )}
+          {state && !pending.current && !journal.error && draftRecovery.status !== 'NONE' && (
+            <div className="space-y-3 rounded border border-amber-200 bg-amber-50 p-3">
+              <p role="status" className="text-sm text-gray-700">
+                {draftRecovery.status === 'UNAVAILABLE'
+                  ? 'Unsent draft recovery could not be read. Restore access to this tab’s storage and reload before editing.'
+                  : draftRecovery.status === 'INVALID'
+                    ? 'Stored unsent draft data is invalid or belongs to another selection. It has not been restored. Discard it to edit the latest saved courses.'
+                    : draftRecovery.value.baseRevision !== state.revision
+                      ? 'The saved selection has changed since this unsent draft. It cannot be restored onto the newer version. Discard it to edit the latest saved courses.'
+                      : state.editing.status !== 'AVAILABLE'
+                        ? 'An unsent draft exists, but this selection is not currently editable. It has not been restored.'
+                        : 'An unsent draft was found in this tab. Restore it after a fresh version check, or discard it to edit the latest saved courses.'}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {draftRecovery.status === 'FOUND' &&
+                  draftRecovery.value.baseRevision === state.revision &&
+                  state.editing.status === 'AVAILABLE' && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      disabled={phase !== 'ready'}
+                      onClick={() => {
+                        if (
+                          pending.current ||
+                          journal.error ||
+                          currentState.current !== state ||
+                          currentDraft.current !== draft ||
+                          recoveryRef.current !== draftRecovery
+                        )
+                          return;
+                        void read(draftRecovery);
+                      }}
+                    >
+                      Restore unsent draft
+                    </Button>
+                  )}
+                {draftRecovery.status !== 'UNAVAILABLE' && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11"
+                    disabled={phase !== 'ready'}
+                    onClick={() => {
+                      if (
+                        !alive.current ||
+                        busy.current ||
+                        pending.current ||
+                        journal.error ||
+                        currentState.current !== state ||
+                        currentDraft.current !== draft ||
+                        recoveryRef.current !== draftRecovery
+                      )
+                        return;
+                      const latest = loadReferenceSelectionDraft({
+                        ownerId,
+                        planId,
+                        semesterId,
+                        expectedCurriculumId,
+                      });
+                      if (
+                        (draftRecovery.status === 'FOUND' &&
+                          (latest.status !== 'FOUND' || latest.raw !== draftRecovery.raw)) ||
+                        (draftRecovery.status === 'INVALID' && latest.status !== 'INVALID')
+                      ) {
+                        installRecovery(latest);
+                        setMessage(
+                          'The stored draft changed. Reload and review it before discarding.',
+                        );
+                        return;
+                      }
+                      try {
+                        sessionStorage.removeItem(draftKey);
+                        installRecovery({ status: 'NONE' });
+                        setStorageWarning('');
+                        setMessage('Unsent draft discarded. The latest saved courses are shown.');
+                      } catch {
+                        setStorageWarning(
+                          'The unsent draft could not be discarded. It is still retained; restore storage access and try again.',
+                        );
+                      }
+                    }}
+                  >
+                    Discard unsent draft
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           {state?.editing.status === 'UNAVAILABLE' && (
             <p className="text-sm text-gray-700">
               {state.editing.reason === 'NO_ASSIGNED_CURRICULUM'
@@ -350,6 +563,7 @@ function EditorBody(props: Props) {
                   busy.current ||
                   !alive.current ||
                   currentDraft.current !== draft ||
+                  currentState.current !== state ||
                   !parsed.success
                 )
                   return;
@@ -376,7 +590,16 @@ function EditorBody(props: Props) {
                     <select
                       value={draft.semester}
                       className={fieldClass}
-                      onChange={(event) => change({ ...draft, semester: event.target.value })}
+                      onChange={(event) => {
+                        const semester = event.target.value;
+                        if (
+                          semester === '' ||
+                          semester === '1' ||
+                          semester === '2' ||
+                          semester === '3'
+                        )
+                          change({ ...draft, semester });
+                      }}
                     >
                       <option value="">Choose semester</option>
                       <option value="1">Semester 1</option>
