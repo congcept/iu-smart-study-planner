@@ -2,8 +2,9 @@
 
 In Planner, open a saved plan and semester, select View courses, then Edit saved course
 selection. Choose an academic year/semester explicitly, remove/add courses from current
-curriculum choices, and select Save course selection. Existing order is retained; additions
-follow it. Empty lists are allowed. Calendar labels and plan activation are unchanged.
+curriculum choices, and select Save course selection. Existing order is retained until you
+choose Move up or Move down; additions follow the current list. Empty lists are allowed.
+Calendar labels and plan activation are unchanged.
 
 This saves a reference selection, not a registration or verified degree/calendar plan. Every
 selected course must have a matching placement. The save checks every contextual prerequisite
@@ -73,9 +74,16 @@ failures show honest retention warnings. Pending immutable saves always take pri
 corrupt journals. Promotion persists the pending request before removing only its matching
 unsent draft; recovering an old-context save preserves a separate current-context draft.
 
+Native Move up/down buttons change only the stored display list order. They support normal
+keyboard button interaction and disable invalid boundary moves. Every change uses the same
+guarded draft handler, retains ordered identities in tab storage and removes old proposed-course
+evidence. Loading, recovery and pending saves lock moves. Sent saves and exact retries keep
+their immutable original ordered IDs. Reordering does not change prerequisites, academic
+chronology, academic slots or allocation priority.
+
 Empty/oversized/unsupported states, stale conflicts and uncertain outcomes are explicit. There
-is no polling, automatic server save, reordering UI, calendar editing or automatic advancement
-of degree requirements.
+is no polling, automatic server save, drag/drop, calendar editing or automatic advancement of
+degree requirements.
 
 ## Check proposed courses before saving
 
@@ -111,7 +119,8 @@ changes, malformed evidence, ownership, all prerequisite flags, GPA and legacy i
 Client cases cover recovery binding, denied storage, stale inputs, session failures, lower
 post-save revisions, explicit draft restore, changed revisions/candidates, pending-save priority
 the actual parent focus refresh, bound proposed diagnostics, mandatory flag/GPA checks and
-concurrent progress/grade changes. Exact quality evidence is in AGENTS.md. No browser
+concurrent progress/grade changes, reordered draft recovery, stale moves and immutable ordered
+save retries. Exact quality evidence is in AGENTS.md. No browser
 geometry pass is claimed without a real visual run.
 
 Reference metadata and proposed-course checks do not establish continuing eligibility: later
