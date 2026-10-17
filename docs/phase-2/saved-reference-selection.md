@@ -57,20 +57,36 @@ can clear. A receipt never replaces a newer displayed selection. Returning under
 current curriculum can recover the same account's original acknowledgement without rebinding
 the old request; absent receipts still enforce the original expected context.
 
-Unsent drafts are view-local: focus refresh, tab/window changes or reload can discard them;
-the UI explains this. Sent requests remain recoverable in that tab. Empty/oversized/unsupported
-states, stale conflicts and uncertain outcomes are explicit. There is no polling, autosave,
-reordering UI, calendar editing or automatic advancement of degree requirements.
+Unsent drafts use separate tab storage with a strict versioned envelope binding owner,
+curriculum, plan, semester and the saved selection's base revision. Changes persist synchronously
+before a refresh can unmount the view. Partial slot fields, empty selections and course order
+are retained; the draft has no request ID and is never submitted automatically. Closing the tab
+can clear this browser storage; drafts do not synchronize across devices.
+
+After a confirmed scoped read, choose Restore unsent draft or Discard unsent draft. Restore
+performs another fresh session-confirmed GET and requires the same draft contents, exact base
+revision and editable context. Changed saved versions are discard-only, with no automatic
+rebasing. Unavailable course IDs remain visible for explicit removal instead of silently being
+filtered. Invalid or copied envelopes never reveal fields and require explicit discard;
+inaccessible recovery storage blocks editing until a reload can confirm it. Write/remove
+failures show honest retention warnings. Pending immutable saves always take priority, including
+corrupt journals. Promotion persists the pending request before removing only its matching
+unsent draft; recovering an old-context save preserves a separate current-context draft.
+
+Empty/oversized/unsupported states, stale conflicts and uncertain outcomes are explicit. There
+is no polling, automatic server save, reordering UI, calendar editing or automatic advancement
+of degree requirements.
 
 ## Verification and next steps
 
 Tests cover atomic rollback, two-writer conflicts, identical retries, later edits/context
 changes, malformed evidence, ownership, all prerequisite flags, GPA and legacy invalidation.
 Client cases cover recovery binding, denied storage, stale inputs, session failures, lower
-post-save revisions and parent refresh. Exact quality evidence is in AGENTS.md. No browser
+post-save revisions, explicit draft restore, changed revisions/candidates, pending-save priority
+and the actual parent focus refresh. Exact quality evidence is in AGENTS.md. No browser
 geometry pass is claimed without a real visual run.
 
-Next improve per-proposed-course blocker feedback and restore unsent drafts through explicit
-revision-bound review. Reference metadata does not establish continuing eligibility: later
+Next improve per-proposed-course blocker feedback. Reference metadata does not establish
+continuing eligibility: later
 record/GPA/context changes require fresh checks. Chronological earlier-slot planning and
 verified curriculum, degree, timetable and capacity gates remain separate.
