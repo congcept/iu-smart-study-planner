@@ -196,6 +196,27 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-18
 
+### Highest-score distribution
+
+Grades now includes five numeric score ranges with exact course counts and decorative bars.
+The only input is the server summary.courseScores population: each GPA-included course once
+at its highest recorded score, without credit weighting or counting retake attempts again.
+PT, zero-credit and outside-current-context history remain excluded upstream; history stays
+visible. Decimal scores are not rounded before grouping, and 100 belongs in the last range.
+No letter/pass mapping, GPA recalculation, API, storage or grading policy change.
+
+The accessible table exposes range/count text without color or width dependence. Empty
+summary data gets an explicit no-scores message, not zero-score courses. Rendering inherits
+the existing owner-matched loading/error/save/account guards. Independent final source review
+found no implementation blocker and requested stronger exact-cell count assertions; those
+are incorporated. Build/types/zero-warning lint/format pass, together with 2972 real
+PostgreSQL server tests, 2254 client tests and 10 startup cases. One initial client run failed
+an unchanged Planner editor-opening test; its 43-case focused rerun and the complete unchanged
+client rerun pass. No assertions or timing limits were weakened. Verification seeded/removed
+only a new disposable database; the application database/dependencies remain untouched.
+Full Ubuntu checks are required on the exact PR head before merge.
+See `docs/phase-2/score-distribution.md`.
+
 ### Production frontend-origin preflight
 
 Production now requires one explicit HTTP(S) CORS_ORIGIN before importing the database
@@ -216,14 +237,16 @@ An earlier long unattended run had two subprocess timeouts; it is not counted as
 evidence, and no assertions/timeouts were weakened. The final full rerun used a bounded
 awake assertion. Initial parser preparation used a subagent; the coordinator revised the
 startup harness and reviewed final source after the independent follow-up hit usage limits.
-Actual full GitHub Linux checks are required before merging this increment. See
+The exact reviewed head passed full Ubuntu run 39129284477 and was merged through
+[PR #134](https://github.com/congcept/iu-smart-study-planner/pull/134) as
+46b07a1ac17d5ab6a8d9ef62c8402689358a4a0c; the merged tree matched the tested head. See
 `docs/phase-5/deployment-readiness.md`. Only disposable verification data was seeded/removed.
 
 Next source slice: read the official signed CS 2025 PDF and record a source hash plus page
 locators before reconciling identities, prerequisites and elective credits. On 2026-10-18,
-the official PDF URL returned an HTML challenge, including after its public-cookie retry;
-no PDF body/hash/page evidence was obtained, so it remains unreviewed. Do not mark the
-source verified, select a cohort or activate/assign curricula from this failed retrieval.
+the official PDF URL initially returned an HTML challenge. A later bounded public-cookie
+retry recovered the PDF, and a separate bounded catalog/source review is underway. Do not
+select a cohort or activate/assign curricula from artifact retrieval alone.
 Hosting/domain/cookie topology and unresolved school rules still need separate decisions.
 
 ### Reproducible installs and GitHub checks — merged PR #132
@@ -309,7 +332,7 @@ initialized and seeded. Publication branch: `codex/reference-selection-order`. P
 unrelated UI/staging, application data and canceled automation. No browser geometry verification
 is claimed; interaction tests use jsdom.
 
-Next direction: complete the production frontend-origin preflight below, then resume
+Next direction: production frontend-origin preflight is merged (PR #134). Resume
 signed CS source evidence reconciliation without activating a cohort. CS/IT/DS assignment,
 calendar and hosting decisions remain gated. Verified CS/IT/DS assignment, degree/calendar planning,
 staff/lab and deployment/thesis gates remain open; never bypass source/policy gates to
