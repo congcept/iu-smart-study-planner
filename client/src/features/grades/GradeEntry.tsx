@@ -215,6 +215,31 @@ function GradeEntrySession({ userId, onSaved }: Props) {
     }
   };
 
+  // A blocked pending request otherwise leaves the tab permanently unable to
+  // record another score. Discarding it clears only this tab's retry; any score
+  // the server already stored is untouched.
+  const discardPending = () => {
+    if (busy.current) return;
+    try {
+      sessionStorage.removeItem(requestKey(userId));
+      pending.current = null;
+      busy.current = false;
+      setPhase('idle');
+      setCourseId('');
+      setScore('');
+      setSemester('');
+      setYear('');
+      setMessage(
+        'This tab’s pending attempt was discarded. Any score already saved on the server is unchanged.',
+      );
+    } catch {
+      setPhase('blocked');
+      setMessage(
+        'Could not discard this tab’s pending attempt. Restore storage access and reload.',
+      );
+    }
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (phase !== 'idle' || busy.current || catalogStatus !== 'ready') return;
@@ -388,6 +413,11 @@ function GradeEntrySession({ userId, onSaved }: Props) {
               }
             >
               Reload saved grades
+            </Button>
+          )}
+          {phase === 'blocked' && pending.current && (
+            <Button type="button" variant="ghost" className="min-h-11" onClick={discardPending}>
+              Discard this pending attempt
             </Button>
           )}
         </div>

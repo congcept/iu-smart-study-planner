@@ -158,6 +158,28 @@ describe('numeric grade entry', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
+  it('lets a blocked pending attempt be discarded so the tab is usable again', async () => {
+    storage.set(key, JSON.stringify(payload));
+    read.mockResolvedValue({ ...empty, scope: assignedChoices.scope });
+    await mount();
+    await screen.findByText(/Your curriculum changed. The pending attempt is kept for recovery/);
+
+    // Without a discard control this tab could never record another score.
+    expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this pending attempt' }));
+
+    await waitFor(() => expect(storage.has(key)).toBe(false));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'This tab’s pending attempt was discarded. Any score already saved on the server is unchanged.',
+    );
+    expect(screen.getByRole('button', { name: 'Save score' })).not.toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: 'Discard this pending attempt' }),
+    ).not.toBeInTheDocument();
+    // Discarding is local only; it must never post the stale attempt.
+    expect(append).not.toHaveBeenCalled();
+  });
+
   it('recovers a scoped lost response in a newer curriculum without posting again', async () => {
     append.mockImplementation(async (data) => {
       read.mockResolvedValue({ ...saved(data), scope: assignedChoices.scope });
