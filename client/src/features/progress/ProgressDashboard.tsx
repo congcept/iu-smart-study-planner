@@ -1,226 +1,240 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import type { StudentRecord, Course } from '@/types';
-import { Badge, Card, ProgressBar } from '@components/ui';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+
+import type { Course, StudentRecord } from '@/types';
 import { getUserProgress } from '@/lib/api';
-import { GraduationCap, BookOpen, Target, Award, Clock } from 'lucide-react';
-import { categoryLabels } from '@/lib/utils';
+import { categoryLabels, formatCredits, formatSemester } from '@/lib/utils';
+import { Badge, Button, Card, ProgressBar } from '@components/ui';
 
 interface ProgressDashboardProps {
   userId: string;
 }
 
+type ProgressData = {
+  completed: StudentRecord[];
+  inProgress: StudentRecord[];
+  planned: StudentRecord[];
+  available: Course[];
+  progress: {
+    totalCourses: number;
+    completedCourses: number;
+    totalCredits: number;
+    completedCredits: number;
+    percentage: number;
+  };
+};
+
 export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ userId }) => {
-  const [progress, setProgress] = useState<{
-    completed: StudentRecord[];
-    inProgress: StudentRecord[];
-    planned: StudentRecord[];
-    available: Course[];
-    progress: {
-      totalCourses: number;
-      completedCourses: number;
-      totalCredits: number;
-      completedCredits: number;
-      percentage: number;
-    };
-  } | null>(null);
+  const [data, setData] = useState<ProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const requestId = useRef(0);
 
   const fetchProgress = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    setIsLoading(true);
+    setHasError(false);
     try {
-      setIsLoading(true);
       const response = await getUserProgress(userId);
-      if (response.success && response.data) {
-        setProgress(response.data);
+      if (currentRequest !== requestId.current) return;
+      if (!response.success || !response.data) throw new Error('Progress unavailable');
+      setData(response.data);
+    } catch {
+      if (currentRequest === requestId.current) {
+        setData(null);
+        setHasError(true);
       }
-    } catch (error) {
-      console.error('Failed to fetch progress:', error);
     } finally {
-      setIsLoading(false);
+      if (currentRequest === requestId.current) setIsLoading(false);
     }
   }, [userId]);
 
   useEffect(() => {
-    fetchProgress();
+    void fetchProgress();
+    return () => {
+      requestId.current += 1;
+    };
   }, [fetchProgress]);
 
   if (isLoading) {
     return (
-      <Card title="Progress Dashboard">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      <Card title="Recorded progress">
+        <div
+          role="status"
+          className="flex items-center justify-center gap-3 py-12 text-sm text-gray-700"
+        >
+          <div
+            aria-hidden="true"
+            className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600"
+          />
+          Loading progress…
         </div>
       </Card>
     );
   }
 
-  if (!progress) {
+  if (hasError || !data) {
     return (
-      <Card title="Progress Dashboard">
-        <div className="text-center py-8 text-gray-500">
-          <p>Failed to load progress data</p>
+      <Card title="Recorded progress">
+        <div role="alert" className="space-y-3 py-4">
+          <p className="text-sm text-gray-700">
+            We couldn’t load your progress. Check your connection and try again.
+          </p>
+          <Button variant="secondary" onClick={() => void fetchProgress()}>
+            Retry loading
+          </Button>
         </div>
       </Card>
     );
   }
 
-  const { completed, inProgress, available } = progress;
+  const { completed, inProgress, available } = data;
+  const counts = data.progress;
 
   return (
     <div className="space-y-6">
-      {/* Overall Progress */}
-      <Card title="Overall Progress" subtitle="Track your degree completion">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="p-4 bg-blue-50 rounded-lg text-center">
-            <GraduationCap size={32} className="mx-auto mb-2 text-blue-600" />
-            <div className="text-2xl font-bold text-gray-900">
-              {progress.progress.completedCourses}
-            </div>
-            <div className="text-sm text-gray-600">Courses Completed</div>
-          </div>
-
-          <div className="p-4 bg-green-50 rounded-lg text-center">
-            <Award size={32} className="mx-auto mb-2 text-green-600" />
-            <div className="text-2xl font-bold text-gray-900">
-              {progress.progress.completedCredits}
-            </div>
-            <div className="text-sm text-gray-600">Credits Earned</div>
-          </div>
-
-          <div className="p-4 bg-amber-50 rounded-lg text-center">
-            <Clock size={32} className="mx-auto mb-2 text-amber-600" />
-            <div className="text-2xl font-bold text-gray-900">{inProgress.length}</div>
-            <div className="text-sm text-gray-600">In Progress</div>
-          </div>
-
-          <div className="p-4 bg-purple-50 rounded-lg text-center">
-            <BookOpen size={32} className="mx-auto mb-2 text-purple-600" />
-            <div className="text-2xl font-bold text-gray-900">{available.length}</div>
-            <div className="text-sm text-gray-600">Available</div>
-          </div>
+      <Card title="Recorded progress" subtitle="Courses and credits in the current catalog">
+        <div className="mb-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-gray-200 pb-5">
+          <strong className="text-3xl font-semibold tabular-nums text-gray-900">
+            {counts.completedCourses}
+          </strong>
+          <span className="text-gray-700">
+            of {counts.totalCourses} catalog courses recorded as complete
+          </span>
         </div>
-
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Courses Completed</span>
-              <span className="text-sm text-gray-500">
-                {progress.progress.completedCourses} / {progress.progress.totalCourses}
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="font-medium text-gray-900">Courses recorded as complete</span>
+              <span className="tabular-nums text-gray-700">
+                {counts.completedCourses} / {counts.totalCourses}
               </span>
             </div>
-            <ProgressBar
-              progress={progress.progress.completedCourses}
-              max={progress.progress.totalCourses}
-            />
+            <div
+              role="progressbar"
+              aria-label="Courses recorded as complete"
+              aria-valuemin={0}
+              aria-valuemax={counts.totalCourses || 1}
+              aria-valuenow={counts.completedCourses}
+            >
+              <ProgressBar
+                progress={counts.completedCourses}
+                max={counts.totalCourses || 1}
+                showLabel={false}
+              />
+            </div>
           </div>
-
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Credits Completed</span>
-              <span className="text-sm text-gray-500">
-                {progress.progress.completedCredits} / {progress.progress.totalCredits}
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="font-medium text-gray-900">Credits recorded as complete</span>
+              <span className="tabular-nums text-gray-700">
+                {counts.completedCredits} / {counts.totalCredits}
               </span>
             </div>
-            <ProgressBar
-              progress={progress.progress.completedCredits}
-              max={progress.progress.totalCredits}
-            />
+            <div
+              role="progressbar"
+              aria-label="Credits recorded as complete"
+              aria-valuemin={0}
+              aria-valuemax={counts.totalCredits || 1}
+              aria-valuenow={counts.completedCredits}
+            >
+              <ProgressBar
+                progress={counts.completedCredits}
+                max={counts.totalCredits || 1}
+                showLabel={false}
+              />
+            </div>
           </div>
         </div>
-
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Target size={20} className="text-primary-600" />
-            <span className="font-medium text-gray-900">Degree Progress</span>
-          </div>
-          <div className="text-3xl font-bold text-primary-600">{progress.progress.percentage}%</div>
-          <p className="text-sm text-gray-600 mt-1">
-            {progress.progress.totalCourses - progress.progress.completedCourses} more courses to
-            graduate
-          </p>
-        </div>
+        <p className="mt-5 text-sm text-gray-700">
+          This catalog count is a record summary, not a graduation or GPA calculation. Physical
+          Training 1 and 2 do not count toward completed credits.
+        </p>
       </Card>
 
-      {/* Completed Courses */}
-      {completed.length > 0 && (
-        <Card title="Completed Courses" subtitle={`${completed.length} courses finished`}>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+      <Card title="Completed courses" subtitle={`${completed.length} recorded`}>
+        {completed.length === 0 ? (
+          <p className="text-sm text-gray-700">No completed courses have been recorded yet.</p>
+        ) : (
+          <ul className="max-h-72 space-y-2 overflow-y-auto">
             {completed.map((record) => (
-              <div
+              <li
                 key={record.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 py-2 last:border-0"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">{record.course.code}</span>
-                    <Badge variant="success">{record.grade || 'Pass'}</Badge>
-                  </div>
-                  <p className="text-sm text-gray-600">{record.course.name}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900">
+                    {record.course.code}{' '}
+                    <span className="font-normal text-gray-700">{record.course.name}</span>
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    {formatCredits(record.course.credits)}
+                    {record.semester && record.year
+                      ? ` · ${formatSemester(record.semester, record.year)}`
+                      : ''}
+                  </p>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm text-gray-500">
-                    {record.semester} {record.year}
-                  </span>
-                  <p className="text-xs text-gray-400">{record.course.credits} credits</p>
-                </div>
-              </div>
+                {record.grade && <Badge variant="success">Grade {record.grade}</Badge>}
+              </li>
             ))}
-          </div>
-        </Card>
-      )}
+          </ul>
+        )}
+      </Card>
 
-      {/* In Progress */}
       {inProgress.length > 0 && (
-        <Card title="In Progress" subtitle={`${inProgress.length} courses currently enrolled`}>
-          <div className="space-y-2">
+        <Card title="In progress" subtitle={`${inProgress.length} recorded`}>
+          <ul className="space-y-2">
             {inProgress.map((record) => (
-              <div
+              <li
                 key={record.id}
-                className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 py-2 last:border-0"
               >
-                <div>
-                  <span className="font-semibold text-gray-900">{record.course.code}</span>
-                  <p className="text-sm text-gray-600">{record.course.name}</p>
-                </div>
-                <div className="text-right">
-                  <Badge variant="info">In Progress</Badge>
-                  <p className="text-xs text-gray-400 mt-1">{record.course.credits} credits</p>
-                </div>
-              </div>
+                <span className="font-medium text-gray-900">
+                  {record.course.code}{' '}
+                  <span className="font-normal text-gray-700">{record.course.name}</span>
+                </span>
+                <span className="text-sm text-gray-700">
+                  {formatCredits(record.course.credits)}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </Card>
       )}
 
-      {/* Available Courses */}
-      {available.length > 0 && (
-        <Card title="Available Next" subtitle={`${available.length} courses you can take`}>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {available.slice(0, 10).map((course) => (
-              <div
-                key={course.id}
-                className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">{course.code}</span>
-                    <Badge variant="default">{categoryLabels[course.category]}</Badge>
+      <Card
+        title="Prerequisites met"
+        subtitle={`${available.length} catalog courses currently eligible`}
+      >
+        {available.length === 0 ? (
+          <p className="text-sm text-gray-700">
+            No additional catalog courses currently meet the recorded prerequisites.
+          </p>
+        ) : (
+          <>
+            <ul className="max-h-72 space-y-2 overflow-y-auto">
+              {available.slice(0, 10).map((course) => (
+                <li
+                  key={course.id}
+                  className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 py-2 last:border-0"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900">
+                      {course.code} <span className="font-normal text-gray-700">{course.name}</span>
+                    </p>
+                    <p className="text-sm text-gray-700">{categoryLabels[course.category]}</p>
                   </div>
-                  <p className="text-sm text-gray-600">{course.name}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-sm text-gray-500">Level {course.difficultyLevel}</span>
-                  <p className="text-xs text-gray-400">{course.credits} credits</p>
-                </div>
-              </div>
-            ))}
+                  <span className="text-sm text-gray-700">{formatCredits(course.credits)}</span>
+                </li>
+              ))}
+            </ul>
             {available.length > 10 && (
-              <p className="text-center text-sm text-gray-500 py-2">
-                + {available.length - 10} more courses available
+              <p className="mt-3 text-sm text-gray-700">
+                Showing 10 of {available.length} eligible catalog courses.
               </p>
             )}
-          </div>
-        </Card>
-      )}
+          </>
+        )}
+      </Card>
     </div>
   );
 };
