@@ -1,0 +1,332 @@
+{
+  "source": {
+    "officialUrl": "https://hcmiu.edu.vn/wp-content/uploads/2026/04/CTDT-K2025-Nganh-Khoa-hoc-May-tinh-Signed_compressed.pdf",
+    "retrievedOn": "2026-10-18",
+    "bytes": 11072162,
+    "sha256": "00dc4476c314b80324b53f85fc5ead94e7f89350b93dd2b96e76d642ca160c9b",
+    "pdfPages": 576,
+    "cohort": "2025",
+    "programCode": "7480101"
+  },
+  "scope": "TABLE_6_CATALOG_ONLY",
+  "readiness": false,
+  "statedGraduationCredits": 126,
+  "statedGraduationCreditsPdfPage": 6,
+  "courses": [
+    {
+      "code": "PE015IU",
+      "credits": 3,
+      "pdfPage": 7
+    },
+    {
+      "code": "PE016IU",
+      "credits": 2,
+      "pdfPage": 7
+    },
+    {
+      "code": "PE017IU",
+      "credits": 2,
+      "pdfPage": 7
+    },
+    {
+      "code": "PE018IU",
+      "credits": 2,
+      "pdfPage": 7
+    },
+    {
+      "code": "PE019IU",
+      "credits": 2,
+      "pdfPage": 7
+    },
+    {
+      "code": "MA001IU",
+      "credits": 4,
+      "pdfPage": 7
+    },
+    {
+      "code": "MA003IU",
+      "credits": 4,
+      "pdfPage": 7
+    },
+    {
+      "code": "MA036IU",
+      "credits": 3,
+      "pdfPage": 7
+    },
+    {
+      "code": "PH013IU",
+      "credits": 2,
+      "pdfPage": 7
+    },
+    {
+      "code": "PH015IU",
+      "credits": 3,
+      "pdfPage": 8
+    },
+    {
+      "code": "PH016IU",
+      "credits": 1,
+      "pdfPage": 8
+    },
+    {
+      "code": "MA033IU",
+      "credits": 3,
+      "pdfPage": 8
+    },
+    {
+      "code": "IT153IU",
+      "credits": 3,
+      "pdfPage": 8
+    },
+    {
+      "code": "PE021IU",
+      "credits": 3,
+      "pdfPage": 8
+    },
+    {
+      "code": "EN008IU",
+      "credits": 2,
+      "pdfPage": 8
+    },
+    {
+      "code": "EN007IU",
+      "credits": 2,
+      "pdfPage": 8
+    },
+    {
+      "code": "EN012IU",
+      "credits": 2,
+      "pdfPage": 8
+    },
+    {
+      "code": "EN011IU",
+      "credits": 2,
+      "pdfPage": 8
+    },
+    {
+      "code": "PT001IU",
+      "credits": 3,
+      "pdfPage": 8
+    },
+    {
+      "code": "PT002IU",
+      "credits": 3,
+      "pdfPage": 8
+    },
+    {
+      "code": "IT064IU",
+      "credits": 3,
+      "pdfPage": 8
+    },
+    {
+      "code": "IT116IU",
+      "credits": 4,
+      "pdfPage": 8
+    },
+    {
+      "code": "IT069IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT013IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT079IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT089IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT091IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT090IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT076IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT093IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT092IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT017IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT159IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT160IU",
+      "credits": 4,
+      "pdfPage": 9
+    },
+    {
+      "code": "IT130IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT114IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT096IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT131IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT094IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT056IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT024IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT157IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT134IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT133IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT175IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT164IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT165IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT166IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT167IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT150IU",
+      "credits": 4,
+      "pdfPage": 10
+    },
+    {
+      "code": "IT156IU",
+      "credits": 4,
+      "pdfPage": 11
+    },
+    {
+      "code": "IT138IU",
+      "credits": 4,
+      "pdfPage": 11
+    },
+    {
+      "code": "PE008IU",
+      "credits": 3,
+      "pdfPage": 11
+    },
+    {
+      "code": "IT120IU",
+      "credits": 3,
+      "pdfPage": 11
+    },
+    {
+      "code": "IT082IU",
+      "credits": 3,
+      "pdfPage": 11
+    },
+    {
+      "code": "IT083IU",
+      "credits": 3,
+      "pdfPage": 11
+    },
+    {
+      "code": "IT058IU",
+      "credits": 10,
+      "pdfPage": 11
+    }
+  ],
+  "requirements": [
+    {
+      "kind": "FREE_ELECTIVE",
+      "credits": 3,
+      "pdfPage": 11,
+      "sourceRow": 54
+    }
+  ],
+  "blockers": [
+    {
+      "code": "PREREQUISITE_POLICY_CONFLICTS",
+      "pdfPages": [12, 13, 14, 15, 25],
+      "message": "Mandatory-policy cycles, absent prerequisite identities, OR alternatives and inconsistent prerequisites need explicit reconciliation; do not import a flattened graph."
+    },
+    {
+      "code": "ELECTIVE_RULE_CONFLICTS",
+      "pdfPages": [9, 11, 15, 16, 17, 18],
+      "message": "Catalog minimum credits and reference-schedule option labels need reconciliation; option-credit totals are not degree credits."
+    },
+    {
+      "code": "INTERNAL_SOURCE_CONFLICTS",
+      "pdfPages": [8, 10, 11, 12, 13, 14, 16, 17, 18, 29, 36, 38, 39],
+      "message": "Catalog, reference schedule, course summaries and change appendix disagree; no section precedence or silent correction is inferred."
+    },
+    {
+      "code": "COHORT_AND_GRADUATION_UNVERIFIED",
+      "pdfPages": [1, 18, 36, 37],
+      "message": "Do not assign users, infer a GPA fork or claim approval authenticity. The filename and byte hash are not cryptographic signature or institutional-policy verification."
+    }
+  ]
+}

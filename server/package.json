@@ -21,7 +21,8 @@
     "allocation:run-one": "ts-node src/scripts/runAllocationJob.ts",
     "semester-allocation:run-one": "ts-node src/scripts/runSemesterAllocationJob.ts",
     "semester-allocation:profile": "node dist/scripts/profileSemesterAllocation.js",
-    "semester-allocation:profile-stored": "node dist/scripts/profileStoredSemesterVerification.js"
+    "semester-allocation:profile-stored": "node dist/scripts/profileStoredSemesterVerification.js",
+    "inspect:cs2025-catalog": "ts-node src/scripts/inspectCs2025Catalog.ts"
   },
   "keywords": [
     "study-planner",

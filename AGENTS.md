@@ -196,6 +196,45 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-18
 
+### CS 2025 catalog evidence and offline comparison
+
+The previously challenged official CS 2025 PDF was retrieved on 2026-10-18: 11,072,162 bytes,
+576 physical PDF pages, SHA256 00dc4476c314b80324b53f85fc5ead94e7f89350b93dd2b96e76d642ca160c9b.
+A bounded review covered all Table 6 catalog pages 7–11 and reference-schedule pages 12–18,
+plus selected cover/totals/summaries/signature/appendix evidence. Not all syllabi were reviewed.
+The cover identifies cohort 2025/program 7480101 but has a blank decision number; no
+cryptographic signature or complete approval-authenticity verification is claimed.
+
+The portable minimal manifest retains 57 unique code/credit/page rows and a separate blank-code
+three-credit Free Elective. The offline inspect:cs2025-catalog command requires the exact local
+PDF length/hash, validates evidence and legacy structures, and prints deterministic exact-code
+membership/credit differences with blockers. All 52 shared identities retain matching credits;
+five signed-catalog-only and four legacy-only codes are reported without substitutions/deletions.
+No PDF parsing or transcription verification occurs anew at runtime. The report always retains
+sourceBodyHashMatched=true, signatureVerified=false and readiness=false. No database/config
+imports, HTTP API, dependency, migration, seed, user assignment or active curriculum change.
+
+All four blocker categories remain: prerequisite policy conflicts, elective-rule conflicts,
+internal source discrepancies and cohort/graduation/approval uncertainty. In particular mandatory
+SH edges would create a PH015/PH016 cycle, OR/external prerequisites cannot be flattened, and
+catalog/schedule/summaries/appendix differ. The 126-credit stated total and required Thesis table
+cannot replace legacy 130-credit/GPA-fork behavior. Current source/course/history stay untouched.
+
+Independent review matched all 57 manifest rows/free elective against the reviewed extraction,
+rehashed actual PDF bytes, and found no blocker in the service/CLI/tests. 54 focused pure cases
+pass; source and compiled CLI against the actual PDF produce identical reports from different
+working directories even with invalid app configuration. Four compiled invalid-input checks
+reject without a report. Production build/types/zero-warning lint/format and the full frozen-source
+run pass: 109 server suites/3026 real PostgreSQL tests, 92 client suites/2254 tests and 10 startup
+cases. Only disposable verification data was initialized/removed; app data/dependencies stay intact.
+The exact PR head must pass full Ubuntu checks before merge.
+See `docs/phase-1/cs-2025-catalog-review.md`.
+
+Next: reconcile the explicitly recorded prerequisite/elective/source policy conflicts without
+choosing a cohort or changing user history. Work requiring institutional policy/approval decisions
+remains skipped while the user is away; verified assignment, calendar/staff/lab and hosting gates
+remain closed. IT/DS evidence can advance independently without activation.
+
 ### Highest-score distribution
 
 Grades now includes five numeric score ranges with exact course counts and decorative bars.
@@ -214,8 +253,12 @@ PostgreSQL server tests, 2254 client tests and 10 startup cases. One initial cli
 an unchanged Planner editor-opening test; its 43-case focused rerun and the complete unchanged
 client rerun pass. No assertions or timing limits were weakened. Verification seeded/removed
 only a new disposable database; the application database/dependencies remain untouched.
-Full Ubuntu checks are required on the exact PR head before merge.
-See `docs/phase-2/score-distribution.md`.
+The exact head passed full Ubuntu
+[run 39143031980](https://github.com/congcept/iu-smart-study-planner/actions/runs/39143031980)
+and [PR #135](https://github.com/congcept/iu-smart-study-planner/pull/135) merged as
+2664c02a280b04e4cb75caf0e1d368f6350ba438. The merged tree matched the tested/reviewed head,
+and only six owned files were synced back, preserving branch/staging and 636 unrelated
+files/env/dependency markers. See `docs/phase-2/score-distribution.md`.
 
 ### Production frontend-origin preflight
 
@@ -242,12 +285,9 @@ The exact reviewed head passed full Ubuntu run 39129284477 and was merged throug
 46b07a1ac17d5ab6a8d9ef62c8402689358a4a0c; the merged tree matched the tested head. See
 `docs/phase-5/deployment-readiness.md`. Only disposable verification data was seeded/removed.
 
-Next source slice: read the official signed CS 2025 PDF and record a source hash plus page
-locators before reconciling identities, prerequisites and elective credits. On 2026-10-18,
-the official PDF URL initially returned an HTML challenge. A later bounded public-cookie
-retry recovered the PDF, and a separate bounded catalog/source review is underway. Do not
-select a cohort or activate/assign curricula from artifact retrieval alone.
-Hosting/domain/cookie topology and unresolved school rules still need separate decisions.
+The later bounded CS 2025 artifact/catalog review is recorded above. Retrieval is resolved;
+source-policy reconciliation and institutional/cohort/assignment gates remain open. Hosting,
+domain and cookie topology also need separate deployment decisions.
 
 ### Reproducible installs and GitHub checks — merged PR #132
 
