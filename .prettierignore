@@ -1,0 +1,5 @@
+# Generated workspace output
+**/dist/
+
+# Historical conversation export; preserve the original transcript
+/session-ses_231c.md

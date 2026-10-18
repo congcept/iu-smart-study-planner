@@ -11,7 +11,7 @@
     "dev:backend": "node scripts/runDevelopment.mjs backend",
     "dev:frontend": "node scripts/runDevelopment.mjs frontend",
     "test:development": "node --test scripts/__tests__/runDevelopment.test.mjs",
-    "install:all": "npm install",
+    "install:all": "npm ci",
     "build:shared": "npm run build --workspace=shared",
     "build:client": "npm run build:shared && npm run build --workspace=client",
     "build:server": "npm run build:shared && npm run build --workspace=server",
@@ -19,13 +19,18 @@
     "test:client": "npm run test:run --workspace=client",
     "test:server": "npm run test --workspace=server",
     "test": "npm run build:shared && npm run test:development && npm run test:server && npm run test:client",
-    "lint": "npm run lint --workspaces",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
+    "lint": "npm run lint --workspaces -- --max-warnings 0",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\"",
     "typecheck": "npm run build:shared && npm run typecheck --workspaces"
   },
   "devDependencies": {
     "concurrently": "^9.2.4",
     "prettier": "^3.8.1"
-  }
+  },
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+  "packageManager": "npm@11.19.1"
 }

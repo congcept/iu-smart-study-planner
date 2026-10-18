@@ -53,11 +53,12 @@ function generateDescription(course: ScrapedCourse): string | undefined {
   return parts.length > 0 ? parts.join(', ') : undefined;
 }
 
-function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: string; prerequisite: string }[] {
+function inferPrerequisites(
+  allCourses: Map<string, ScrapedCourse>,
+): { course: string; prerequisite: string }[] {
   const prerequisites: { course: string; prerequisite: string }[] = [];
 
-  const labToLecture: Record<string, string> = {
-  };
+  const labToLecture: Record<string, string> = {};
 
   for (const [labCode, lectureCode] of Object.entries(labToLecture)) {
     if (allCourses.has(labCode) && allCourses.has(lectureCode)) {
@@ -66,25 +67,25 @@ function inferPrerequisites(allCourses: Map<string, ScrapedCourse>): { course: s
   }
 
   const yearProgression: Record<string, string[]> = {
-    'IT069IU': ['IT116IU'],
-    'IT013IU': ['IT069IU', 'IT153IU'],
-    'IT079IU': ['IT069IU'],
-    'MA003IU': ['MA001IU'],
-    'IT089IU': ['IT069IU'],
-    'IT090IU': ['IT069IU'],
-    'IT017IU': ['IT089IU', 'IT013IU'],
-    'IT114IU': ['IT090IU'],
-    'IT160IU': ['IT079IU'],
-    'IT130IU': ['MA001IU', 'IT154IU'],
-    'IT076IU': ['IT090IU'],
-    'IT082IU': ['IT013IU'],
-    'IT083IU': ['IT076IU'],
-    'IT168IU': ['IT083IU'],
-    'IT164IU': ['IT091IU'],
-    'IT165IU': ['IT091IU'],
-    'IT150IU': ['IT079IU'],
-    'IT156IU': ['IT091IU'],
-    'IT138IU': ['MA026IU'],
+    IT069IU: ['IT116IU'],
+    IT013IU: ['IT069IU', 'IT153IU'],
+    IT079IU: ['IT069IU'],
+    MA003IU: ['MA001IU'],
+    IT089IU: ['IT069IU'],
+    IT090IU: ['IT069IU'],
+    IT017IU: ['IT089IU', 'IT013IU'],
+    IT114IU: ['IT090IU'],
+    IT160IU: ['IT079IU'],
+    IT130IU: ['MA001IU', 'IT154IU'],
+    IT076IU: ['IT090IU'],
+    IT082IU: ['IT013IU'],
+    IT083IU: ['IT076IU'],
+    IT168IU: ['IT083IU'],
+    IT164IU: ['IT091IU'],
+    IT165IU: ['IT091IU'],
+    IT150IU: ['IT079IU'],
+    IT156IU: ['IT091IU'],
+    IT138IU: ['MA026IU'],
   };
 
   for (const [courseCode, prereqCodes] of Object.entries(yearProgression)) {
@@ -157,7 +158,9 @@ async function main() {
         },
       });
       courseCodeToId.set(course.id, existing.id);
-      console.log(`  Updated: ${course.id} - ${course.name} [electiveGroup: ${course.electiveGroup || 'N/A'}]`);
+      console.log(
+        `  Updated: ${course.id} - ${course.name} [electiveGroup: ${course.electiveGroup || 'N/A'}]`,
+      );
       continue;
     }
 
@@ -178,7 +181,9 @@ async function main() {
     });
 
     courseCodeToId.set(course.id, created.id);
-    console.log(`  Created: ${course.id} - ${course.name} [${category}, difficulty:${difficultyLevel}]`);
+    console.log(
+      `  Created: ${course.id} - ${course.name} [${category}, difficulty:${difficultyLevel}]`,
+    );
   }
 
   const prerequisitePairs = inferPrerequisites(allCoursesMap);
@@ -317,7 +322,9 @@ async function main() {
         difficultyScore,
       },
     });
-    console.log(`  Planned: ${plan.semester} ${plan.year}: ${validCodes.join(', ')} (${totalCredits} credits)`);
+    console.log(
+      `  Planned: ${plan.semester} ${plan.year}: ${validCodes.join(', ')} (${totalCredits} credits)`,
+    );
   }
 
   const totalCredits = allCoursesFlat.reduce((sum, c) => sum + c.credits, 0);

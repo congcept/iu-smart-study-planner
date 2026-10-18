@@ -84,7 +84,7 @@ The backend recommendation engine scores available courses by category priority 
 
 ### Backend
 
-- **Runtime:** Node.js 20
+- **Runtime:** Node.js 24 (exact development version in `.nvmrc`)
 - **Framework:** Express.js 4.18
 - **Language:** TypeScript 5.2 (Strict Mode)
 - **ORM:** Prisma 5.6
@@ -162,7 +162,7 @@ iu-smart-study-planner/
 ### Prerequisites
 
 - Docker Desktop (recommended) or Docker Engine with Docker Compose
-- Node.js 20 or later (for local development without Docker)
+- Node.js **24.22.0**, with bundled npm **11.19.1** (for local development); `.nvmrc` pins the verified version. If you use nvm, run `nvm install` and `nvm use` from this folder.
 
 ### Option 1: Docker Compose (Recommended)
 
@@ -189,7 +189,7 @@ Services will be available at:
 | Health   | http://localhost:3001/api/health |
 | Database | localhost:5432                   |
 
-Compose builds the shared schemas at startup and applies development migrations.
+Compose builds the shared schemas at startup and applies reviewed migrations with `prisma migrate deploy`.
 Seeding is an explicit first-setup step. The current seed skips a database that already
 contains users; it is not a repair command for partially populated databases.
 
@@ -207,7 +207,7 @@ docker compose stop frontend backend
 # Start only PostgreSQL (keep Docker Desktop open)
 docker compose up -d postgres
 
-# Install workspace dependencies
+# Install the exact workspace dependencies from the committed root lockfile
 npm run install:all
 
 # First setup only: copy these files if your .env files do not already exist
@@ -235,7 +235,7 @@ compile shared schemas before their consumers.
 
 ### Pre-flight checks
 
-- Node.js version: `node -v` (recommended 20 or later)
+- Runtime versions: `node -v` → `v24.22.0`; `npm -v` → `11.19.1`
 - Docker daemon running (for compose): `docker info`
 - Environment files exist:
   - `server/.env` with `DATABASE_URL`, `PORT`, `CORS_ORIGIN`
@@ -257,7 +257,15 @@ npm run lint
 npm run test
 ```
 
-All commands should exit with code 0.
+All commands should exit with code 0. `install:all` runs `npm ci`, which replaces the
+installed dependency tree. Run it during setup or after stopping local watchers when
+updating dependencies. Keep `package-lock.json` committed alongside dependency changes.
+Use the pinned Node/npm versions when updating the lockfile with `npm install`.
+
+GitHub runs clean installs, production builds, types, zero-warning lint, formatting and the full
+startup/server/client tests for every PR and push to `main`. Server tests migrate and
+seed an isolated PostgreSQL 15 service; no application database or deployment secrets
+are used. See [CI and reproducible installs](docs/phase-5/continuous-integration.md).
 
 ### Start with Docker (preferred)
 
