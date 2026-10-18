@@ -548,17 +548,15 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   return (
     <div className="space-y-5 overflow-hidden w-full max-w-full">
       {userId ? (
-        <p role="status" className="mb-3 text-sm text-gray-600">
-          {progressImportStatus === 'importing'
-            ? 'Importing earlier selections…'
-            : pendingCompletionIds.size
-              ? progressError
-                ? 'Checking saved progress…'
-                : 'Saving progress…'
-              : progressError
-                ? 'Showing your latest saved progress. Review it before trying the change again.'
+        progressError ? null : (
+          <p role="status" className="mb-3 text-sm text-gray-600">
+            {progressImportStatus === 'importing'
+              ? 'Importing earlier selections…'
+              : pendingCompletionIds.size
+                ? 'Saving progress…'
                 : 'Progress saved to your account'}
-        </p>
+          </p>
+        )
       ) : (
         <p className="text-sm text-gray-600">
           Demo selections stay in this browser and are not added to an account when you sign in.
@@ -575,9 +573,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         </div>
       )}
       {progressError && (
-        <p role="alert" className="mb-3 text-sm text-red-700">
-          {progressError}
-        </p>
+        <div role="alert" className="mb-3 text-sm">
+          <p className="text-red-700">{progressError}</p>
+          <p className="mt-1 text-gray-700">
+            Showing your latest saved progress. Review it before trying the change again.
+          </p>
+        </div>
       )}
       {userId && <ArchivedProgressImport key={userId} userId={userId} courses={allCourses} />}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">

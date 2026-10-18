@@ -169,6 +169,39 @@ describe('server GPA policy in the curriculum map', () => {
     expect(getStudentGrades).toHaveBeenCalledTimes(1);
   });
 
+  it('never claims a save is still in progress once it has failed', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+    await screen.findByText('MA001IU');
+
+    act(() =>
+      useAppStore.setState({
+        progressError: 'The save could not be confirmed.',
+        pendingCompletionIds: new Set(['MA001IU']),
+      }),
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The save could not be confirmed.');
+    expect(alert).toHaveTextContent('Review it before trying the change again.');
+    // A failed save must not also be announced as still running.
+    expect(screen.queryByText(/Saving progress/)).toBeNull();
+    expect(screen.queryByText(/Checking saved progress/)).toBeNull();
+  });
+
+  it('announces a save in progress only while it is genuinely running', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+    await screen.findByText('MA001IU');
+
+    act(() => useAppStore.setState({ pendingCompletionIds: new Set(['MA001IU']) }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Saving progress');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('keeps the curriculum visible but read-only while the account GPA is loading', async () => {
     signIn('alice');
     const pending = deferred<StudentGradesDTO>();
