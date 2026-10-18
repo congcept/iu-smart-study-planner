@@ -107,7 +107,7 @@ describe('compact course node controls', () => {
 
   it('blocks completion, right-click and keyboard planning while editing is disabled', () => {
     const { button, onToggleComplete, onTogglePlanned, onCompleteToPlanned } = showCard({
-      disabled: true,
+      disabledReason: 'pending',
     });
     expect(button).toBeDisabled();
     fireEvent.click(button);
@@ -117,6 +117,27 @@ describe('compact course node controls', () => {
     expect(onToggleComplete).not.toHaveBeenCalled();
     expect(onTogglePlanned).not.toHaveBeenCalled();
     expect(onCompleteToPlanned).not.toHaveBeenCalled();
+  });
+
+  it('only presents a busy cursor while a save is actually in flight', () => {
+    const pending = showCard({ disabledReason: 'pending' });
+    expect(pending.button).toHaveClass('disabled:cursor-wait');
+    expect(screen.getByText(/Saving another course right now/)).toBeVisible();
+
+    cleanup();
+    const paused = showCard({ disabledReason: 'gpa-path' });
+    expect(paused.button).toHaveClass('disabled:cursor-not-allowed');
+    expect(paused.button).not.toHaveClass('disabled:cursor-wait');
+    expect(screen.getByText(/paused until your GPA path is confirmed/)).toBeVisible();
+  });
+
+  it('points the disabled button at its explanation for assistive technology', () => {
+    const { button } = showCard({ disabledReason: 'progress' });
+    const describedBy = button.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy!)).toHaveTextContent(
+      'Editing is paused until your saved progress finishes loading.',
+    );
   });
 
   it('opens prerequisites instead of completing a locked course and allows closing them', () => {

@@ -87,6 +87,19 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const gpaPolicy = useGpaPath(userId);
   const y4s2GpaMode = gpaPolicy.mode;
   const gpaReady = gpaPolicy.status === 'ready';
+  // An unresolved GPA path must not hide the curriculum. It pauses editing and
+  // withholds the path-dependent claims (Y4S2 filtering, the 41/43 target).
+  const gpaPathUnresolved = !gpaReady;
+
+  // Every course card shares one reason, so the map and the elective sidebar can
+  // never disagree about why editing is paused.
+  const cardDisabledReason = !progressReady
+    ? 'progress'
+    : gpaPathUnresolved
+      ? 'gpa-path'
+      : pendingCompletionIds.size > 0
+        ? 'pending'
+        : undefined;
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
@@ -501,14 +514,6 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const handleZoomIn = useCallback(() => zoomAt(1.25), [zoomAt]);
   const handleZoomOut = useCallback(() => zoomAt(0.8), [zoomAt]);
 
-  if (!gpaReady) {
-    return (
-      <div className="mx-auto max-w-5xl p-4">
-        <GpaPathControls policy={gpaPolicy} />
-      </div>
-    );
-  }
-
   if (
     loading ||
     (userId && progressImportStatus !== 'importing' && ['idle', 'loading'].includes(progressStatus))
@@ -558,6 +563,16 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         <p className="text-sm text-gray-600">
           Demo selections stay in this browser and are not added to an account when you sign in.
         </p>
+      )}
+      {gpaPathUnresolved && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <GpaPathControls policy={gpaPolicy} />
+          <p className="mt-2 text-sm text-gray-700">
+            Your Year 4 Semester 2 course list and remaining-course target depend on this path, so
+            course editing is paused and nothing is filtered out. Everything you have already
+            recorded stays visible and counted.
+          </p>
+        </div>
       )}
       {progressError && (
         <p role="alert" className="mb-3 text-sm text-red-700">
@@ -702,18 +717,28 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           >
             {semesterDisplays.map(({ group, requiredCourses, electiveGroups }) => {
               const isY4S2 = group.year === 4 && group.semester === 2;
-              const visibleRequiredCourses = isY4S2
-                ? y4s2GpaMode === 'above'
-                  ? requiredCourses.filter((c) => c.code === 'IT058IU')
-                  : requiredCourses.filter((c) => c.code !== 'IT058IU')
-                : requiredCourses;
-              const visibleElectiveGroups = isY4S2 && y4s2GpaMode === 'above' ? [] : electiveGroups;
+              // While the path is unresolved, show every Y4S2 course unfiltered rather
+              // than silently defaulting to one branch of the fork.
+              const visibleRequiredCourses =
+                isY4S2 && gpaReady
+                  ? y4s2GpaMode === 'above'
+                    ? requiredCourses.filter((c) => c.code === 'IT058IU')
+                    : requiredCourses.filter((c) => c.code !== 'IT058IU')
+                  : requiredCourses;
+              const visibleElectiveGroups =
+                isY4S2 && gpaReady && y4s2GpaMode === 'above' ? [] : electiveGroups;
 
               return (
                 <div key={`${group.year}-${group.semester}`} className="w-48 shrink-0">
                   {group.year === 4 && group.semester === 2 && (
                     <div className="my-2 px-1">
-                      <GpaPathControls policy={gpaPolicy} />
+                      {gpaReady ? (
+                        <GpaPathControls policy={gpaPolicy} />
+                      ) : (
+                        <p className="text-[11px] font-semibold text-amber-800">
+                          GPA path unresolved — shown unfiltered and read-only.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -726,7 +751,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                       return (
                         <CourseCard
-                          disabled={!progressReady || pendingCompletionIds.size > 0}
+                          disabledReason={cardDisabledReason}
                           key={course.id}
                           course={course}
                           isCompleted={isCompleted}
@@ -908,7 +933,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                         return (
                           <CourseCard
-                            disabled={!progressReady || pendingCompletionIds.size > 0}
+                            disabledReason={cardDisabledReason}
                             key={`${activeGroup.name}-${course.id}`}
                             course={course}
                             isCompleted={isCompleted}
@@ -951,7 +976,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
             <p className="mt-1 text-sm text-gray-700">Course progress for the selected GPA path</p>
           </div>
           <span className="text-2xl font-semibold text-primary-700 tabular-nums">
-            {degreeProgress}%
+            {gpaReady ? `${degreeProgress}%` : '—'}
           </span>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-y border-gray-200 py-3 sm:grid-cols-3">
@@ -963,23 +988,32 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           </div>
           <div>
             <dt className="text-xs text-gray-600">Remaining courses</dt>
-            <dd className="text-lg font-semibold tabular-nums text-gray-900">{remainingCourses}</dd>
+            <dd className="text-lg font-semibold tabular-nums text-gray-900">
+              {gpaReady ? remainingCourses : '—'}
+            </dd>
           </div>
           <div>
             <dt className="text-xs text-gray-600">Estimated finish</dt>
             <dd className="text-sm font-semibold text-gray-900">{eta}</dd>
           </div>
         </dl>
-        <div
-          role="progressbar"
-          aria-label="Degree progress"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={degreeProgress}
-          className="mt-4 h-2 overflow-hidden rounded-full bg-gray-200"
-        >
-          <div className="h-full bg-primary-600" style={{ width: `${degreeProgress}%` }} />
-        </div>
+        {gpaReady ? (
+          <div
+            role="progressbar"
+            aria-label="Degree progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={degreeProgress}
+            className="mt-4 h-2 overflow-hidden rounded-full bg-gray-200"
+          >
+            <div className="h-full bg-primary-600" style={{ width: `${degreeProgress}%` }} />
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-700">
+            The percentage and remaining-course target are not shown until your GPA path is
+            confirmed, because the target is 41 or 43 courses depending on it.
+          </p>
+        )}
         <p className="mt-3 text-sm text-gray-700">
           The finish estimate uses remaining credits at {creditsPerSemester} credits per semester;
           prerequisites and course availability may change it.

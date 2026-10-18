@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import type { Course } from '@/types';
 import { playLockedSound } from '@/lib/sounds';
 import { CourseRatingBadge } from './CourseRatingBadge';
@@ -9,7 +9,12 @@ interface CourseCardProps {
   isPlanned: boolean;
   isLocked: boolean;
   isRecommended: boolean;
-  disabled?: boolean;
+  /**
+   * Why editing is unavailable. A card that is paused for an unrelated reason
+   * must not present itself as busy, so the reason is explicit rather than a
+   * bare boolean.
+   */
+  disabledReason?: 'progress' | 'pending' | 'gpa-path';
   isHighlighted?: boolean;
   isBlurred?: boolean;
   onToggleComplete: (courseId: string) => void;
@@ -25,7 +30,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   isPlanned,
   isLocked,
   isRecommended,
-  disabled = false,
+  disabledReason,
   isHighlighted = false,
   isBlurred = false,
   onToggleComplete,
@@ -35,6 +40,19 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onPrereqsLeave,
 }) => {
   const [showPrerequisites, setShowPrerequisites] = useState(false);
+
+  const disabled = disabledReason !== undefined;
+  const disabledNoteId = useId();
+  // Only a genuine in-flight save reads as busy. A card paused because progress
+  // or the GPA path is unresolved is simply unavailable.
+  const disabledNote =
+    disabledReason === 'pending'
+      ? 'Saving another course right now. Try again once the save finishes.'
+      : disabledReason === 'progress'
+        ? 'Editing is paused until your saved progress finishes loading.'
+        : disabledReason === 'gpa-path'
+          ? 'Editing is paused until your GPA path is confirmed.'
+          : undefined;
 
   const handleClick = useCallback(() => {
     if (disabled) return;
@@ -111,7 +129,10 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         aria-label={`${course.code} ${course.name}: ${isLocked ? 'Show prerequisites' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
         aria-pressed={isLocked ? undefined : isCompleted}
         aria-expanded={isLocked ? showPrerequisites : undefined}
-        className="min-h-11 w-full cursor-pointer rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 disabled:cursor-wait"
+        aria-describedby={disabledNote ? disabledNoteId : undefined}
+        className={`min-h-11 w-full cursor-pointer rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
+          disabledReason === 'pending' ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed'
+        }`}
       >
         <span className="flex items-center justify-between gap-1 text-[11px] leading-tight">
           <span className="flex min-w-0 items-center gap-1 font-semibold text-gray-700">
@@ -144,6 +165,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       </button>
 
       <CourseRatingBadge course={course} compact />
+
+      {disabledNote && (
+        <p id={disabledNoteId} className="mt-1 text-[11px] leading-tight text-gray-500">
+          {disabledNote}
+        </p>
+      )}
 
       {isLocked && showPrerequisites && (
         <div className="mt-1.5 border-t border-gray-200 pt-1.5 text-xs text-gray-700">
