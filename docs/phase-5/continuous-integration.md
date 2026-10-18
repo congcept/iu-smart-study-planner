@@ -41,8 +41,10 @@ Fresh macOS installation on the pinned runtime, production build, types, zero-wa
 and formatting pass. The complete unchanged rerun passes 105 server suites/2915 real
 PostgreSQL tests, 91 client suites/2248 tests and 10 startup lifecycle cases. Both current-source
 Alpine image builds and isolated client/server production builds with networking disabled
-pass; each image reports Node 24.22.0/npm 11.19.1. The first actual GitHub Linux run remains
-required before merge.
+pass; each image reports Node 24.22.0/npm 11.19.1. The corrected actual Ubuntu run
+[39119579402](https://github.com/congcept/iu-smart-study-planner/actions/runs/39119579402)
+passes all gates; [PR #132](https://github.com/congcept/iu-smart-study-planner/pull/132)
+is merged with an exact-tree verification.
 
 The first local complete run had two transaction-start timeouts. Both affected suites
 (62 tests) and read-only concurrent transaction probes on Node 24 and 25 passed unchanged.
@@ -58,15 +60,15 @@ The original historical conversation export is excluded explicitly, as are gener
 files. The format scripts now also include YAML, covering the workflow itself. No application
 logic was changed by these corrections.
 
-Next: verify GitHub Linux, then correct the README against current source and retain the
-recorded source/assignment and deployment readiness gates.
+Next: keep the README aligned with current source, then implement the bounded production
+frontend-origin preflight. Source/assignment and deployment readiness gates remain open.
 
 The first Ubuntu run passed install/build/types/lint/format/migration/seed/startup and
 2914 server tests, exposing one pre-existing test assumption: JS byte sorting and SQL
 collation need not agree for mixed-case course codes. The assertion now checks the exact
 fixture projection in database code order, preserving membership/field/order coverage;
 no application ordering policy changes. The corrected local full run passes all 2915 server, 2248 client and 10 startup cases,
-plus build/types/zero-warning lint/formatting; the corrected Linux run is required before merge.
+plus build/types/zero-warning lint/formatting; the corrected full Linux run also passes.
 A separate unattended run accumulated multi-minute timing gaps and fixture cleanup failures;
 it is not counted as passing evidence. The final full run used an idle-sleep guard scoped
 only to that verification command. The collation correction was reviewed by the coordinator;
