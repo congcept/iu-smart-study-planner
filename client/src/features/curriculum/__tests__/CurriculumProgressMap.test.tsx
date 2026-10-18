@@ -243,3 +243,53 @@ describe('prerequisite interactions', () => {
     expect(useAppStore.getState().completedIds).toEqual({ IT005IU: null });
   });
 });
+
+describe('curriculum load recovery', () => {
+  it('recovers in place when a retry succeeds after an unsuccessful read', async () => {
+    vi.mocked(getCurriculum).mockResolvedValueOnce({ success: false } as never);
+    vi.mocked(getCurriculum).mockResolvedValueOnce({
+      success: true,
+      data: [{ year: 1, semester: 1, courses: [course('IT001IU')] }],
+    } as never);
+
+    render(<CurriculumProgressMap />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not load the curriculum');
+    // A failed load must not tell the user the only option is a full page reload.
+    expect(alert).not.toHaveTextContent(/reload the page/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /try loading the curriculum again/i }));
+
+    await screen.findByText('IT001IU');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(getCurriculum).toHaveBeenCalledTimes(2);
+  });
+
+  it('recovers in place when a retry succeeds after a network failure', async () => {
+    vi.mocked(getCurriculum).mockRejectedValueOnce(new Error('Offline'));
+    vi.mocked(getCurriculum).mockResolvedValueOnce({
+      success: true,
+      data: [{ year: 1, semester: 1, courses: [course('IT001IU')] }],
+    } as never);
+
+    render(<CurriculumProgressMap />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not connect to the planner');
+
+    fireEvent.click(screen.getByRole('button', { name: /try loading the curriculum again/i }));
+
+    await screen.findByText('IT001IU');
+    expect(getCurriculum).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the retry available when a retry also fails', async () => {
+    vi.mocked(getCurriculum).mockResolvedValue({ success: false } as never);
+
+    render(<CurriculumProgressMap />);
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: /try loading the curriculum again/i }));
+
+    await waitFor(() => expect(getCurriculum).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('button', { name: /try loading the curriculum again/i })).toBeVisible();
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load the curriculum');
+  });
+});

@@ -39,24 +39,26 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
   const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
 
-  useEffect(() => {
-    const fetchCurriculum = async () => {
-      try {
-        const response = await getCurriculum();
-        if (response.success && response.data) {
-          setGroups(response.data);
-        } else {
-          setError('Could not load the curriculum. Reload the page to try again.');
-        }
-      } catch {
-        setError('Could not connect to the planner. Check your connection, then reload the page.');
-      } finally {
-        setLoading(false);
+  const loadCurriculum = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getCurriculum();
+      if (response.success && response.data) {
+        setGroups(response.data);
+      } else {
+        setError('Could not load the curriculum. Try again in a moment.');
       }
-    };
-
-    fetchCurriculum();
+    } catch {
+      setError('Could not connect to the planner. Check your connection, then try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadCurriculum();
+  }, [loadCurriculum]);
 
   const {
     toggleCourseComplete,
@@ -525,8 +527,15 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     );
   if (error)
     return (
-      <div role="alert" className="p-8 text-center text-red-600">
-        {error}
+      <div role="alert" className="p-8 text-center">
+        <p className="text-red-700">{error}</p>
+        <button
+          type="button"
+          className="mt-3 min-h-11 rounded bg-primary-600 px-4 py-2 text-white"
+          onClick={() => void loadCurriculum()}
+        >
+          Try loading the curriculum again
+        </button>
       </div>
     );
 
