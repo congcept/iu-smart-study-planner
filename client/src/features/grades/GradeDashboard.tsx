@@ -3,6 +3,7 @@ import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeEntry } from './GradeEntry';
+import { ScoreDistribution } from './ScoreDistribution';
 
 export function GradeDashboard({ userId }: { userId: string }) {
   const [result, setResult] = useState<{ ownerId: string; grades: StudentGradesDTO } | null>(null);
@@ -126,6 +127,7 @@ export function GradeDashboard({ userId }: { userId: string }) {
                 </p>
               )}
             </section>
+            <ScoreDistribution courseScores={grades.summary.courseScores} />
             <GradeEntry userId={userId} onSaved={acceptSaved} />
             <section aria-labelledby="grade-history-title">
               <h3 id="grade-history-title" className="text-lg font-semibold text-gray-900">

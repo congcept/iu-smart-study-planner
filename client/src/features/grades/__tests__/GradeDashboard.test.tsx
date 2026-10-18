@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { getStudentGrades } from '@/lib/gradesApi';
@@ -121,6 +121,9 @@ describe('numeric grade dashboard', () => {
       .mockResolvedValueOnce({ ...scored, scope });
     render(<GradeDashboard userId={userId} />);
     await screen.findByRole('alert');
+    expect(
+      screen.queryByRole('region', { name: 'Highest-score distribution' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('90.00')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
     await screen.findByText('90.00');
@@ -151,6 +154,65 @@ describe('numeric grade dashboard', () => {
     act(() => entry.onSaved?.({ ...scored, scope }));
     expect(screen.getByText('90.00')).toBeInTheDocument();
     expect(screen.queryByText('No scores yet')).not.toBeInTheDocument();
+  });
+  it('counts only the server highest-score population despite retakes and excluded history', async () => {
+    getGrades.mockResolvedValue({
+      ...scored,
+      scope,
+      attempts: [
+        ...scored.attempts,
+        {
+          ...scored.attempts[0],
+          id: 'pt',
+          courseId: 'pt',
+          score: 10,
+          course: { id: 'pt', code: 'PT001IU', name: 'Physical Training 1', credits: 2 },
+        },
+        {
+          ...scored.attempts[0],
+          id: 'outside',
+          courseId: 'outside',
+          score: 30,
+          course: { id: 'outside', code: 'OLD001IU', name: 'Historical course', credits: 3 },
+        },
+        {
+          ...scored.attempts[0],
+          id: 'zero',
+          courseId: 'zero',
+          score: 70,
+          course: { id: 'zero', code: 'ZERO001IU', name: 'Zero-credit course', credits: 0 },
+        },
+      ],
+    });
+    render(<GradeDashboard userId={userId} />);
+    const chart = await screen.findByRole('region', { name: 'Highest-score distribution' });
+    for (const label of ['0 to below 20', '20 to below 40', '40 to below 60', '60 to below 80']) {
+      expect(
+        within(within(chart).getByRole('rowheader', { name: label }).closest('tr')!).getByRole(
+          'cell',
+        ),
+      ).toHaveTextContent('0');
+    }
+    expect(
+      within(within(chart).getByRole('rowheader', { name: '80 to 100' }).closest('tr')!).getByRole(
+        'cell',
+      ),
+    ).toHaveTextContent(/^1$/);
+    expect(screen.getAllByText('MA001IU')).toHaveLength(2);
+    expect(screen.getByText('OLD001IU')).toBeInTheDocument();
+  });
+  it('refreshes the distribution from a matching saved summary', async () => {
+    getGrades.mockResolvedValue({ ...empty, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText(/No GPA-eligible numeric scores/);
+    act(() => entry.onSaved?.({ ...scored, scope }));
+    const chart = screen.getByRole('region', { name: 'Highest-score distribution' });
+    expect(
+      within(within(chart).getByRole('rowheader', { name: '80 to 100' }).closest('tr')!).getByRole(
+        'cell',
+      ),
+    ).toHaveTextContent(/^1$/);
+    expect(screen.queryByText(/No GPA-eligible numeric scores/)).not.toBeInTheDocument();
   });
   it('shows a loading state before scores arrive', async () => {
     const pending = deferred<StudentGradesDTO>();
@@ -218,6 +280,9 @@ describe('numeric grade dashboard', () => {
     await screen.findByText('90.00');
     rerender(<GradeDashboard userId="two" />);
     expect(screen.queryByText('90.00')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Highest-score distribution' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toBeInTheDocument();
     await act(async () => next.resolve(empty));
   });
