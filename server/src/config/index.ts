@@ -6,6 +6,7 @@ import type {
   SimulationAllocationPolicyDTO,
   SimulationResourcePolicyDTO,
 } from '@iu-study-planner/shared';
+import { readCorsOrigin } from './corsOrigin';
 import { readCohortDemandPolicy } from './cohortDemand';
 import { readAllocationUtilityPolicy } from './allocationUtility';
 import { readSimulationAllocationPolicy } from './simulationAllocation';
@@ -96,7 +97,7 @@ const config: Config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl:
     process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/iu_study_planner',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigin: readCorsOrigin(process.env),
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
   jwtExpiresIn,
   demoLoginEnabled:

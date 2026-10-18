@@ -108,6 +108,15 @@ volume. To switch back to local Node, stop only the app containers with
 
 These Dockerfiles run development watchers. They are not a production hosting recipe.
 
+## Production configuration preflight
+
+Production startup requires a strong JWT secret and one explicit HTTP(S) frontend origin
+in `CORS_ORIGIN`. Supply the origin only, such as `https://planner.example.test`, without
+credentials, paths, queries, wildcards or lists. Local development keeps its existing
+origin/default. See [deployment readiness](docs/phase-5/deployment-readiness.md) for the
+remaining hosting, HTTPS/proxy and cookie-topology decisions. This guard does not deploy
+the application.
+
 ## Local demo checklist
 
 Development builds expose quick **Student** and **School admin** login buttons when the

@@ -196,6 +196,36 @@ edits are preserved separately from the narrow auth/GPA fixes.
 
 ## Active Checkpoint — 2026-10-18
 
+### Production frontend-origin preflight
+
+Production now requires one explicit HTTP(S) CORS_ORIGIN before importing the database
+or initializing the HTTP server. The pure reader rejects missing/blank values, wildcard
+or comma lists, credentials (including empty userinfo), non-root/dot-segment paths, query,
+fragment, controls, whitespace and backslashes. It canonicalizes valid host/protocol case,
+root slash and default ports using URL.origin; both credentialed CORS and the existing
+mutation-origin check consume the result. Errors never echo the configured value.
+Development/test defaults and existing JWT/secure-cookie/demo policies remain unchanged.
+No HTTPS/provider/domain policy or actual deployment is inferred.
+
+57 new cases cover pure parsing, the real invalid-config entry point, accepted configuration,
+secure-cookie/demo flags and the existing JWT gate. Only dotenv file loading is isolated;
+Prisma is not mocked, and passing startup cases open no database connection or listener.
+Pinned-runtime build/types/zero-warning lint/format and the complete unchanged rerun pass:
+107 server suites/2972 real PostgreSQL tests, 91 client suites/2248 tests and 10 startup cases.
+An earlier long unattended run had two subprocess timeouts; it is not counted as passing
+evidence, and no assertions/timeouts were weakened. The final full rerun used a bounded
+awake assertion. Initial parser preparation used a subagent; the coordinator revised the
+startup harness and reviewed final source after the independent follow-up hit usage limits.
+Actual full GitHub Linux checks are required before merging this increment. See
+`docs/phase-5/deployment-readiness.md`. Only disposable verification data was seeded/removed.
+
+Next source slice: read the official signed CS 2025 PDF and record a source hash plus page
+locators before reconciling identities, prerequisites and elective credits. On 2026-10-18,
+the official PDF URL returned an HTML challenge, including after its public-cookie retry;
+no PDF body/hash/page evidence was obtained, so it remains unreviewed. Do not mark the
+source verified, select a cohort or activate/assign curricula from this failed retrieval.
+Hosting/domain/cookie topology and unresolved school rules still need separate decisions.
+
 ### Reproducible installs and GitHub checks — merged PR #132
 
 The root lockfile is now included with a narrow ignore exception. A clean source copy with
@@ -251,7 +281,12 @@ fixtures. Account-only progress cache scope is distinguished from context-bound 
 selection recovery; actual source/schema/routes are linked. MIT license reference retained.
 Independent source review corrected cache/demo/context wording; all 11 relative links and
 local formatting pass. This documentation-only increment reuses the just-passed unchanged
-application checks; GitHub will run all gates before merge. No runtime behavior changes.
+application checks; [PR #133](https://github.com/congcept/iu-smart-study-planner/pull/133) is merged as
+bc5f3684eea9eedb505e545a3610277265e5667c after the exact head passed full Ubuntu
+[run 39120889798](https://github.com/congcept/iu-smart-study-planner/actions/runs/39120889798).
+The merged tree was verified and only the three documentation files were synced back;
+original branch/staging and 632 unrelated files/env/dependency markers were preserved.
+No runtime behavior changes.
 
 ### Saved selection list ordering
 
@@ -274,9 +309,9 @@ initialized and seeded. Publication branch: `codex/reference-selection-order`. P
 unrelated UI/staging, application data and canceled automation. No browser geometry verification
 is claimed; interaction tests use jsdom.
 
-Next direction: finish the reviewed README correction below, then the small production
-frontend-origin preflight. Signed CS/IT/DS source reconciliation/assignment, calendar and
-hosting decisions remain gated. Verified CS/IT/DS assignment, degree/calendar planning,
+Next direction: complete the production frontend-origin preflight below, then resume
+signed CS source evidence reconciliation without activating a cohort. CS/IT/DS assignment,
+calendar and hosting decisions remain gated. Verified CS/IT/DS assignment, degree/calendar planning,
 staff/lab and deployment/thesis gates remain open; never bypass source/policy gates to
 activate unverified curricula.
 
@@ -2430,7 +2465,7 @@ duplicate codes, no dangling prerequisite codes, `year ∈ 1..4`, `semester ∈ 
 
 ## Testing Priorities
 
-Current suites contain 2915 server tests and 2248 client tests, plus 10 startup lifecycle cases. Continue prioritizing what can silently corrupt data:
+Current suites contain 2972 server tests and 2248 client tests, plus 10 startup lifecycle cases. Continue prioritizing what can silently corrupt data:
 
 1. **Cascade** (`workloadBalancer`/`users` complete route) — complete → uncomplete → transitive
    dependents drop; corequisite handling; cycle safety
