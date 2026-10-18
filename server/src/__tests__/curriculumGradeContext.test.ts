@@ -219,9 +219,13 @@ describe('account-context grades (PostgreSQL)', () => {
       );
       for (const course of response.body.data.courses)
         expect(Object.keys(course).sort()).toEqual(['code', 'id', 'name']);
-      expect(response.body.data.courses.map((course: { code: string }) => course.code)).toEqual(
-        [...response.body.data.courses.map((course: { code: string }) => course.code)].sort(),
-      );
+      // The API promises database code order; host/SQL collations need not match JS sort.
+      const orderedFixture = await prisma.course.findMany({
+        where: { id: { in: [courses.A, courses.B, courses.PT, courses.ZERO] } },
+        select: { id: true, code: true, name: true },
+        orderBy: { code: 'asc' },
+      });
+      expect(response.body.data.courses).toEqual(orderedFixture);
     } finally {
       await prisma.curriculumPlacement.delete({ where: { id: extra.id } });
     }

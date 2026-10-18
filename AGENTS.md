@@ -221,6 +221,18 @@ One first complete local run had two transaction-start timeouts; the affected 62
 Node 24/25 read-only concurrency probes passed unchanged. Cause is unconfirmed; no assertion
 or transaction limit changed. The final full rerun occurred after Docker builds finished.
 Actual GitHub Linux checks remain pending and required before merge.
+
+The first Ubuntu run passed install/build/types/lint/format/migration/seed/startup and
+2914 server tests, exposing one pre-existing test assumption: JS byte sorting and SQL
+collation need not agree for mixed-case course codes. The assertion now checks the exact
+fixture projection in database code order, preserving membership/field/order coverage;
+no application ordering policy changes. The corrected local full run passes all 2915 server, 2248 client and 10 startup cases,
+plus build/types/zero-warning lint/formatting; the corrected Linux run is required before merge.
+A separate unattended run accumulated multi-minute timing gaps and fixture cleanup failures;
+it is not counted as passing evidence. The final full run used an idle-sleep guard scoped
+only to that verification command. The collation correction was reviewed by the coordinator;
+its requested independent follow-up hit an account usage limit.
+
 See `docs/phase-5/continuous-integration.md`.
 
 ### Saved selection list ordering
