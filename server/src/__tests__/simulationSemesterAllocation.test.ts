@@ -587,15 +587,13 @@ describe('pure bounded semester credit allocation', () => {
       courses: [...source.courses]
         .reverse()
         .map((row) => ({ ...row, courseId: row.courseId.toUpperCase() })),
-      students: [...source.students]
-        .reverse()
-        .map((row) => ({
-          ...row,
-          studentId: row.studentId.toUpperCase(),
-          candidates: [...row.candidates]
-            .reverse()
-            .map((choice) => ({ ...choice, courseId: choice.courseId.toUpperCase() })),
-        })),
+      students: [...source.students].reverse().map((row) => ({
+        ...row,
+        studentId: row.studentId.toUpperCase(),
+        candidates: [...row.candidates]
+          .reverse()
+          .map((choice) => ({ ...choice, courseId: choice.courseId.toUpperCase() })),
+      })),
     };
     expect(allocateSimulationSemester(envelope(3, 2), reversed, policy)).toEqual(
       allocateSimulationSemester(envelope(3, 2), source, policy),

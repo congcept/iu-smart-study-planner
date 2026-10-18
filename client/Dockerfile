@@ -1,17 +1,17 @@
-# Use Node.js 20
-FROM node:20-alpine
+# Match the pinned local and CI Node.js runtime.
+FROM node:24.22.0-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Copy root and workspace package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY shared/package.json ./shared/
 
-# Install all workspace dependencies
-RUN npm install
+# Install the locked workspace dependencies before application source is copied.
+RUN PRISMA_SKIP_POSTINSTALL_GENERATE=true npm ci
 
 # Copy the rest of the monorepo source
 COPY . .

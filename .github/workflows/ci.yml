@@ -1,0 +1,82 @@
+name: Quality checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Build, types, lint and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: planner_ci
+          POSTGRES_PASSWORD: planner_ci
+          POSTGRES_DB: planner_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U planner_ci -d planner_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://planner_ci:planner_ci@localhost:5432/planner_ci?schema=public
+      JWT_SECRET: ci-only-isolated-test-secret-never-use-in-production
+      CORS_ORIGIN: http://localhost:5173
+      PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify runtime versions
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const expectedNode = fs.readFileSync('.nvmrc', 'utf8').trim();
+          const { packageManager } = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const expectedNpm = packageManager.replace(/^npm@/, '');
+          if (process.version !== `v${expectedNode}`) throw new Error('Node.js version mismatch');
+          if (execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim() !== expectedNpm) {
+            throw new Error('npm version mismatch');
+          }
+          JS
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npm run db:generate --workspace=server
+      - name: Build production applications
+        run: npm run build
+      - name: Check types
+        run: npm run typecheck
+      - name: Lint with zero warnings
+        run: npm run lint
+      - name: Check source and configuration formatting
+        run: npm run format:check
+      - name: Apply migrations to disposable PostgreSQL
+        run: npm exec --workspace=server -- prisma migrate deploy
+      - name: Seed disposable PostgreSQL fixtures
+        run: npm run db:seed --workspace=server
+      - name: Run startup, server and client tests
+        run: npm test

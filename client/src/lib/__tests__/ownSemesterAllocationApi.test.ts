@@ -180,7 +180,7 @@ describe('strict current-account own semester readers', () => {
   });
   it('blocks an invalid or different preflight account before reading private history', async () => {
     session
-      .mockResolvedValueOnce({ ...referenceSession(null), id: "" })
+      .mockResolvedValueOnce({ ...referenceSession(null), id: '' })
       .mockResolvedValueOnce({ ...referenceSession(null), id: otherId });
     await expect(listOwnSemesterAllocationRuns(ownerId)).rejects.toBeInstanceOf(
       OwnSemesterSessionChangedError,

@@ -3,7 +3,8 @@
 ## Quick Start
 
 ```bash
-npm run install:all                         # Install all workspace deps
+# Use Node 24.22.0 / npm 11.19.1 (.nvmrc); nvm install && nvm use if using nvm
+npm run install:all                         # npm ci from committed root lockfile
 # First setup: copy server/client .env.example to .env without overwriting existing files
 docker compose up -d postgres               # Start only Postgres for local Node development
 npm run db:generate --workspace=server      # Generate Prisma client
@@ -11,6 +12,12 @@ npm run db:migrate --workspace=server       # Apply development migrations
 npm run db:seed --workspace=server          # Populate an empty database
 npm run dev                                # Build shared, then run shared/client/server together
 ```
+
+Use the pinned runtime for clean verification and lock updates. `install:all` replaces
+node_modules; stop local watchers before reinstalling an existing checkout. Commit the root
+package-lock.json with dependency changes; nested workspace lockfiles stay ignored.
+GitHub's quality job runs every PR/main push with disposable PostgreSQL only. See
+`docs/phase-5/continuous-integration.md` for scope and current verification.
 
 ## Essential Commands
 
@@ -187,7 +194,34 @@ Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
-## Active Checkpoint — 2026-10-17
+## Active Checkpoint — 2026-10-18
+
+### Reproducible installs and GitHub checks (verification in progress)
+
+The root lockfile is now included with a narrow ignore exception. A clean source copy with
+no existing node_modules reconciled its root engine metadata under Node 24.22.0/npm 11.19.1;
+all 834 dependency/workspace entries stayed unchanged. `.nvmrc` and packageManager pin the
+verified pair; engines allow newer runtimes without disrupting the running local app.
+`install:all` and both Node 24.22.0-alpine Dockerfiles use npm ci; server Prisma generation
+remains explicit after schema copy. No global runtime or app dependency installation changed.
+
+A single complete Ubuntu PR/main/manual job avoids path-filter gaps across the coupled
+workspaces. Read-only checkout, exact action SHAs and runtime assertions precede npm ci,
+Prisma generation, production build, types, zero-warning lint and formatting. Migrate deploy and fixture
+seed target only the job's disposable PostgreSQL 15 service, followed by all startup,
+real database server and client suites. No production secret, publish or deployment step.
+Independent source/lock review found no blockers after root lint was fixed to forward
+--max-warnings 0 to every workspace. Nine maintained-file formatting corrections exactly
+match Prettier; generated dist and the original conversation export are excluded explicitly.
+A fresh Node 24 install, production build, types, zero-warning lint and formatting pass.
+The complete unchanged rerun passes 105 server suites/2915 real PostgreSQL tests,
+91 client suites/2248 tests and 10 startup cases. Both current-source Alpine image builds,
+exact Node/npm checks and isolated no-network client/server production builds pass.
+One first complete local run had two transaction-start timeouts; the affected 62 tests and
+Node 24/25 read-only concurrency probes passed unchanged. Cause is unconfirmed; no assertion
+or transaction limit changed. The final full rerun occurred after Docker builds finished.
+Actual GitHub Linux checks remain pending and required before merge.
+See `docs/phase-5/continuous-integration.md`.
 
 ### Saved selection list ordering
 
@@ -210,15 +244,10 @@ initialized and seeded. Publication branch: `codex/reference-selection-order`. P
 unrelated UI/staging, application data and canceled automation. No browser geometry verification
 is claimed; interaction tests use jsdom.
 
-Next direction: reproducible installation and GitHub PR checks. A read-only readiness audit
-found no workflows, no tracked root lockfile (lockfiles are ignored) and no declared Node
-engines. Reconcile a committed lock and supported runtime from the clean publication checkout
-before using npm ci. A first Ubuntu job should generate Prisma, deploy migrations and seed only
-an ephemeral PostgreSQL service, then run existing quality gates. No deployment secrets or
-application database access. Linux native dependencies, process cleanup/timing and the complete
-suite require an actual Linux run before CI can be called verified. Formatting baseline,
-verified CS/IT/DS assignment, degree/calendar planning, staff/lab and deployment/thesis gates
-remain open; do not bypass these source/policy gates to activate unverified curricula.
+Next direction: complete actual GitHub Linux verification before merging CI, then correct
+the README against current source with beginner setup/demo checks. Verified CS/IT/DS assignment, degree/calendar planning,
+staff/lab and deployment/thesis gates remain open; never bypass source/policy gates to
+activate unverified curricula.
 
 ### Proposed-course blocker explanations
 

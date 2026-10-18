@@ -1,5 +1,5 @@
-# Base node image
-FROM node:20-alpine
+# Match the pinned local and CI Node.js runtime.
+FROM node:24.22.0-alpine
 
 # Set root working directory
 WORKDIR /app
@@ -8,13 +8,13 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 # Copy root and workspace package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY shared/package.json ./shared/
 
-# Install all workspace dependencies
-RUN npm install
+# Generate Prisma explicitly after copying its schema below.
+RUN PRISMA_SKIP_POSTINSTALL_GENERATE=true npm ci
 
 # Copy Prisma schema and run generate
 COPY server/prisma ./server/prisma/

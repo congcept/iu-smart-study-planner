@@ -139,7 +139,6 @@ exclusion. Full gates pass 331 server/178 client tests. The existing planning ho
 and graduation heuristic remain; incomplete schedules need explicit reporting, and
 semester rating scoring follows separately.
 
-
 ## Semester rating ranking
 
 Semester candidates now use the same snapshot-consistent Bayesian projection as the
@@ -153,7 +152,6 @@ Five real PostgreSQL cases cover inverted seed/estimate ranking, zero-vote estim
 mandatory prerequisites, disabling the weight and API metadata. Build, types, lint and
 all 336 server/178 client tests pass. Graduation estimates remain heuristic; incomplete
 schedule reporting is the next increment. Curriculum-specific priors remain pending.
-
 
 ## Incomplete semester schedules
 
@@ -170,7 +168,6 @@ Build, types, lint and all 345 server/178 client tests pass. Completion here mea
 provided catalog courses were scheduled; curriculum elective/degree requirements and
 a verified academic calendar are still pending.
 
-
 ## Saved semester difficulty
 
 Creating or replacing a saved semester's course list now averages the same Bayesian
@@ -185,7 +182,6 @@ Seven additional real PostgreSQL cases check the hand-computed mean, workload ag
 authorized reads and failed-save preservation. Existing semester validation expectations
 now use the shared zero-vote prior. Build, types, lint and all 352 server/178 client tests
 pass. Curriculum priors, client recommendations and multi-objective scoring remain pending.
-
 
 ## Curriculum recommendation highlights
 

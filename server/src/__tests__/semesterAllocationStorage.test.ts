@@ -595,14 +595,12 @@ describe('private immutable semester simulation storage (PostgreSQL)', () => {
         result: field === 'result' ? { ...result, assignedCourseCount: 999 } : result,
       },
     });
-    const rows = result.students
-      .slice(field === 'missingParticipant' ? 1 : 0)
-      .map((student) => ({
-        runId,
-        capturedStudentId: student.studentId,
-        userId: student.studentId,
-        result: field === 'participantResult' ? { ...student, assignedCredits: 0 } : student,
-      }));
+    const rows = result.students.slice(field === 'missingParticipant' ? 1 : 0).map((student) => ({
+      runId,
+      capturedStudentId: student.studentId,
+      userId: student.studentId,
+      result: field === 'participantResult' ? { ...student, assignedCredits: 0 } : student,
+    }));
     if (field === 'extraParticipant')
       rows.push({
         runId,
