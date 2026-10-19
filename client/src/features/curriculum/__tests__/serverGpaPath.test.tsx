@@ -202,6 +202,29 @@ describe('server GPA policy in the curriculum map', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('states the course target behind the percentage instead of an unexplained number', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+
+    expect(await screen.findByRole('heading', { name: 'Course progress' })).toBeVisible();
+    // One name for one number, and the 41/43 target is finally stated.
+    expect(screen.queryByRole('heading', { name: 'Degree progress' })).toBeNull();
+    expect(screen.getByText(/41-course target for the thesis GPA path/)).toBeVisible();
+    expect(screen.queryByText(/Course progress for the selected GPA path/)).toBeNull();
+  });
+
+  it('labels the finish estimate with the course load it actually uses', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+
+    expect(await screen.findByText(/Estimated finish at \d+ cr\/semester/)).toBeVisible();
+    // The coupling to the load control is stated rather than hidden.
+    expect(screen.getByText(/changing that control moves the finish term/)).toBeVisible();
+    expect(screen.queryByText(/prerequisites and course availability may change it/)).toBeNull();
+  });
+
   it('keeps the curriculum visible but read-only while the account GPA is loading', async () => {
     signIn('alice');
     const pending = deferred<StudentGradesDTO>();
@@ -216,14 +239,14 @@ describe('server GPA policy in the curriculum map', () => {
     expect(screen.getByText('IT059IU')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'GPA > 70' })).toBeNull();
     // Path-dependent claims are withheld rather than guessed.
-    expect(screen.queryByRole('progressbar', { name: 'Degree progress' })).toBeNull();
+    expect(screen.queryByRole('progressbar', { name: 'Course progress' })).toBeNull();
     expect(saveCourseProgress).not.toHaveBeenCalled();
     await act(async () => pending.resolve(grades('THESIS', 80)));
     await screen.findByText('Thesis path');
     expect(card('MA001IU')).not.toBeDisabled();
     expect(screen.getByText('IT058IU')).toBeVisible();
     expect(screen.queryByText('IT059IU')).toBeNull();
-    expect(screen.getByRole('progressbar', { name: 'Degree progress' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Course progress' })).toBeInTheDocument();
   });
 
   it('requires a successful GPA reload after failure before allowing edits', async () => {

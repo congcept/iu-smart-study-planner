@@ -299,6 +299,9 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   }, [y4s2GpaMode, activeElectiveGroup, allElectiveGroups, groups]);
 
   const REQUIRED_CREDITS = 130;
+  // A soft nudge, not a cap: planning more than this is allowed, but worth
+  // pointing out because it sits above the default course load.
+  const PLANNED_CREDIT_SOFT_LIMIT = 24;
   const REQUIRED_YEARS = 4;
 
   const NON_CREDIT_COURSE_IDS = useMemo(() => new Set(['PT001IU', 'PT002IU']), []);
@@ -640,10 +643,15 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           <span>
             <span className="font-semibold">Planned:</span>{' '}
             <span
-              className={`font-bold tabular-nums ${plannedCredits > 24 ? 'text-red-600' : 'text-blue-600'}`}
+              className={`font-bold tabular-nums ${plannedCredits > PLANNED_CREDIT_SOFT_LIMIT ? 'text-red-600' : 'text-blue-600'}`}
             >
-              {plannedCredits} / 24 credits
+              {plannedCredits} / {PLANNED_CREDIT_SOFT_LIMIT} credits
             </span>
+            {plannedCredits > PLANNED_CREDIT_SOFT_LIMIT && (
+              <span className="block text-xs text-gray-700">
+                Over the typical load. Reduce the plan or raise the course load above.
+              </span>
+            )}
           </span>
         </div>
       </div>
@@ -981,9 +989,15 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <div>
             <h2 id="degree-progress-title" className="text-lg font-semibold text-gray-900">
-              Degree progress
+              Course progress
             </h2>
-            <p className="mt-1 text-sm text-gray-700">Course progress for the selected GPA path</p>
+            <p className="mt-1 text-sm text-gray-700">
+              {gpaReady
+                ? `Counted against the ${y4s2GpaMode === 'above' ? 41 : 43}-course target for the ${
+                    y4s2GpaMode === 'above' ? 'thesis' : 'alternative'
+                  } GPA path.`
+                : 'Waiting for your GPA path to confirm the target.'}
+            </p>
           </div>
           <span className="text-2xl font-semibold text-primary-700 tabular-nums">
             {gpaReady ? `${degreeProgress}%` : '—'}
@@ -1003,14 +1017,16 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-600">Estimated finish</dt>
+            <dt className="text-xs text-gray-600">
+              Estimated finish at {creditsPerSemester} cr/semester
+            </dt>
             <dd className="text-sm font-semibold text-gray-900">{eta}</dd>
           </div>
         </dl>
         {gpaReady ? (
           <div
             role="progressbar"
-            aria-label="Degree progress"
+            aria-label="Course progress"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={degreeProgress}
@@ -1025,8 +1041,9 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           </p>
         )}
         <p className="mt-3 text-sm text-gray-700">
-          The finish estimate uses remaining credits at {creditsPerSemester} credits per semester;
-          prerequisites and course availability may change it.
+          This is a credits-only estimate at the course load you chose above, so changing that
+          control moves the finish term. It ignores prerequisites, course availability and offering
+          schedules.
         </p>
       </section>
     </div>
