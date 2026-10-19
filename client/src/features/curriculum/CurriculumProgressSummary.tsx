@@ -26,7 +26,6 @@ function ProgressSession({ userId, curriculumId }: Props) {
     if (!mounted.current || busy.current) return;
     busy.current = true;
     const request = ++generation.current;
-    setData(null);
     setStatus('loading');
     try {
       const snapshot = await getContextStudentProgress(userId, curriculumId);
@@ -73,17 +72,27 @@ function ProgressSession({ userId, curriculumId }: Props) {
           Reload progress
         </Button>
       </div>
-      {status === 'loading' ? (
+      {status === 'loading' && !data ? (
         <p role="status" className="mt-3 text-sm text-gray-600">
           Loading saved curriculum progress…
         </p>
-      ) : status === 'error' ? (
+      ) : status === 'error' && !data ? (
         <p role="alert" className="mt-3 text-sm text-red-700">
           Could not confirm progress for this curriculum. Reload progress to try again.
         </p>
       ) : (
         data && (
           <>
+            {status === 'loading' && (
+              <p role="status" className="mt-3 text-sm text-gray-600">
+                Reloading saved curriculum progress…
+              </p>
+            )}
+            {status === 'error' && (
+              <p role="alert" className="mt-3 text-sm text-red-700">
+                Could not refresh progress. Showing the last confirmed snapshot.
+              </p>
+            )}
             <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-4">
               {[
                 ['Completed courses', data.progress.completedCourses],

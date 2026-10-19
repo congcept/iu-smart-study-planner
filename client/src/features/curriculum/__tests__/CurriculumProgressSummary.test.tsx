@@ -65,7 +65,7 @@ describe('read-only curriculum progress summary', () => {
     expect(rows[2]).toHaveTextContent('In progress');
     expect(within(list).queryByRole('button')).not.toBeInTheDocument();
   });
-  it('withholds old course states during reload and after an owner change', async () => {
+  it('keeps the loaded course state visible during reload and isolates it after an owner change', async () => {
     const { rerender } = render(
       <CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />,
     );
@@ -74,8 +74,9 @@ describe('read-only curriculum progress summary', () => {
     getProgress.mockReturnValueOnce(old.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Reload progress' }));
     expect(
-      screen.queryByRole('list', { name: 'Current saved course selections' }),
-    ).not.toBeInTheDocument();
+      screen.getByRole('list', { name: 'Current saved course selections' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Reloading');
     const next = contextProgress();
     next.scope.userId = otherReferenceId;
     next.completed = [];
@@ -124,7 +125,7 @@ describe('read-only curriculum progress summary', () => {
     render(<CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />);
     await screen.findByText('No saved course selections in this curriculum yet.');
   });
-  it('recovers from failure and withholds stale totals during reload', async () => {
+  it('recovers from failure and keeps stale totals visible during reload', async () => {
     getProgress.mockRejectedValueOnce(new Error('offline'));
     render(<CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />);
     await screen.findByRole('alert');
@@ -133,7 +134,8 @@ describe('read-only curriculum progress summary', () => {
     const pending = deferred<ContextStudentProgressDTO>();
     getProgress.mockReturnValueOnce(pending.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Reload progress' }));
-    expect(screen.queryByText('Earned credits')).not.toBeInTheDocument();
+    expect(screen.getByText('Earned credits')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Reloading');
     await act(async () => pending.resolve(contextProgress()));
     await screen.findByText('Earned credits');
   });

@@ -60,11 +60,11 @@ export function GradeDashboard({ userId }: { userId: string }) {
           is excluded from GPA.
         </p>
       </header>
-      {loading ? (
+      {loading && !grades ? (
         <p role="status" className="text-gray-600">
           Loading your grades…
         </p>
-      ) : currentError ? (
+      ) : currentError && !grades ? (
         <div>
           <p role="alert" className="text-red-700">
             {currentError}
@@ -76,6 +76,14 @@ export function GradeDashboard({ userId }: { userId: string }) {
       ) : (
         grades && (
           <>
+            <Button
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => void load()}
+              disabled={loading}
+            >
+              Reload grades
+            </Button>
             <section
               aria-label="Numeric GPA"
               className="rounded-xl border border-gray-200 bg-white p-5"

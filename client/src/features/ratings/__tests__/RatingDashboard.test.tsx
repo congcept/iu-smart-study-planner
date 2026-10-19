@@ -87,6 +87,39 @@ describe('course rating form', () => {
     expect(screen.queryByRole('option', { name: /MA003IU/ })).not.toBeInTheDocument();
     expect(screen.getByText('No ratings yet')).toBeInTheDocument();
   });
+  it('hides a stale save confirmation and pending recovery prompt during a fresh load', async () => {
+    vi.mocked(getScopedOwnRatings).mockResolvedValue(confirmed());
+    render(<RatingDashboard userId={one} />);
+    await choose();
+    fireEvent.click(screen.getByRole('button', { name: 'Save rating' }));
+    await screen.findByText(/Rating saved/);
+    const next = deferred<RatingCourseChoicesDTO>();
+    vi.mocked(getRatingCourseChoices).mockReturnValueOnce(next.promise);
+    fireEvent.focus(window);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading');
+    expect(screen.queryByText(/Rating saved/)).not.toBeInTheDocument();
+    await act(async () => next.resolve(choices()));
+  });
+  it('does not show pending-retry recovery instructions before the initial load confirms context', async () => {
+    storage.set(key(), JSON.stringify({ courseId: id, rating: 4, expectedScope: scope }));
+    const pending = deferred<RatingCourseChoicesDTO>();
+    vi.mocked(getRatingCourseChoices).mockReturnValue(pending.promise);
+    render(<RatingDashboard userId={one} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading');
+    expect(screen.queryByText(/The rating may already be saved/)).not.toBeInTheDocument();
+    await act(async () => pending.resolve(choices()));
+  });
+  it('explains why save is unavailable when scope has not been confirmed', async () => {
+    storage.set(key(), JSON.stringify({ courseId: id, rating: 4, expectedScope: scope }));
+    vi.mocked(getRatingCourseChoices).mockResolvedValue({
+      scope: { userId: one, curriculumId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
+      courses: [],
+    });
+    render(<RatingDashboard userId={one} />);
+    const button = await screen.findByRole('button', { name: 'Retry same rating' });
+    fireEvent.click(button);
+    expect(screen.getByRole('alert')).toHaveTextContent(/cannot save|pending retry/i);
+  });
   it('shows the saved private vote when selecting a completed course', async () => {
     vi.mocked(getRatingCourseChoices).mockResolvedValue(
       choices(one, [
@@ -144,7 +177,6 @@ describe('course rating form', () => {
     render(<RatingDashboard userId={one} />);
     await choose();
     fireEvent.click(screen.getByRole('button', { name: 'Save rating' }));
-    expect(await screen.findByText(/Rating saved/)).toBeInTheDocument();
     await screen.findByText('Your saved rating: 4 / 5');
     expect(rateCourse).toHaveBeenCalledWith(id, { rating: 4, expectedScope: scope });
     expect(storage.has(key())).toBe(false);
@@ -205,7 +237,7 @@ describe('course rating form', () => {
     storage.set(key(), legacy);
     render(<RatingDashboard userId={one} />);
     const clear = await screen.findByRole('button', { name: 'Clear pending retry' });
-    expect(screen.getByRole('button', { name: 'Retry same rating' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Retry same rating' })).toBeEnabled();
     expect(storage.get(key())).toBe(legacy);
     expect(rateCourse).not.toHaveBeenCalled();
     fireEvent.click(clear);
@@ -216,11 +248,11 @@ describe('course rating form', () => {
     storage.set(key(), JSON.stringify({ courseId: id, rating: 4, expectedScope: scope }));
     vi.mocked(getRatingCourseChoices).mockResolvedValue(choices(one, []));
     render(<RatingDashboard userId={one} />);
-    expect(await screen.findByRole('button', { name: 'Retry same rating' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Retry same rating' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Clear pending retry' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Previous pending course' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reload courses' }));
-    expect(await screen.findByRole('button', { name: 'Retry same rating' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Retry same rating' })).toBeEnabled();
     expect(storage.has(key())).toBe(true);
     expect(rateCourse).not.toHaveBeenCalled();
   });

@@ -217,7 +217,15 @@ function RatingSession({ userId }: { userId: string }) {
   };
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy.current || loading || loadError || phase === 'blocked' || !scope.current) return;
+    if (busy.current) return;
+    if (loadError) {
+      setMessage('Cannot save because your completed courses could not be loaded. Reload first.');
+      return;
+    }
+    if (phase === 'blocked' || !scope.current) {
+      setMessage('Cannot save because your account and curriculum scope are not confirmed.');
+      return;
+    }
     const parsed = PendingVote.safeParse(
       pending.current ?? {
         courseId,
@@ -336,7 +344,7 @@ function RatingSession({ userId }: { userId: string }) {
           difficult. Each account has one vote per course; saving again replaces it.
         </p>
       </header>
-      {message && (
+      {message && !loading && (
         <p
           role={phase === 'retry' || phase === 'blocked' ? 'alert' : 'status'}
           className="text-sm text-gray-700"
@@ -344,7 +352,7 @@ function RatingSession({ userId }: { userId: string }) {
           {message}
         </p>
       )}
-      {(pending.current || invalidJournal.current) && phase !== 'saving' && (
+      {(pending.current || invalidJournal.current) && phase !== 'saving' && !loading && (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
             The rating may already be saved. Clearing the pending retry only removes this tab’s
@@ -470,7 +478,7 @@ function RatingSession({ userId }: { userId: string }) {
                 type="submit"
                 className="min-h-11"
                 isLoading={phase === 'saving'}
-                disabled={phase === 'blocked' || loading || loadError || !scope.current}
+                disabled={phase === 'saving'}
               >
                 {pending.current ? 'Retry same rating' : 'Save rating'}
               </Button>

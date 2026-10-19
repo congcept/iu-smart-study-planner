@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { useEffect, useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
@@ -6,11 +7,22 @@ import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeDashboard } from '../GradeDashboard';
 const entry = vi.hoisted(() => ({
   onSaved: undefined as undefined | ((saved: StudentGradesDTO) => void),
+  mounts: 0,
 }));
 vi.mock('../GradeEntry', () => ({
   GradeEntry: ({ onSaved }: { onSaved: (saved: StudentGradesDTO) => void }) => {
     entry.onSaved = onSaved;
-    return null;
+    const [score, setScore] = useState('');
+    useEffect(() => {
+      entry.mounts++;
+    }, []);
+    return (
+      <input
+        aria-label="Draft score"
+        value={score}
+        onChange={(event) => setScore(event.target.value)}
+      />
+    );
   },
 }));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
@@ -220,6 +232,21 @@ describe('numeric grade dashboard', () => {
     render(<GradeDashboard userId="one" />);
     expect(screen.getByRole('status')).toHaveTextContent('Loading your grades');
     await act(async () => pending.resolve(empty));
+  });
+  it('keeps an existing entry mounted during a grade reload', async () => {
+    const { rerender } = render(<GradeDashboard userId="one" />);
+    await screen.findByText('No scores yet');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft score' }), {
+      target: { value: '87' },
+    });
+    const before = entry.mounts;
+    const pending = deferred<StudentGradesDTO>();
+    getGrades.mockReturnValueOnce(pending.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    expect(screen.getByRole('textbox', { name: 'Draft score' })).toHaveValue('87');
+    expect(entry.mounts).toBe(before);
+    await act(async () => pending.resolve(empty));
+    rerender(<GradeDashboard userId="one" />);
   });
   it('distinguishes no grades from a zero GPA and preserves legacy grade wording', async () => {
     render(<GradeDashboard userId="one" />);
