@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SimulationCapacitySnapshotSchema,
@@ -10,6 +11,7 @@ import { getSession } from '@/lib/api';
 import { getSimulationCapacity } from '@/lib/adminResourcesApi';
 
 type Props = { userId: string; scope: ResourceScopeDTO; resourceRevision: number | null };
+class AdminSessionChanged extends Error {}
 
 export function PlannedDemandPanel({ userId, scope, resourceRevision }: Props) {
   const owner = userId.toLowerCase();
@@ -37,6 +39,11 @@ function PlannedSelectionReport({ userId, scope, resourceRevision }: Props) {
   const [snapshot, setSnapshot] = useState<SimulationCapacitySnapshotDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const verifySession = useCallback(async () => {
+    const account = await getSession();
+    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
+      throw new AdminSessionChanged();
+  }, [userId]);
   const load = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
@@ -46,12 +53,8 @@ function PlannedSelectionReport({ userId, scope, resourceRevision }: Props) {
     setError('');
     try {
       const requested = ResourceScopeSchema.parse({ curriculumId, semester, year });
-      const account = await getSession();
+      await verifySession();
       if (token !== generation.current) return;
-      if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN') {
-        setError('Your admin session changed. Sign in again before reloading planned selections.');
-        return;
-      }
       const report = SimulationCapacitySnapshotSchema.parse(await getSimulationCapacity(requested));
       if (token !== generation.current) return;
       if (
@@ -61,16 +64,21 @@ function PlannedSelectionReport({ userId, scope, resourceRevision }: Props) {
       )
         throw new Error('Wrong capacity report scope');
       setSnapshot(report);
-    } catch {
+    } catch (failure) {
       if (token === generation.current)
-        setError('Could not verify planned selections and declared seats. Reload to try again.');
+        setError(
+          failure instanceof AdminSessionChanged ||
+            (isAxiosError(failure) && [401, 403].includes(failure.response?.status ?? 0))
+            ? 'Your admin session changed. Sign in again before reloading planned selections.'
+            : 'Could not verify planned selections and declared seats. Reload to try again.',
+        );
     } finally {
       if (token === generation.current) {
         busy.current = false;
         setLoading(false);
       }
     }
-  }, [curriculumId, semester, userId, year]);
+  }, [curriculumId, semester, verifySession, year]);
   useEffect(() => {
     const active = generation;
     const loadingRequest = busy;

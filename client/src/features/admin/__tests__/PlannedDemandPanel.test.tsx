@@ -219,6 +219,18 @@ describe('readonly current planned selections panel', () => {
     expect(getSimulationCapacity).toHaveBeenCalledTimes(1);
   });
 
+  it('reports a session change returned while fetching planned selections', async () => {
+    const denied = Object.assign(new Error('Forbidden'), {
+      isAxiosError: true,
+      response: { status: 403 },
+    });
+    vi.mocked(getSimulationCapacity).mockRejectedValueOnce(denied);
+    mount();
+    await ready();
+    expect(screen.getByRole('alert')).toHaveTextContent('Your admin session changed');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
   it('offers retry after session verification fails without reading private demand', async () => {
     vi.mocked(getSession).mockRejectedValueOnce(new Error('Offline'));
     mount();

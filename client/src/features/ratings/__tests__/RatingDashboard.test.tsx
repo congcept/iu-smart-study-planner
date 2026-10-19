@@ -111,6 +111,17 @@ describe('course rating form', () => {
     expect(await screen.findByText(/Complete a course in My curriculum/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save rating' })).not.toBeInTheDocument();
   });
+  it('explains that assigned read-only curriculum completions must be recorded elsewhere', async () => {
+    vi.mocked(getRatingCourseChoices).mockResolvedValue({
+      scope: { userId: one, curriculumId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+      courses: [],
+    });
+    render(<RatingDashboard userId={one} />);
+    expect(
+      await screen.findByText(/Ratings need a course recorded as completed elsewhere/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Complete a course in My curriculum/)).not.toBeInTheDocument();
+  });
   it('reloads after a failed initial read', async () => {
     vi.mocked(getRatingCourseChoices).mockRejectedValueOnce(new Error('offline'));
     render(<RatingDashboard userId={one} />);

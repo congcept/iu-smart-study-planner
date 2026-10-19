@@ -390,7 +390,11 @@ function RatingSession({ userId }: { userId: string }) {
           </Button>
         </div>
       ) : courses.length === 0 && !pending.current ? (
-        <p className="text-gray-600">Complete a course in My curriculum before rating it.</p>
+        <p className="text-gray-600">
+          {scope.current?.curriculumId
+            ? 'Ratings need a course recorded as completed elsewhere. Your assigned curriculum is read-only.'
+            : 'Complete a course in My curriculum before rating it.'}
+        </p>
       ) : (
         <section
           aria-label="Rate a completed course"
