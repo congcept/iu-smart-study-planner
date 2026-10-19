@@ -60,6 +60,16 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('saved semester course references', () => {
+  it('focuses the detail heading on entry without stealing focus on refresh', async () => {
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    expect(screen.getByRole('heading', { name: 'Saved semester course references' })).toHaveFocus();
+    await screen.findByRole('button', { name: 'Edit saved course selection' });
+    const backButton = screen.getByRole('button', { name: 'Back to saved semesters' });
+    backButton.focus();
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByRole('button', { name: 'Edit saved course selection' });
+    expect(backButton).toHaveFocus();
+  });
   it('hides parent course evidence when a proposed-course check loses its session', async () => {
     const current = referenceSelectionState(0);
     read.mockResolvedValue(current.snapshot);

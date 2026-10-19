@@ -89,6 +89,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('saved plan semester references', () => {
+  it('focuses the detail heading on entry but not on subsequent reads', async () => {
+    render(panel());
+    expect(screen.getByRole('heading', { name: 'Saved plan semester references' })).toHaveFocus();
+    await screen.findByRole('button', { name: /View courses for Spring 2026/ });
+    const backButton = screen.getByRole('button', { name: 'Back to saved plans' });
+    backButton.focus();
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByRole('button', { name: /View courses for Spring 2026/ });
+    expect(backButton).toHaveFocus();
+  });
   it('opens the selected semester and returns through a fresh metadata read', async () => {
     const pending = deferred<OwnStudyPlanSemestersDTO>();
     read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
@@ -98,10 +108,12 @@ describe('saved plan semester references', () => {
     expect(screen.getByTestId('selected-context')).toHaveTextContent('unassigned');
     expect(screen.queryByText('Stored credit total: 1 · not verified')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to saved semesters' }));
+    expect(screen.getByRole('heading', { name: 'Saved plan semester references' })).toHaveFocus();
     expect(screen.queryByTestId('selected-semester')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Loading saved semester references');
     await act(async () => pending.resolve(page([semester(2)])));
     expect(await screen.findByText('Stored credit total: 2 · not verified')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Saved plan semester references' })).toHaveFocus();
   });
   it('rejects a batched old course-selection event after focus refresh begins', async () => {
     const pending = deferred<OwnStudyPlanSemestersDTO>();

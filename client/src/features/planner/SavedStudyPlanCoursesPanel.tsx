@@ -35,6 +35,12 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
   const generation = useRef(0);
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+
   const read = useCallback(async () => {
     if (!mounted.current) return;
     controller.current?.abort();
@@ -103,7 +109,9 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Saved semester course references</h3>
+          <h3 ref={heading} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+            Saved semester course references
+          </h3>
           <p className="mt-2 max-w-prose text-sm text-gray-700">
             Course names are current catalog labels, shown in stored list order. They do not
             establish the original curriculum, prerequisites, GPA eligibility or a valid timetable.

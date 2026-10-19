@@ -26,6 +26,16 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<Request>({});
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusOnReturn = useRef(false);
+  const isSelected = state.status === 'selected';
+
+  useEffect(() => {
+    if (!isSelected && focusOnReturn.current) {
+      heading.current?.focus();
+      focusOnReturn.current = false;
+    }
+  }, [isSelected]);
 
   const read = useCallback(
     async (input: Request) => {
@@ -99,6 +109,7 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
   }, [read, invalidate]);
 
   const returnToList = useCallback(() => {
+    focusOnReturn.current = true;
     void read({});
   }, [read]);
 
@@ -122,7 +133,9 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Your saved study plans</h3>
+          <h3 ref={heading} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+            Your saved study plans
+          </h3>
           <p className="mt-2 max-w-prose text-sm text-gray-700">
             Saved references from your account, newest first. Their courses and semesters have not
             been verified against your current curriculum, prerequisites, GPA or a timetable. A

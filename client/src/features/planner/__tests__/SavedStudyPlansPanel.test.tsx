@@ -67,6 +67,21 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('saved study plan reference browser', () => {
+  it('does not steal focus on initial load or background refresh', async () => {
+    render(
+      <>
+        <button>Outside planner</button>
+        <SavedStudyPlansPanel ownerId={ownerId} />
+      </>,
+    );
+    const outside = screen.getByRole('button', { name: 'Outside planner' });
+    outside.focus();
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    expect(outside).toHaveFocus();
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    expect(outside).toHaveFocus();
+  });
   it('opens only the selected plan and requires a fresh list read when returning', async () => {
     const pending = deferred<OwnStudyPlansDTO>();
     read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
@@ -77,12 +92,14 @@ describe('saved study plan reference browser', () => {
     expect(screen.getByTestId('selected-curriculum')).toHaveTextContent('unassigned');
     expect(screen.queryByRole('heading', { name: 'Reference 1' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to saved plans' }));
+    expect(screen.getByRole('heading', { name: 'Your saved study plans' })).toHaveFocus();
     expect(screen.queryByTestId('selected-plan')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Reference 1' })).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Loading your saved study plans');
     expect(read).toHaveBeenCalledTimes(2);
     await act(async () => pending.resolve(page([metadata(2)])));
     expect(await screen.findByRole('heading', { name: 'Reference 2' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your saved study plans' })).toHaveFocus();
   });
   it('drops selected details on focus and pins a new selection to the freshly confirmed scope', async () => {
     const pending = deferred<OwnStudyPlansDTO>();

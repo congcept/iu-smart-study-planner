@@ -34,6 +34,13 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<Request>({});
+  const heading = useRef<HTMLHeadingElement>(null);
+  const isSelected = state.status === 'selected';
+
+  useEffect(() => {
+    if (!isSelected) heading.current?.focus();
+  }, [isSelected]);
+
   const read = useCallback(
     async (input: Request) => {
       if (!mounted.current) return;
@@ -128,7 +135,9 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Saved plan semester references</h3>
+          <h3 ref={heading} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+            Saved plan semester references
+          </h3>
           <p className="mt-2 max-w-prose text-sm text-gray-700">
             These are stored semester labels and credit totals, newest saved first. This order is
             not an academic sequence. Credits have not been checked against current courses,
