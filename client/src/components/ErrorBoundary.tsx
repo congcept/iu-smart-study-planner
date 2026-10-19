@@ -29,9 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <Card title="Something went wrong">
           <div className="text-center py-8">
-            <p className="text-gray-600 mb-4">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
+            <p className="text-gray-600 mb-4">An unexpected error occurred. Please try again.</p>
             <Button
               variant="primary"
               onClick={() => this.setState({ hasError: false, error: null })}

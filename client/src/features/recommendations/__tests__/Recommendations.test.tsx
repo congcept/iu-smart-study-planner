@@ -289,3 +289,15 @@ describe('account-scoped recommendations', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 });
+
+describe('recommendation empty state limits', () => {
+  it('names the actual credit and difficulty caps', async () => {
+    vi.mocked(getRecommendations).mockResolvedValue(response(''));
+    render(<Recommendations userId="A" />);
+    expect(
+      await screen.findByText(
+        'Suggestions are limited to 18 credits and a maximum difficulty of 3.5.',
+      ),
+    ).toBeInTheDocument();
+  });
+});

@@ -317,3 +317,12 @@ describe('selected-course workload analysis', () => {
     expect(screen.queryByText('11.1')).toBeNull();
   });
 });
+
+describe('selected course list accessibility', () => {
+  it('exposes the scrollable course list as a named keyboard-focusable region with a hint', () => {
+    render(<WorkloadAnalyzer selectedCourses={[course('A')]} />);
+    const list = screen.getByRole('region', { name: 'Selected courses' });
+    expect(list).toHaveAttribute('tabindex', '0');
+    expect(screen.getByText(/Use the arrow keys to scroll/)).toBeInTheDocument();
+  });
+});

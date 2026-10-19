@@ -46,7 +46,7 @@ export function GpaPathControls({ policy }: Props) {
   return (
     <div className="space-y-2">
       <p className="text-xs text-gray-700">Choose a path while no numeric GPA is recorded.</p>
-      <div className="flex gap-1">
+      <div role="group" aria-label="Choose a GPA path" className="flex gap-1">
         <button
           type="button"
           aria-pressed={policy.mode === 'above'}

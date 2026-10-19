@@ -178,6 +178,9 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
         <div className="border-t border-gray-200 pt-5">
           <p className="font-medium text-gray-900">No courses fit these planning limits.</p>
           <p className="mt-1 text-sm text-gray-700">
+            Suggestions are limited to 18 credits and a maximum difficulty of 3.5.
+          </p>
+          <p className="mt-1 text-sm text-gray-700">
             Review your recorded prerequisites and completed courses to see what is available next.
           </p>
         </div>

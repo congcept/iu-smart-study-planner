@@ -154,7 +154,15 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
               </Button>
             )}
           </div>
-          <ul className="max-h-56 divide-y divide-gray-200 overflow-y-auto border-y border-gray-200">
+          <p className="mb-2 text-sm text-gray-700">
+            Use the arrow keys to scroll the selected courses list.
+          </p>
+          <ul
+            role="region"
+            aria-label="Selected courses"
+            tabIndex={0}
+            className="max-h-56 divide-y divide-gray-200 overflow-y-auto border-y border-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          >
             {selectedCourses.map((course) => (
               <li
                 key={course.id}
