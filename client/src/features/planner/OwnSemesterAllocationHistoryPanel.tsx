@@ -7,7 +7,7 @@ import {
   type OwnSemesterAllocationHistoryDTO,
   type OwnSemesterAllocationRunV1DTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner, PaginationFooter } from '@/components/ui';
 import {
   getOwnSemesterAllocationRun,
   listOwnSemesterAllocationRuns,
@@ -181,9 +181,7 @@ function OwnHistoryBody({ ownerId }: { ownerId: string }) {
       )}
       {state.status === 'error' && (
         <div className="mt-4">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {state.message}
-          </p>
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{state.message}</ErrorBanner>
           {state.retry && (
             <Button
               type="button"
@@ -239,19 +237,25 @@ function OwnHistoryBody({ ownerId }: { ownerId: string }) {
               ))}
             </ul>
           )}
-          {state.page.nextAfter && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              onClick={() => {
-                const boundary = OwnSemesterAllocationRunV1Schema.parse(state.page.runs.at(-1));
-                void read({ kind: 'page', input: { after: state.page.nextAfter! }, boundary });
-              }}
-            >
-              Older results
-            </Button>
-          )}
+          <PaginationFooter
+            next={
+              state.page.nextAfter
+                ? {
+                    label: 'Older results',
+                    onClick: () => {
+                      const boundary = OwnSemesterAllocationRunV1Schema.parse(
+                        state.page.runs.at(-1),
+                      );
+                      void read({
+                        kind: 'page',
+                        input: { after: state.page.nextAfter! },
+                        boundary,
+                      });
+                    },
+                  }
+                : undefined
+            }
+          />
           {state.selected && (
             <section aria-label="Your simulation result" className="border-t border-gray-200 pt-4">
               <h4
@@ -340,9 +344,9 @@ export function OwnSemesterAllocationHistoryPanel({
         className="rounded-xl border border-gray-200 bg-white p-5"
       >
         <h3 className="text-lg font-semibold text-gray-900">Your saved semester simulations</h3>
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <ErrorBanner className="mt-3 text-sm text-red-700">
           Sign in as this account to read your saved simulations.
-        </p>
+        </ErrorBanner>
       </section>
     );
   const owner = ownerId.toLowerCase();

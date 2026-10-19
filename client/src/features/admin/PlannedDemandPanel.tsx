@@ -6,7 +6,7 @@ import {
   type SimulationCapacitySnapshotDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
 import { getSimulationCapacity } from '@/lib/adminResourcesApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
@@ -109,9 +109,7 @@ function PlannedSelectionReport({ userId, scope, resourceRevision }: Props) {
           Loading current planned selections…
         </p>
       ) : error ? (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
+        <ErrorBanner>{error}</ErrorBanner>
       ) : (
         snapshot &&
         selections && (

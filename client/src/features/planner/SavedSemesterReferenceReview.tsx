@@ -4,7 +4,7 @@ import {
   OwnStudyPlanReferenceReviewSchema,
   type OwnStudyPlanReferenceReviewDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 
@@ -185,9 +185,9 @@ function ReferenceReviewBody({
         </p>
       )}
       {state.status === 'error' && (
-        <p role="alert" className="mt-4 text-sm text-red-700">
+        <ErrorBanner className="mt-4 text-sm text-red-700">
           Could not confirm this review. Use Review reference slot to retry.
-        </p>
+        </ErrorBanner>
       )}
       {state.status === 'ready' && (
         <div className="mt-4 space-y-3 text-sm text-gray-700">

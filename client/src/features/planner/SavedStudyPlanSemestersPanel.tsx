@@ -5,7 +5,7 @@ import {
   type OwnStudyPlanSemesterMetadataDTO,
   type OwnStudyPlanSemestersDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner, PaginationFooter } from '@/components/ui';
 import {
   isOlderSavedStudyPlanSemester,
   listSavedStudyPlanSemesters,
@@ -167,7 +167,7 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
       )}
       {state.status === 'error' && (
         <div className="mt-4">
-          <p role="alert" className="text-sm text-red-700">
+          <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Return to saved plans and reload after signing in.'
               : state.unavailable
@@ -175,7 +175,7 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
                 : state.cursor
                   ? 'This saved semester page is no longer available. Reload saved semesters for the latest references.'
                   : 'Could not confirm the saved semester references. Retry this read or reload the latest references.'}
-          </p>
+          </ErrorBanner>
           {!state.account && !state.unavailable && !state.cursor && (
             <Button
               type="button"
@@ -239,18 +239,20 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
               ))}
             </ul>
           )}
-          {state.page.nextAfter && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              onClick={() =>
-                void read({ after: state.page.nextAfter!, boundary: state.page.semesters.at(-1) })
-              }
-            >
-              Older saved semesters
-            </Button>
-          )}
+          <PaginationFooter
+            next={
+              state.page.nextAfter
+                ? {
+                    label: 'Older saved semesters',
+                    onClick: () =>
+                      void read({
+                        after: state.page.nextAfter!,
+                        boundary: state.page.semesters.at(-1),
+                      }),
+                  }
+                : undefined
+            }
+          />
           {state.page.after && (
             <Button
               type="button"

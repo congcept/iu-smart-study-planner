@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import { ErrorBanner } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 
 export function AdminGuard() {
@@ -6,8 +7,8 @@ export function AdminGuard() {
   return user?.role === 'ADMIN' ? (
     <Outlet />
   ) : (
-    <p role="alert" className="text-red-700">
+    <ErrorBanner className="text-red-700">
       School admin access is required to configure simulation resources.
-    </p>
+    </ErrorBanner>
   );
 }

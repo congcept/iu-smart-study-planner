@@ -5,7 +5,7 @@ import {
   type OwnStudyPlanReferenceSelectionPreviewBodyDTO,
   type OwnStudyPlanReferenceSelectionPreviewDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import {
   previewReferenceSelection,
@@ -110,10 +110,10 @@ function CheckBody({
         {state.status === 'loading' ? 'Checking proposed courses…' : 'Check proposed courses'}
       </Button>
       {state.status === 'error' && (
-        <p role="alert" className="text-sm text-red-700">
+        <ErrorBanner>
           Could not confirm this proposed selection. Reload the saved selection if it changed, then
           check again. No courses were saved by this check.
-        </p>
+        </ErrorBanner>
       )}
       {state.status === 'ready' && (
         <div className="space-y-3">

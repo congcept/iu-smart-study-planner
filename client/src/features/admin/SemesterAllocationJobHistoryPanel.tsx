@@ -11,7 +11,7 @@ import {
   type SemesterAllocationJobHistoryDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
-import { Button, EmptyState, ErrorBanner, StatusPill } from '@/components/ui';
+import { Button, EmptyState, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   SemesterJobSessionChangedError,
   getSemesterAllocationJob,
@@ -402,35 +402,44 @@ function HistoryPanel({ userId, scope }: Props) {
                   ? 'The original administrator was unavailable when execution was attempted. No result was saved.'
                   : 'The simulation preview could not be produced when execution was attempted. No result was saved.'}
           </p>
-          <dl className="space-y-2 text-sm text-gray-700">
-            <div>
-              <dt className="font-medium">Scenario</dt>
-              <dd>
-                {selected.job.scope.semester} {selected.job.scope.year} · curriculum{' '}
-                <span className="break-words [overflow-wrap:anywhere]">
-                  {selected.job.scope.curriculumId}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">Queued</dt>
-              <dd>
-                <time dateTime={selected.job.queuedAt}>
-                  {new Date(selected.job.queuedAt).toLocaleString()}
-                </time>
-              </dd>
-            </div>
-            {selected.outcome.completedAt && (
-              <div>
-                <dt className="font-medium">Completed</dt>
-                <dd>
-                  <time dateTime={selected.outcome.completedAt}>
-                    {new Date(selected.outcome.completedAt).toLocaleString()}
+          <MetricList
+            items={[
+              {
+                key: 'scenario',
+                label: 'Scenario',
+                value: (
+                  <>
+                    {selected.job.scope.semester} {selected.job.scope.year} · curriculum{' '}
+                    <span className="break-words [overflow-wrap:anywhere]">
+                      {selected.job.scope.curriculumId}
+                    </span>
+                  </>
+                ),
+              },
+              {
+                key: 'queued',
+                label: 'Queued',
+                value: (
+                  <time dateTime={selected.job.queuedAt}>
+                    {new Date(selected.job.queuedAt).toLocaleString()}
                   </time>
-                </dd>
-              </div>
-            )}
-          </dl>
+                ),
+              },
+              ...(selected.outcome.completedAt
+                ? [
+                    {
+                      key: 'completed',
+                      label: 'Completed',
+                      value: (
+                        <time dateTime={selected.outcome.completedAt}>
+                          {new Date(selected.outcome.completedAt).toLocaleString()}
+                        </time>
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+          />
           {selected.outcome.runId && (
             <p className="max-w-prose text-sm text-gray-700">
               Saved semester result{' '}

@@ -9,7 +9,7 @@ import {
   type ResourcesSnapshotDTO,
   type UpsertResourcesDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
 import { getResources, saveResources } from '@/lib/adminResourcesApi';
 import { getCurriculumReference, getCurriculumReferences } from '@/lib/curriculumApi';
 import { ResourceSettingsForm } from './ResourceSettingsForm';
@@ -443,9 +443,7 @@ function ResourceSession({ userId }: { userId: string }) {
               Loading saved settings and reference courses…
             </p>
           ) : loadError ? (
-            <p role="alert" className="text-red-700">
-              {loadError}
-            </p>
+            <ErrorBanner className="text-red-700">{loadError}</ErrorBanner>
           ) : (
             active && (
               <section

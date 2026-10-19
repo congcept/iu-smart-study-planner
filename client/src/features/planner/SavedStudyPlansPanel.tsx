@@ -5,7 +5,7 @@ import {
   type OwnStudyPlanMetadataDTO,
   type OwnStudyPlansDTO,
 } from '@iu-study-planner/shared';
-import { Button, Card, EmptyState, ErrorBanner } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorBanner, PaginationFooter } from '@/components/ui';
 import {
   isOlderSavedStudyPlan,
   listSavedStudyPlans,
@@ -229,22 +229,21 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
               ))}
             </ul>
           )}
-          {state.page.nextAfter && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              onClick={() =>
-                void read({
-                  after: state.page.nextAfter!,
-                  boundary: state.page.plans.at(-1),
-                  curriculumId: state.page.scope.curriculumId,
-                })
-              }
-            >
-              Older saved plans
-            </Button>
-          )}
+          <PaginationFooter
+            next={
+              state.page.nextAfter
+                ? {
+                    label: 'Older saved plans',
+                    onClick: () =>
+                      void read({
+                        after: state.page.nextAfter!,
+                        boundary: state.page.plans.at(-1),
+                        curriculumId: state.page.scope.curriculumId,
+                      }),
+                  }
+                : undefined
+            }
+          />
           {state.page.after && (
             <Button
               type="button"

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { OwnStudyPlanCoursesSchema, type OwnStudyPlanCoursesDTO } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
 import {
   getSavedStudyPlanCourses,
   SavedStudyPlanCoursesSessionChangedError,
@@ -140,13 +140,13 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
       )}
       {state.status === 'error' && (
         <div className="mt-4">
-          <p role="alert" className="text-sm text-red-700">
+          <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Return to saved semesters after signing in.'
               : state.unavailable
                 ? 'This saved plan or semester is no longer available. Return to saved semesters and reload.'
                 : 'Could not confirm saved course references. Retry this read or reload.'}
-          </p>
+          </ErrorBanner>
           {!state.account && !state.unavailable && (
             <Button
               type="button"

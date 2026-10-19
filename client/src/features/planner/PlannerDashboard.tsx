@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import type { CurriculumSemesterPreviewDTO, PlanSemesterDTO } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
 import {
   getCourses,
   getCurrentStudentProgress,
@@ -264,11 +264,11 @@ export function PlannerDashboard({ userId }: { userId: string }) {
         </p>
       ) : current.status === 'error' ? (
         <div>
-          <p role="alert" className="text-red-700">
+          <ErrorBanner className="text-red-700">
             {current.missingCourses
               ? 'Some saved planned courses are missing from the current catalog. Reload the planner to try again, or review your selections in My curriculum.'
               : 'Could not load your saved planned courses. Check your connection and reload the planner.'}
-          </p>
+          </ErrorBanner>
           {!assigned && (
             <Link
               to="/curriculum"

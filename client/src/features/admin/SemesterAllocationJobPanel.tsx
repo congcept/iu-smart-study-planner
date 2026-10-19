@@ -9,7 +9,7 @@ import {
   type SemesterAllocationJobDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
-import { Button, ErrorBanner, StatusPill } from '@/components/ui';
+import { Button, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   SemesterJobSessionChangedError,
   enqueueSemesterAllocationJob,
@@ -409,29 +409,37 @@ function JobPanel({ userId, scope }: Props) {
             Selected semester request outcome
           </h4>
           <StatusPill status={confirmed.outcome.status} />
-          <dl className="space-y-2 text-sm text-gray-700">
-            <div>
-              <dt className="font-medium">Selected semester request</dt>
-              <dd className="break-words [overflow-wrap:anywhere]">{confirmed.job.id}</dd>
-            </div>
-            <div>
-              <dt className="font-medium">Scenario</dt>
-              <dd>
-                {confirmed.job.scope.semester} {confirmed.job.scope.year} · curriculum{' '}
-                <span className="break-words [overflow-wrap:anywhere]">
-                  {confirmed.job.scope.curriculumId}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">Queued</dt>
-              <dd>
-                <time dateTime={confirmed.job.queuedAt}>
-                  {new Date(confirmed.job.queuedAt).toLocaleString()}
-                </time>
-              </dd>
-            </div>
-          </dl>
+          <MetricList
+            items={[
+              {
+                key: 'request',
+                label: 'Selected semester request',
+                value: confirmed.job.id,
+                valueClassName: 'break-words [overflow-wrap:anywhere]',
+              },
+              {
+                key: 'scenario',
+                label: 'Scenario',
+                value: (
+                  <>
+                    {confirmed.job.scope.semester} {confirmed.job.scope.year} · curriculum{' '}
+                    <span className="break-words [overflow-wrap:anywhere]">
+                      {confirmed.job.scope.curriculumId}
+                    </span>
+                  </>
+                ),
+              },
+              {
+                key: 'queued',
+                label: 'Queued',
+                value: (
+                  <time dateTime={confirmed.job.queuedAt}>
+                    {new Date(confirmed.job.queuedAt).toLocaleString()}
+                  </time>
+                ),
+              },
+            ]}
+          />
           <p role="status" className="max-w-prose text-sm text-gray-700">
             {confirmed.outcome.status === 'PENDING'
               ? 'No terminal outcome is committed. Another execution may be in progress. Checking the outcome never starts work.'

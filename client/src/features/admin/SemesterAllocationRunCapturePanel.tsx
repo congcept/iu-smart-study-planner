@@ -6,7 +6,7 @@ import {
   type ResourceScopeDTO,
   type SemesterAllocationRunV1DTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import {
   createSemesterAllocationRun,
   getSemesterAllocationRun,
@@ -265,11 +265,7 @@ function CapturePanel({ userId, scope }: Props) {
           Checking semester capture…
         </p>
       )}
-      {error && (
-        <p role="alert" className="max-w-prose text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <ErrorBanner className="max-w-prose text-sm text-red-700">{error}</ErrorBanner>}
       {!loading && pendingCapture && !run && (
         <p className="max-w-prose text-sm text-gray-600">
           An earlier semester capture is unconfirmed in this tab. Retry explicitly with the original
@@ -286,8 +282,9 @@ function CapturePanel({ userId, scope }: Props) {
             {result.scope.semester} {result.scope.year}. This is a historical capture; changes to
             the current cohort, course metadata or settings do not update it.
           </p>
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-            {[
+          <MetricList
+            layout="grid"
+            items={[
               ['Students in captured cohort', result.studentCount],
               ['Students with assignments', result.assignedStudentCount],
               ['Course assignments', result.assignedCourseCount],
@@ -300,30 +297,26 @@ function CapturePanel({ userId, scope }: Props) {
               ['Choices exceed remaining credit budget', result.stopReasonCounts.CREDIT_LIMIT],
               ['Resource settings missing', result.stopReasonCounts.RESOURCE_UNKNOWN],
               ['Shared capacity exhausted', result.stopReasonCounts.CAPACITY_EXHAUSTED],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="flex items-baseline justify-between gap-4 border-b border-gray-200 pb-2"
-              >
-                <dt className="text-gray-700">{label}</dt>
-                <dd className="font-semibold tabular-nums text-gray-900">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <dl className="space-y-2 text-sm text-gray-700">
-            <div>
-              <dt className="font-medium">Capture completed</dt>
-              <dd>
-                <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">Stored on server</dt>
-              <dd>
-                <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>
-              </dd>
-            </div>
-          </dl>
+            ].map(([label, value]) => ({ key: String(label), label, value }))}
+          />
+          <MetricList
+            items={[
+              {
+                key: 'captured',
+                label: 'Capture completed',
+                value: (
+                  <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
+                ),
+              },
+              {
+                key: 'stored',
+                label: 'Stored on server',
+                value: (
+                  <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>
+                ),
+              },
+            ]}
+          />
           <p className="max-w-prose text-sm text-gray-600">
             {result.envelope.envelope
               ? `Captured resource revision ${result.envelope.resourceRevision}. ${result.usedSections} of ${result.envelope.envelope.sharedSectionCeiling} shared classroom/staff sections opened across all rounds.`
