@@ -11,11 +11,20 @@ interface WorkloadAnalyzerProps {
   onClear?: () => void;
 }
 
+type BadgeVariant = NonNullable<React.ComponentProps<typeof Badge>['variant']>;
+
 const bandLabels: Record<WorkloadAnalysis['riskLevel'], string> = {
   LOW: 'Lower estimate',
   MEDIUM: 'Moderate estimate',
   HIGH: 'Higher estimate',
   CRITICAL: 'Highest estimate',
+};
+
+const riskVariants: Record<WorkloadAnalysis['riskLevel'], BadgeVariant> = {
+  LOW: 'success',
+  MEDIUM: 'info',
+  HIGH: 'warning',
+  CRITICAL: 'error',
 };
 
 function hasDifficultyEstimate(course: Course): boolean {
@@ -213,7 +222,9 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
                     {analysis.averageDifficulty.toFixed(1)}
                   </p>
                 </div>
-                <Badge variant="default">{bandLabels[analysis.riskLevel]}</Badge>
+                <Badge variant={riskVariants[analysis.riskLevel]}>
+                  {bandLabels[analysis.riskLevel]}
+                </Badge>
               </div>
 
               {analysis.recommendations.length > 0 ? (

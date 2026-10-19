@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analyzeWorkload } from '@/lib/api';
 import type { ApiResponse, Course, WorkloadAnalysis } from '@/types';
@@ -46,6 +46,16 @@ function calculate() {
     screen.getByRole('button', { name: /^(Analyze|Calculate estimate|Retry analysis)$/i }),
   );
 }
+const riskBands = [
+  { riskLevel: 'LOW', label: 'Lower estimate', severity: 'bg-green-100' },
+  { riskLevel: 'MEDIUM', label: 'Moderate estimate', severity: 'bg-blue-100' },
+  { riskLevel: 'HIGH', label: 'Higher estimate', severity: 'bg-yellow-100' },
+  { riskLevel: 'CRITICAL', label: 'Highest estimate', severity: 'bg-red-100' },
+] as const satisfies ReadonlyArray<{
+  riskLevel: WorkloadAnalysis['riskLevel'];
+  label: string;
+  severity: string;
+}>;
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -141,6 +151,45 @@ describe('selected-course workload analysis', () => {
     expect(screen.getByRole('region', { name: 'Workload result' })).toHaveTextContent('29.9');
     expect(screen.queryByText('11.1')).toBeNull();
     expect(analyzeWorkload).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(riskBands)(
+    'signals $riskLevel severity with a distinct colour and readable text',
+    async ({ riskLevel, label, severity }) => {
+      vi.mocked(analyzeWorkload).mockResolvedValue({
+        ...response(),
+        data: { ...response().data!, riskLevel },
+      });
+      render(<WorkloadAnalyzer selectedCourses={[course('A')]} />);
+      calculate();
+      const result = await screen.findByRole('region', { name: 'Workload result' });
+      const band = within(result).getByText(label);
+      expect(band).toBeVisible();
+      expect(band.className).toContain(severity);
+    },
+  );
+
+  it('never renders two risk bands with the same severity colour', async () => {
+    const mock = vi.mocked(analyzeWorkload);
+    for (const band of riskBands) {
+      mock.mockResolvedValueOnce({
+        ...response(),
+        data: { ...response().data!, riskLevel: band.riskLevel },
+      });
+    }
+    render(
+      <div>
+        {riskBands.map((band) => (
+          <WorkloadAnalyzer key={band.riskLevel} selectedCourses={[course(band.riskLevel)]} />
+        ))}
+      </div>,
+    );
+    for (const button of screen.getAllByRole('button', { name: 'Calculate estimate' }))
+      fireEvent.click(button);
+    for (const band of riskBands) await screen.findByText(band.label);
+    const colours = riskBands.map((band) => screen.getByText(band.label).className);
+    expect(new Set(colours).size).toBe(riskBands.length);
+    expect(analyzeWorkload).toHaveBeenCalledTimes(riskBands.length);
   });
 
   it('invalidates an A-to-B-to-A request even though the final course IDs match', async () => {
