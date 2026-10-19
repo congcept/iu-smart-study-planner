@@ -47,7 +47,10 @@ function showCard(overrides: Partial<ComponentProps<typeof CourseCard>> = {}) {
       {...overrides}
     />,
   );
-  return { ...callbacks, button: screen.getByRole('button') };
+  return {
+    ...callbacks,
+    button: screen.getByRole('button', { name: /: (Mark (in)?complete|Show prerequisites)$/ }),
+  };
 }
 
 afterEach(() => {
@@ -56,6 +59,138 @@ afterEach(() => {
 });
 
 describe('compact course node controls', () => {
+  it.each([
+    {
+      state: 'available',
+      isCompleted: false,
+      isPlanned: false,
+      isLocked: false,
+      action: 'Add to plan',
+    },
+    {
+      state: 'planned',
+      isCompleted: false,
+      isPlanned: true,
+      isLocked: false,
+      action: 'Remove from plan',
+    },
+    {
+      state: 'completed',
+      isCompleted: true,
+      isPlanned: false,
+      isLocked: false,
+      action: 'Move to plan',
+    },
+    {
+      state: 'locked',
+      isCompleted: false,
+      isPlanned: false,
+      isLocked: true,
+      action: 'Add to plan',
+    },
+  ])(
+    'offers a focusable touch-sized plan control for a $state course, preserving right-click',
+    (props) => {
+      const { button, onToggleComplete, onTogglePlanned, onCompleteToPlanned } = showCard(props);
+      const planButton = screen.getByRole('button', {
+        name: `IT002IU Data Structures: ${props.action}`,
+      });
+      expect(planButton).toBeVisible();
+      expect(planButton).toHaveTextContent(props.isPlanned ? 'Unplan' : 'Plan');
+      expect(planButton).toHaveClass('min-h-11');
+      expect(planButton).toHaveAttribute('type', 'button');
+      expect(planButton.tabIndex).toBe(0);
+      planButton.focus();
+      expect(planButton).toHaveFocus();
+      expect(planButton).toHaveAttribute('aria-pressed', String(props.isPlanned));
+
+      fireEvent.click(planButton);
+      const action = props.isCompleted ? onCompleteToPlanned : onTogglePlanned;
+      expect(action).toHaveBeenCalledExactlyOnceWith(course.id);
+      // Context menus bubble from either control to the same desktop fast path.
+      fireEvent.contextMenu(planButton);
+      fireEvent.contextMenu(button);
+      expect(action).toHaveBeenCalledTimes(3);
+      expect(action.mock.calls).toEqual([[course.id], [course.id], [course.id]]);
+      expect(props.isCompleted ? onTogglePlanned : onCompleteToPlanned).not.toHaveBeenCalled();
+      expect(onToggleComplete).not.toHaveBeenCalled();
+      expect(playLockedSound).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['completion', 'planning'])(
+    'highlights prerequisites when the %s control receives focus',
+    (control) => {
+      const onPrereqsHover = vi.fn();
+      const onPrereqsLeave = vi.fn();
+      const { button } = showCard({ isLocked: true, onPrereqsHover, onPrereqsLeave });
+      const target =
+        control === 'completion' ? button : screen.getByRole('button', { name: /: Add to plan$/ });
+      target.focus();
+      expect(onPrereqsHover).toHaveBeenCalledExactlyOnceWith(['IT001IU']);
+      expect(onPrereqsLeave).not.toHaveBeenCalled();
+      target.blur();
+      expect(onPrereqsLeave).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(['hover', 'focus'])(
+    'does not double-fire highlights when %s precedes the other interaction',
+    (first) => {
+      const onPrereqsHover = vi.fn();
+      const onPrereqsLeave = vi.fn();
+      const { button } = showCard({ isLocked: true, onPrereqsHover, onPrereqsLeave });
+      const planButton = screen.getByRole('button', { name: /: Add to plan$/ });
+      if (first === 'hover') {
+        fireEvent.mouseEnter(button);
+        button.focus();
+      } else {
+        button.focus();
+        fireEvent.mouseEnter(button);
+      }
+      planButton.focus();
+      expect(onPrereqsHover).toHaveBeenCalledExactlyOnceWith(['IT001IU']);
+      expect(onPrereqsLeave).not.toHaveBeenCalled();
+
+      if (first === 'hover') fireEvent.mouseLeave(planButton);
+      else planButton.blur();
+      expect(onPrereqsLeave).not.toHaveBeenCalled();
+      if (first === 'hover') planButton.blur();
+      else fireEvent.mouseLeave(planButton);
+      expect(onPrereqsLeave).toHaveBeenCalledOnce();
+      expect(onPrereqsHover).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(['progress', 'pending', 'gpa-path'] as const)(
+    'disables both controls and explains why when disabledReason=%s',
+    (disabledReason) => {
+      const { button, onToggleComplete, onTogglePlanned, onCompleteToPlanned } = showCard({
+        disabledReason,
+      });
+      const planButton = screen.getByRole('button', { name: /: Add to plan$/ });
+      for (const control of [button, planButton]) {
+        expect(control).toBeDisabled();
+        expect(control).toHaveClass('min-h-11');
+        expect(control).toHaveClass(
+          disabledReason === 'pending' ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed',
+        );
+        expect(control).toHaveAccessibleDescription(/Saving another course|Editing is paused/);
+        fireEvent.click(control);
+        fireEvent.contextMenu(control);
+        fireEvent.keyDown(control, { key: 'F10', shiftKey: true });
+        fireEvent.keyDown(control, { key: 'ContextMenu' });
+      }
+      expect(planButton).toHaveAttribute(
+        'aria-describedby',
+        button.getAttribute('aria-describedby'),
+      );
+      expect(onToggleComplete).not.toHaveBeenCalled();
+      expect(onTogglePlanned).not.toHaveBeenCalled();
+      expect(onCompleteToPlanned).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([false, true])('allows the completion button to toggle completed=%s', (isCompleted) => {
     const { button, onToggleComplete, onTogglePlanned } = showCard({ isCompleted });
     expect(button).toHaveAccessibleName(

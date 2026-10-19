@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCurriculum, saveCourseProgress } from '@/lib/api';
 import type { CompleteCourseResponseDTO } from '@iu-study-planner/shared';
+import { getCurriculum, saveCourseProgress } from '@/lib/api';
 import { getScopedStudentProgress } from '@/lib/scopedProgressApi';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { useAppStore } from '@/lib/store';
@@ -56,7 +56,9 @@ async function showCurriculum(courses: Course[], userId?: string) {
   });
   render(<CurriculumProgressMap userId={userId} />);
   await screen.findByRole('button', {
-    name: new RegExp(`^${courses[0].code} Course ${courses[0].code}:`),
+    name: new RegExp(
+      `^${courses[0].code} Course ${courses[0].code}: (Mark (in)?complete|Show prerequisites)$`,
+    ),
   });
 }
 

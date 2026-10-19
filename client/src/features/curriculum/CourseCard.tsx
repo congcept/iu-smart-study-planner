@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useState } from 'react';
+import React, { useCallback, useId, useRef, useState } from 'react';
 import type { Course } from '@/types';
 import { playLockedSound } from '@/lib/sounds';
 import { CourseRatingBadge } from './CourseRatingBadge';
@@ -40,6 +40,19 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onPrereqsLeave,
 }) => {
   const [showPrerequisites, setShowPrerequisites] = useState(false);
+  const interaction = useRef({ hovered: false, focused: false, highlighted: false });
+
+  const updatePrereqsHighlight = (source: 'hovered' | 'focused', active: boolean) => {
+    interaction.current[source] = active;
+    const highlighted = isLocked && (interaction.current.hovered || interaction.current.focused);
+    if (highlighted === interaction.current.highlighted) return;
+    interaction.current.highlighted = highlighted;
+    if (highlighted) {
+      onPrereqsHover?.(course.prerequisites.map((p) => p.prerequisiteId));
+    } else {
+      onPrereqsLeave?.();
+    }
+  };
 
   const disabled = disabledReason !== undefined;
   const disabledNoteId = useId();
@@ -64,17 +77,21 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     }
   }, [course.id, disabled, isLocked, onToggleComplete]);
 
+  const handlePlan = useCallback(() => {
+    if (disabled) return;
+    if (isCompleted) {
+      onCompleteToPlanned(course.id);
+    } else {
+      onTogglePlanned(course.id);
+    }
+  }, [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned]);
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      if (disabled) return;
-      if (isCompleted) {
-        onCompleteToPlanned(course.id);
-      } else {
-        onTogglePlanned(course.id);
-      }
+      handlePlan();
     },
-    [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned],
+    [handlePlan],
   );
 
   let borderColor = 'border-gray-300';
@@ -97,15 +114,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   return (
     <div
       onContextMenu={handleContextMenu}
-      onMouseEnter={() => {
-        if (isLocked && onPrereqsHover) {
-          onPrereqsHover(course.prerequisites.map((p) => p.prerequisiteId));
-        }
+      onMouseEnter={() => updatePrereqsHighlight('hovered', true)}
+      onMouseLeave={() => updatePrereqsHighlight('hovered', false)}
+      onFocus={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        updatePrereqsHighlight('focused', true);
       }}
-      onMouseLeave={() => {
-        if (onPrereqsLeave) {
-          onPrereqsLeave();
-        }
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        updatePrereqsHighlight('focused', false);
       }}
       className={`
         bg-white rounded-md border-2 px-2 py-1.5 transition-colors
@@ -121,9 +138,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         onKeyDown={(event) => {
           if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
             event.preventDefault();
-            if (disabled || event.repeat) return;
-            if (isCompleted) onCompleteToPlanned(course.id);
-            else onTogglePlanned(course.id);
+            if (event.repeat) return;
+            handlePlan();
           }
         }}
         aria-label={`${course.code} ${course.name}: ${isLocked ? 'Show prerequisites' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
@@ -164,7 +180,22 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         </span>
       </button>
 
-      <CourseRatingBadge course={course} compact />
+      <div className="flex items-center justify-between gap-1">
+        <CourseRatingBadge course={course} compact />
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={handlePlan}
+          aria-label={`${course.code} ${course.name}: ${isCompleted ? 'Move to plan' : isPlanned ? 'Remove from plan' : 'Add to plan'}`}
+          aria-pressed={isPlanned}
+          aria-describedby={disabledNote ? disabledNoteId : undefined}
+          className={`min-h-11 min-w-11 shrink-0 rounded px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
+            disabledReason === 'pending' ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed'
+          }`}
+        >
+          {isPlanned ? 'Unplan' : 'Plan'}
+        </button>
+      </div>
 
       {disabledNote && (
         <p id={disabledNoteId} className="mt-1 text-[11px] leading-tight text-gray-500">

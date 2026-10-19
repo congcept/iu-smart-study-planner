@@ -41,8 +41,10 @@ const readPlans = vi.mocked(listSavedStudyPlans);
 const readSemesters = vi.mocked(listSavedStudyPlanSemesters);
 const readCourses = vi.mocked(getSavedStudyPlanCourses);
 const planHeading = () => screen.getByRole('heading', { name: 'Your saved study plans' });
-const semesterHeading = () => screen.getByRole('heading', { name: 'Saved plan semester references' });
-const coursesHeading = () => screen.getByRole('heading', { name: 'Saved semester course references' });
+const semesterHeading = () =>
+  screen.getByRole('heading', { name: 'Saved plan semester references' });
+const coursesHeading = () =>
+  screen.getByRole('heading', { name: 'Saved semester course references' });
 const viewSemesters = () =>
   screen.findByRole('button', { name: /View semesters for Saved reference/ });
 const viewCourses = () => screen.findByRole('button', { name: /View courses for Fall 2026/ });
