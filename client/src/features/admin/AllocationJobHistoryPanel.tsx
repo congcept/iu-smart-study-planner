@@ -9,12 +9,11 @@ import {
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import { getAllocationJobOutcome, listAllocationJobs } from '@/lib/allocationJobsApi';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
 type PageRequest = { after?: string; boundary?: AllocationJobOutcomeDTO };
-class AdminSessionChanged extends Error {}
 
 function sameTerminal(left: AllocationJobOutcomeDTO, right: AllocationJobOutcomeDTO) {
   return (
@@ -75,11 +74,7 @@ function HistoryPanel({ userId, scope }: Props) {
     },
     [requestedScope],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const failureMessage = useCallback((failure: unknown, readingPage: boolean) => {
     if (
       failure instanceof AdminSessionChanged ||

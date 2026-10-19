@@ -9,12 +9,11 @@ import {
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import { getAllocationRun, listAllocationRuns } from '@/lib/allocationRunsApi';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
 type PageRequest = { after?: string; boundary?: AllocationRunV1DTO };
-class AdminSessionChanged extends Error {}
 const percent = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 });
 
 // Preserve sub-millisecond storage precision when checking the immutable paging boundary.
@@ -63,11 +62,7 @@ function HistoryPanel({ userId, scope }: Props) {
     },
     [requestedScope],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const failureMessage = useCallback((failure: unknown, readingPage: boolean) => {
     if (
       failure instanceof AdminSessionChanged ||

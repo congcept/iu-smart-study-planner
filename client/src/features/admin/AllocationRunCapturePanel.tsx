@@ -7,7 +7,6 @@ import {
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import { createAllocationRun, getAllocationRun } from '@/lib/allocationRunsApi';
 import {
   AllocationRunCaptureRequestSchema,
@@ -16,9 +15,9 @@ import {
   writeAllocationRunJournal,
   type AllocationRunJournal,
 } from './allocationRunRecovery';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
-class AdminSessionChanged extends Error {}
 const percent = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 });
 
 export function AllocationRunCapturePanel({ userId, scope }: Props) {
@@ -43,11 +42,7 @@ function CapturePanel({ userId, scope }: Props) {
     () => ResourceScopeSchema.parse({ curriculumId, semester, year }),
     [curriculumId, semester, year],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const checkedRun = useCallback(
     (input: unknown, id?: string) => {
       const result = AllocationRunV1Schema.parse(input);

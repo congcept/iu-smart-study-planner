@@ -7,11 +7,10 @@ import {
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import { getSimulationCapacity } from '@/lib/adminResourcesApi';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO; resourceRevision: number | null };
-class AdminSessionChanged extends Error {}
 
 export function PlannedDemandPanel({ userId, scope, resourceRevision }: Props) {
   const owner = userId.toLowerCase();
@@ -39,11 +38,7 @@ function PlannedSelectionReport({ userId, scope, resourceRevision }: Props) {
   const [snapshot, setSnapshot] = useState<SimulationCapacitySnapshotDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const load = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;

@@ -2,7 +2,6 @@ import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ResourceScopeSchema,
-  SemesterAllocationJobSchema,
   ResourcesSnapshotSchema,
   type CurriculumDetailDTO,
   type CurriculumSummaryDTO,
@@ -11,7 +10,6 @@ import {
   type UpsertResourcesDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import { getResources, saveResources } from '@/lib/adminResourcesApi';
 import { getCurriculumReference, getCurriculumReferences } from '@/lib/curriculumApi';
 import { ResourceSettingsForm } from './ResourceSettingsForm';
@@ -30,6 +28,7 @@ import {
   resourceRequestKey,
   confirmsResourceRequest,
 } from './resourceRecovery';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Selection = { curriculumId: string; semester: ResourceScopeDTO['semester']; year: string };
 type Loaded = {
@@ -44,7 +43,6 @@ const selectionOf = (scope: ResourceScopeDTO): Selection => ({
   semester: scope.semester,
   year: String(scope.year),
 });
-class AdminSessionChanged extends Error {}
 
 export function AdminResourceDashboard({ userId }: { userId: string }) {
   const owner = userId.toLowerCase();
@@ -93,22 +91,10 @@ function ResourceSession({ userId }: { userId: string }) {
         : '',
   );
 
-  const verifySession = useCallback(async () => {
-    let user: Awaited<ReturnType<typeof getSession>>;
-    try {
-      user = await getSession();
-    } catch (error) {
-      if (isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0))
-        setSemesterSessionBlocked(true);
-      throw error;
-    }
-    const identity = SemesterAllocationJobSchema.shape.id.safeParse(user?.id);
-    if (!identity.success || identity.data !== userId || user.role !== 'ADMIN') {
-      setSemesterSessionBlocked(true);
-      throw new AdminSessionChanged();
-    }
-    setSemesterSessionBlocked(false);
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId, {
+    requireUuid: true,
+    onSessionBlockedChange: setSemesterSessionBlocked,
+  });
   const readSnapshot = useCallback(async (scope: ResourceScopeDTO) => {
     const snapshot = ResourcesSnapshotSchema.parse(await getResources(scope));
     if (

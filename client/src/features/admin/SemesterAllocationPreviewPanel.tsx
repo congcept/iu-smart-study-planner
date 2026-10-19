@@ -7,8 +7,8 @@ import {
   type SemesterAllocationPreviewDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import { getSemesterAllocationPreview } from '@/lib/semesterAllocationApi';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = {
   userId: string;
@@ -16,7 +16,6 @@ type Props = {
   resourceRevision: number | null;
   courses?: ReadonlyArray<{ id: string; code: string; name: string }>;
 };
-class AdminSessionChanged extends Error {}
 
 export function SemesterAllocationPreviewPanel(props: Props) {
   const owner = props.userId.toLowerCase();
@@ -37,11 +36,7 @@ function SemesterReport({ userId, scope, resourceRevision, courses }: Props) {
   const [report, setReport] = useState<SemesterAllocationPreviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const load = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;

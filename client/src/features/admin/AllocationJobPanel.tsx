@@ -10,7 +10,6 @@ import {
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import {
   enqueueAllocationJob,
   getAllocationJob,
@@ -23,9 +22,9 @@ import {
   writeAllocationJobJournal,
   type AllocationJobJournal,
 } from './allocationJobRecovery';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
-class AdminSessionChanged extends Error {}
 type Operation = 'queue' | 'read' | 'execute';
 const ScopeSchema = CreateAllocationJobSchema.omit({ requestId: true, expectedActorId: true });
 
@@ -52,11 +51,7 @@ function JobPanel({ userId, scope }: Props) {
     () => ScopeSchema.parse({ curriculumId, semester, year }),
     [curriculumId, semester, year],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const checkedJob = useCallback(
     (input: unknown, id?: string) => {
       const receipt = AllocationJobSchema.parse(input);

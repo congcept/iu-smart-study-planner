@@ -7,7 +7,6 @@ import {
   type SemesterAllocationRunV1DTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
 import {
   createSemesterAllocationRun,
   getSemesterAllocationRun,
@@ -20,9 +19,9 @@ import {
   writeSemesterAllocationRunJournal,
   type SemesterAllocationRunJournal,
 } from './semesterAllocationRunRecovery';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
-class AdminSessionChanged extends Error {}
 class StaleRequest extends Error {}
 
 export function SemesterAllocationRunCapturePanel({ userId, scope }: Props) {
@@ -47,11 +46,7 @@ function CapturePanel({ userId, scope }: Props) {
     () => SemesterAllocationScopeV1Schema.parse({ curriculumId, semester, year }),
     [curriculumId, semester, year],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const underSession = useCallback(
     async (operation: () => Promise<unknown>, token: number) => {
       await verifySession();
