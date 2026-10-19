@@ -152,6 +152,25 @@ afterEach(() => {
 });
 
 describe('explicit semester simulation job panel', () => {
+  it('keeps focus during mount recovery and announces a user checked outcome', async () => {
+    seed();
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await screen.findByRole('heading', { name: 'Selected semester request outcome' });
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(check());
+    const heading = await screen.findByRole('heading', {
+      name: 'Selected semester request outcome',
+    });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('starts empty without network calls, journal writes, polling or capture lookup', async () => {
     mount();
     await ready();

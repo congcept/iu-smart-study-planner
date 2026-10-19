@@ -57,6 +57,21 @@ afterEach(() => {
 });
 
 describe('simulation run history', () => {
+  it('keeps focus on initial history and announces a user selected capture heading', async () => {
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(viewCapture());
+    const heading = await screen.findByRole('heading', { name: 'Selected simulation capture' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('reads the first page with session checks and makes no capture or storage writes', async () => {
     const sessionWrites = vi.spyOn(Storage.prototype, 'setItem');
     const removes = vi.spyOn(Storage.prototype, 'removeItem');

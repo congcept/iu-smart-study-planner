@@ -98,6 +98,21 @@ afterEach(() => {
 });
 
 describe('bounded read-only simulation request history', () => {
+  it('keeps focus on initial history and announces a user selected outcome heading', async () => {
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(choose());
+    const heading = await screen.findByRole('heading', { name: 'Selected request outcome' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('loads newest history with fresh admin checks and never writes requests or journals', async () => {
     mount();
     await ready();

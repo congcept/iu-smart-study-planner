@@ -36,6 +36,8 @@ function CapturePanel({ userId, scope }: Props) {
   const generation = useRef(0);
   const busy = useRef(false);
   const journalRef = useRef<SemesterAllocationRunJournal | null>(null);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [journal, setJournal] = useState<SemesterAllocationRunJournal | null>(null);
   const [run, setRun] = useState<SemesterAllocationRunV1DTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,40 +108,45 @@ function CapturePanel({ userId, scope }: Props) {
       );
     }
   }, []);
-  const recover = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    const token = ++generation.current;
-    setLoading(true);
-    setBlocked(false);
-    setError('');
-    setRun(null);
-    try {
-      const saved = readSemesterAllocationRunJournal(userId, requestedScope());
-      journalRef.current = saved;
-      setJournal(saved);
-      if (saved?.runId) {
-        const savedRunId = saved.runId;
-        const received = await underSession(
-          () => getSemesterAllocationRun(savedRunId, requestedScope()),
-          token,
-        );
-        if (token !== generation.current) return;
-        const result = checkedRun(received, savedRunId);
-        const confirmed = confirmSemesterAllocationRunJournal(saved, userId, requestedScope());
-        journalRef.current = confirmed;
-        setJournal(confirmed);
-        setRun(result);
+  const recover = useCallback(
+    async (userTriggered = false) => {
+      if (busy.current) return;
+      busy.current = true;
+      const token = ++generation.current;
+      setLoading(true);
+      setBlocked(false);
+      setError('');
+      setRun(null);
+      focusDetail.current = false;
+      try {
+        const saved = readSemesterAllocationRunJournal(userId, requestedScope());
+        journalRef.current = saved;
+        setJournal(saved);
+        if (saved?.runId) {
+          const savedRunId = saved.runId;
+          const received = await underSession(
+            () => getSemesterAllocationRun(savedRunId, requestedScope()),
+            token,
+          );
+          if (token !== generation.current) return;
+          const result = checkedRun(received, savedRunId);
+          const confirmed = confirmSemesterAllocationRunJournal(saved, userId, requestedScope());
+          journalRef.current = confirmed;
+          setJournal(confirmed);
+          focusDetail.current = userTriggered;
+          setRun(result);
+        }
+      } catch (failure) {
+        if (token === generation.current) reportFailure(failure, true);
+      } finally {
+        if (token === generation.current) {
+          busy.current = false;
+          setLoading(false);
+        }
       }
-    } catch (failure) {
-      if (token === generation.current) reportFailure(failure, true);
-    } finally {
-      if (token === generation.current) {
-        busy.current = false;
-        setLoading(false);
-      }
-    }
-  }, [checkedRun, reportFailure, requestedScope, underSession, userId]);
+    },
+    [checkedRun, reportFailure, requestedScope, underSession, userId],
+  );
   useEffect(() => {
     const active = generation;
     const pending = busy;
@@ -157,6 +164,7 @@ function CapturePanel({ userId, scope }: Props) {
     setLoading(true);
     setError('');
     setRun(null);
+    focusDetail.current = false;
     let reading = false;
     try {
       const previous = journalRef.current;
@@ -196,6 +204,7 @@ function CapturePanel({ userId, scope }: Props) {
       const result = checkedRun(received);
       const saved = sent.journal;
       if (saved === null) throw new SemesterAllocationRunRecoveryError();
+      focusDetail.current = true;
       setRun(result);
       try {
         const receipt = writeSemesterAllocationRunJournal({ ...saved, runId: result.id }, saved);
@@ -216,6 +225,13 @@ function CapturePanel({ userId, scope }: Props) {
       }
     }
   }, [blocked, checkedRun, reportFailure, requestedScope, underSession, userId]);
+
+  useEffect(() => {
+    if (run && !loading && !error && focusDetail.current) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [run, loading, error]);
 
   const pendingCapture = journal !== null && journal.runId === undefined;
   const receiptNeedsRecovery = journal?.runId !== undefined && run === null;
@@ -239,7 +255,7 @@ function CapturePanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void (recoveryAction ? recover() : capture())}
+        onClick={() => void (recoveryAction ? recover(true) : capture())}
       >
         {recoveryAction
           ? 'Retry semester capture recovery'
@@ -267,7 +283,9 @@ function CapturePanel({ userId, scope }: Props) {
       )}
       {run && result && (
         <div className="space-y-4">
-          <h4 className="font-semibold text-gray-900">Last semester capture in this tab</h4>
+          <h4 ref={detailHeading} tabIndex={-1} className="font-semibold text-gray-900">
+            Last semester capture in this tab
+          </h4>
           <p role="status" className="max-w-prose text-sm text-gray-700">
             Semester snapshot and private simulation assignments saved. {result.curriculum.name} ·{' '}
             {result.scope.semester} {result.scope.year}. This is a historical capture; changes to

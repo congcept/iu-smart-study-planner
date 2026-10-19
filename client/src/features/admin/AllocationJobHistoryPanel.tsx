@@ -52,6 +52,8 @@ function HistoryPanel({ userId, scope }: Props) {
   const pageRequest = useRef<PageRequest>({});
   // Keep only this page's verified terminal observations, never accumulate history.
   const terminalObservations = useRef(new Map<string, AllocationJobOutcomeDTO>());
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [page, setPage] = useState<AllocationJobHistoryDTO | null>(null);
   const [selectedRow, setSelectedRow] = useState<AllocationJobOutcomeDTO | null>(null);
   const [detail, setDetail] = useState<AllocationJobOutcomeDTO | null>(null);
@@ -103,6 +105,7 @@ function HistoryPanel({ userId, scope }: Props) {
       setDetailError('');
       setSelectedRow(null);
       setDetail(null);
+      focusDetail.current = false;
       if (!request.after) setPage(null);
       try {
         await verifySession();
@@ -165,6 +168,7 @@ function HistoryPanel({ userId, scope }: Props) {
       setPending('detail');
       setSelectedRow(row);
       setDetail(null);
+      focusDetail.current = false;
       setDetailError('');
       try {
         await verifySession();
@@ -198,6 +202,7 @@ function HistoryPanel({ userId, scope }: Props) {
               }
             : current,
         );
+        focusDetail.current = true;
         setDetail(result);
       } catch (failure) {
         if (token === generation.current) setDetailError(failureMessage(failure, false));
@@ -210,6 +215,13 @@ function HistoryPanel({ userId, scope }: Props) {
     },
     [failureMessage, matchesScope, requestedScope, verifySession],
   );
+
+  useEffect(() => {
+    if (detail && focusDetail.current && !detailError) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [detail, detailError]);
 
   return (
     <section
@@ -330,7 +342,7 @@ function HistoryPanel({ userId, scope }: Props) {
           </Button>
         </div>
       )}
-      {detail && <RequestOutcome outcome={detail} />}
+      {detail && <RequestOutcome outcome={detail} headingRef={detailHeading} />}
     </section>
   );
 }
@@ -343,13 +355,21 @@ function statusLabel(status: AllocationJobOutcomeDTO['status']) {
       : 'Failed · no capture saved';
 }
 
-function RequestOutcome({ outcome }: { outcome: AllocationJobOutcomeDTO }) {
+function RequestOutcome({
+  outcome,
+  headingRef,
+}: {
+  outcome: AllocationJobOutcomeDTO;
+  headingRef: React.Ref<HTMLHeadingElement>;
+}) {
   return (
     <section
       aria-label="Selected request outcome"
       className="min-w-0 space-y-3 border-t border-gray-200 pt-4"
     >
-      <h4 className="font-semibold text-gray-900">Selected request outcome</h4>
+      <h4 ref={headingRef} tabIndex={-1} className="font-semibold text-gray-900">
+        Selected request outcome
+      </h4>
       <p className="break-all text-sm text-gray-700">{outcome.jobId}</p>
       <p role="status" className="max-w-prose text-sm text-gray-700">
         {outcome.status === 'PENDING'

@@ -88,6 +88,25 @@ afterEach(() => {
 });
 
 describe('saved semester simulation capture', () => {
+  it('keeps focus on mount recovery and announces a capture requested by the user', async () => {
+    seed(semesterAllocationRun().id);
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await screen.findByRole('heading', { name: 'Last semester capture in this tab' });
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(another());
+    const resultHeading = await screen.findByRole('heading', {
+      name: 'Last semester capture in this tab',
+    });
+    await waitFor(() => expect(resultHeading).toHaveFocus());
+    expect(resultHeading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('mounts without automatically creating a run or writing browser data', async () => {
     mount();
     await ready();

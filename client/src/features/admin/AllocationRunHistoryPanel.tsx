@@ -40,6 +40,8 @@ function HistoryPanel({ userId, scope }: Props) {
   const generation = useRef(0);
   const busy = useRef(false);
   const pageRequest = useRef<PageRequest>({});
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [page, setPage] = useState<AllocationRunHistoryDTO | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [run, setRun] = useState<AllocationRunV1DTO | null>(null);
@@ -91,6 +93,7 @@ function HistoryPanel({ userId, scope }: Props) {
       setDetailError('');
       setSelectedId(null);
       setRun(null);
+      focusDetail.current = false;
       if (!request.after) setPage(null);
       try {
         await verifySession();
@@ -145,6 +148,7 @@ function HistoryPanel({ userId, scope }: Props) {
       setPending('detail');
       setSelectedId(id);
       setRun(null);
+      focusDetail.current = false;
       setDetailError('');
       try {
         await verifySession();
@@ -155,6 +159,7 @@ function HistoryPanel({ userId, scope }: Props) {
           throw new Error('Capture does not match the selected run and scenario');
         await verifySession();
         if (token !== generation.current) return;
+        focusDetail.current = true;
         setRun(result);
       } catch (failure) {
         if (token === generation.current) setDetailError(failureMessage(failure, false));
@@ -167,6 +172,13 @@ function HistoryPanel({ userId, scope }: Props) {
     },
     [failureMessage, matchesScope, requestedScope, verifySession],
   );
+
+  useEffect(() => {
+    if (run && focusDetail.current && !detailError) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [run, detailError]);
 
   return (
     <section
@@ -297,12 +309,18 @@ function HistoryPanel({ userId, scope }: Props) {
           </Button>
         </div>
       )}
-      {run && <CaptureDetail run={run} />}
+      {run && <CaptureDetail run={run} headingRef={detailHeading} />}
     </section>
   );
 }
 
-function CaptureDetail({ run }: { run: AllocationRunV1DTO }) {
+function CaptureDetail({
+  run,
+  headingRef,
+}: {
+  run: AllocationRunV1DTO;
+  headingRef: React.Ref<HTMLHeadingElement>;
+}) {
   const result = run.result;
   const resources = result.resources;
   return (
@@ -310,7 +328,9 @@ function CaptureDetail({ run }: { run: AllocationRunV1DTO }) {
       aria-label="Selected simulation capture"
       className="min-w-0 space-y-4 border-t border-gray-200 pt-4"
     >
-      <h4 className="font-semibold text-gray-900">Selected simulation capture</h4>
+      <h4 ref={headingRef} tabIndex={-1} className="font-semibold text-gray-900">
+        Selected simulation capture
+      </h4>
       <p className="max-w-prose text-sm text-gray-700">
         {result.curriculum.name} · {result.scope.semester} {result.scope.year}. Saved historical
         results; current settings and cohort changes do not update this capture.

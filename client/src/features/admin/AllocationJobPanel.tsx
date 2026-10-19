@@ -40,6 +40,8 @@ function JobPanel({ userId, scope }: Props) {
   const generation = useRef(0);
   const busy = useRef(false);
   const journalRef = useRef<AllocationJobJournal | null>(null);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [journal, setJournal] = useState<AllocationJobJournal | null>(null);
   const [job, setJob] = useState<AllocationJobDTO | null>(null);
   const [outcome, setOutcome] = useState<AllocationJobOutcomeDTO | null>(null);
@@ -85,6 +87,7 @@ function JobPanel({ userId, scope }: Props) {
   const begin = useCallback(() => {
     if (busy.current) return null;
     busy.current = true;
+    focusDetail.current = false;
     setLoading(true);
     setError('');
     return ++generation.current;
@@ -132,35 +135,39 @@ function JobPanel({ userId, scope }: Props) {
     },
     [checkedOutcome, requestedScope, verifySession],
   );
-  const recover = useCallback(async () => {
-    const token = begin();
-    if (token === null) return;
-    setBlocked(false);
-    setJob(null);
-    setOutcome(null);
-    try {
-      const saved = readAllocationJobJournal(userId, requestedScope());
-      journalRef.current = saved;
-      setJournal(saved);
-      if (saved?.jobId) {
-        await verifySession();
-        if (token !== generation.current) return;
-        const receipt = checkedJob(
-          await getAllocationJob(saved.jobId, requestedScope()),
-          saved.jobId,
-        );
-        if (token !== generation.current) return;
-        await verifySession();
-        if (token !== generation.current) return;
-        setJob(receipt);
-        await loadOutcome(receipt, token);
+  const recover = useCallback(
+    async (userTriggered = false) => {
+      const token = begin();
+      if (token === null) return;
+      setBlocked(false);
+      setJob(null);
+      setOutcome(null);
+      try {
+        const saved = readAllocationJobJournal(userId, requestedScope());
+        journalRef.current = saved;
+        setJournal(saved);
+        if (saved?.jobId) {
+          await verifySession();
+          if (token !== generation.current) return;
+          const receipt = checkedJob(
+            await getAllocationJob(saved.jobId, requestedScope()),
+            saved.jobId,
+          );
+          if (token !== generation.current) return;
+          await verifySession();
+          if (token !== generation.current) return;
+          setJob(receipt);
+          focusDetail.current = userTriggered;
+          await loadOutcome(receipt, token);
+        }
+      } catch (failure) {
+        if (token === generation.current) report(failure, 'read');
+      } finally {
+        finish(token);
       }
-    } catch (failure) {
-      if (token === generation.current) report(failure, 'read');
-    } finally {
-      finish(token);
-    }
-  }, [begin, checkedJob, finish, loadOutcome, report, requestedScope, userId, verifySession]);
+    },
+    [begin, checkedJob, finish, loadOutcome, report, requestedScope, userId, verifySession],
+  );
   useEffect(() => {
     const active = generation;
     const pending = busy;
@@ -206,6 +213,7 @@ function JobPanel({ userId, scope }: Props) {
       journalRef.current = confirmed;
       setJournal(confirmed);
       setJob(receipt);
+      focusDetail.current = true;
       await loadOutcome(receipt, token);
     } catch (failure) {
       if (token === generation.current)
@@ -249,6 +257,7 @@ function JobPanel({ userId, scope }: Props) {
       if (token !== generation.current) return;
       await verifySession();
       if (token !== generation.current) return;
+      focusDetail.current = true;
       setOutcome(verified);
     } catch (failure) {
       if (token === generation.current) report(failure, 'execute');
@@ -267,6 +276,13 @@ function JobPanel({ userId, scope }: Props) {
     userId,
     verifySession,
   ]);
+
+  useEffect(() => {
+    if (outcome && !loading && !error && focusDetail.current) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [outcome, loading, error]);
 
   const pendingReceipt = journal !== null && !journal.jobId;
   const terminal = outcome !== null && outcome.status !== 'PENDING';
@@ -302,7 +318,7 @@ function JobPanel({ userId, scope }: Props) {
             variant="secondary"
             className="min-h-11"
             disabled={loading}
-            onClick={() => void recover()}
+            onClick={() => void recover(true)}
           >
             {blocked || (!job && journal?.jobId)
               ? 'Retry request recovery'
@@ -345,6 +361,9 @@ function JobPanel({ userId, scope }: Props) {
       )}
       {outcome && (
         <div className="space-y-2 text-sm text-gray-700">
+          <h4 ref={detailHeading} tabIndex={-1} className="font-semibold text-gray-900">
+            Selected request outcome
+          </h4>
           <p role="status" className="max-w-prose">
             {outcome.status === 'PENDING'
               ? 'No terminal outcome is committed. Another execution may be in progress; checking the outcome never starts work.'

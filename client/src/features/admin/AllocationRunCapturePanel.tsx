@@ -32,6 +32,8 @@ function CapturePanel({ userId, scope }: Props) {
   const generation = useRef(0);
   const busy = useRef(false);
   const journalRef = useRef<AllocationRunJournal | null>(null);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [journal, setJournal] = useState<AllocationRunJournal | null>(null);
   const [run, setRun] = useState<AllocationRunV1DTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,39 +85,44 @@ function CapturePanel({ userId, scope }: Props) {
     }
   }, []);
 
-  const recover = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    const token = ++generation.current;
-    setLoading(true);
-    setBlocked(false);
-    setError('');
-    setRun(null);
-    try {
-      const saved = readAllocationRunJournal(userId, requestedScope());
-      journalRef.current = saved;
-      setJournal(saved);
-      if (saved?.runId) {
-        await verifySession();
-        if (token !== generation.current) return;
-        const result = checkedRun(
-          await getAllocationRun(saved.runId, requestedScope()),
-          saved.runId,
-        );
-        if (token !== generation.current) return;
-        await verifySession();
-        if (token !== generation.current) return;
-        setRun(result);
+  const recover = useCallback(
+    async (userTriggered = false) => {
+      if (busy.current) return;
+      busy.current = true;
+      const token = ++generation.current;
+      setLoading(true);
+      setBlocked(false);
+      setError('');
+      setRun(null);
+      focusDetail.current = false;
+      try {
+        const saved = readAllocationRunJournal(userId, requestedScope());
+        journalRef.current = saved;
+        setJournal(saved);
+        if (saved?.runId) {
+          await verifySession();
+          if (token !== generation.current) return;
+          const result = checkedRun(
+            await getAllocationRun(saved.runId, requestedScope()),
+            saved.runId,
+          );
+          if (token !== generation.current) return;
+          await verifySession();
+          if (token !== generation.current) return;
+          focusDetail.current = userTriggered;
+          setRun(result);
+        }
+      } catch (failure) {
+        if (token === generation.current) reportFailure(failure, true);
+      } finally {
+        if (token === generation.current) {
+          busy.current = false;
+          setLoading(false);
+        }
       }
-    } catch (failure) {
-      if (token === generation.current) reportFailure(failure, true);
-    } finally {
-      if (token === generation.current) {
-        busy.current = false;
-        setLoading(false);
-      }
-    }
-  }, [checkedRun, reportFailure, requestedScope, userId, verifySession]);
+    },
+    [checkedRun, reportFailure, requestedScope, userId, verifySession],
+  );
   useEffect(() => {
     const active = generation;
     const pending = busy;
@@ -133,6 +140,7 @@ function CapturePanel({ userId, scope }: Props) {
     setLoading(true);
     setError('');
     setRun(null);
+    focusDetail.current = false;
     try {
       await verifySession();
       if (token !== generation.current) return;
@@ -157,6 +165,7 @@ function CapturePanel({ userId, scope }: Props) {
       if (token !== generation.current) return;
       await verifySession();
       if (token !== generation.current) return;
+      focusDetail.current = true;
       setRun(result);
       try {
         const receipt = writeAllocationRunJournal({ ...saved, runId: result.id }, saved);
@@ -176,6 +185,13 @@ function CapturePanel({ userId, scope }: Props) {
       }
     }
   }, [blocked, checkedRun, reportFailure, requestedScope, userId, verifySession]);
+
+  useEffect(() => {
+    if (run && !loading && !error && focusDetail.current) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [run, loading, error]);
 
   const pendingCapture = journal !== null && journal.runId === undefined;
   const receiptNeedsRecovery = journal?.runId !== undefined && run === null;
@@ -197,7 +213,7 @@ function CapturePanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void (recoveryAction ? recover() : capture())}
+        onClick={() => void (recoveryAction ? recover(true) : capture())}
       >
         {recoveryAction
           ? 'Retry capture recovery'
@@ -225,7 +241,9 @@ function CapturePanel({ userId, scope }: Props) {
       )}
       {run && result && (
         <div className="space-y-4">
-          <h4 className="font-semibold text-gray-900">Last capture in this tab</h4>
+          <h4 ref={detailHeading} tabIndex={-1} className="font-semibold text-gray-900">
+            Last capture in this tab
+          </h4>
           <p role="status" className="max-w-prose text-sm text-gray-700">
             Aggregate snapshot saved. {result.curriculum.name} · {result.scope.semester}{' '}
             {result.scope.year}. This is a historical capture; current settings and cohort changes
