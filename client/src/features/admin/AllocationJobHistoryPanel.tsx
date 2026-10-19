@@ -8,7 +8,7 @@ import {
   type AllocationJobOutcomeDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, EmptyState, ErrorBanner, PaginationFooter, StatusPill } from '@/components/ui';
 import { getAllocationJobOutcome, listAllocationJobs } from '@/lib/allocationJobsApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
@@ -246,9 +246,7 @@ function HistoryPanel({ userId, scope }: Props) {
       )}
       {pageError && (
         <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {pageError}
-          </p>
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{pageError}</ErrorBanner>
           <Button
             variant="secondary"
             className="min-h-11"
@@ -265,9 +263,7 @@ function HistoryPanel({ userId, scope }: Props) {
             {page.jobs.length} {page.jobs.length === 1 ? 'request' : 'requests'} on this page.
           </p>
           {page.jobs.length === 0 ? (
-            <p className="text-sm text-gray-700">
-              No queued simulation requests for this scenario.
-            </p>
+            <EmptyState>No queued simulation requests for this scenario.</EmptyState>
           ) : (
             <ul
               aria-label="Queued requests"
@@ -285,6 +281,7 @@ function HistoryPanel({ userId, scope }: Props) {
                     </p>
                     <p className="break-all text-gray-600">{row.jobId}</p>
                     <p className="text-gray-700">{statusLabel(row.status)}</p>
+                    <StatusPill status={row.status} />
                   </div>
                   <Button
                     variant="secondary"
@@ -300,21 +297,22 @@ function HistoryPanel({ userId, scope }: Props) {
               ))}
             </ul>
           )}
-          {page.nextAfter !== null && !pageError && (
-            <Button
-              variant="secondary"
-              className="min-h-11"
-              disabled={pending !== null}
-              onClick={() =>
-                void readPage({ after: page.nextAfter ?? undefined, boundary: page.jobs.at(-1) })
-              }
-            >
-              Load older requests
-            </Button>
-          )}
-          {page.jobs.length > 0 && page.nextAfter === null && (
-            <p className="text-sm text-gray-600">No older requests.</p>
-          )}
+          <PaginationFooter
+            next={
+              page.nextAfter !== null && !pageError
+                ? {
+                    label: 'Load older requests',
+                    disabled: pending !== null,
+                    onClick: () =>
+                      void readPage({
+                        after: page.nextAfter ?? undefined,
+                        boundary: page.jobs.at(-1),
+                      }),
+                  }
+                : undefined
+            }
+            end={page.jobs.length > 0 && page.nextAfter === null ? 'No older requests.' : undefined}
+          />
         </div>
       )}
       {pending === 'detail' && (
@@ -324,9 +322,7 @@ function HistoryPanel({ userId, scope }: Props) {
       )}
       {detailError && selectedRow && (
         <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {detailError}
-          </p>
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{detailError}</ErrorBanner>
           <Button
             variant="secondary"
             className="min-h-11"
@@ -365,6 +361,7 @@ function RequestOutcome({
       <h4 ref={headingRef} tabIndex={-1} className="font-semibold text-gray-900">
         Selected request outcome
       </h4>
+      <StatusPill status={outcome.status} />
       <p className="break-all text-sm text-gray-700">{outcome.jobId}</p>
       <p role="status" className="max-w-prose text-sm text-gray-700">
         {outcome.status === 'PENDING'

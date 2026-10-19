@@ -5,7 +5,7 @@ import {
   type OwnStudyPlanMetadataDTO,
   type OwnStudyPlansDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorBanner } from '@/components/ui';
 import {
   isOlderSavedStudyPlan,
   listSavedStudyPlans,
@@ -127,10 +127,7 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
 
   const pending = state.status === 'loading';
   return (
-    <section
-      aria-label="Your saved study plans"
-      className="rounded-xl border border-gray-200 bg-white p-5"
-    >
+    <Card as="section" variant="panel" aria-label="Your saved study plans">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 ref={heading} tabIndex={-1} className="text-lg font-semibold text-gray-900">
@@ -159,13 +156,13 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
       )}
       {state.status === 'error' && (
         <div className="mt-4">
-          <p role="alert" className="text-sm text-red-700">
+          <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Sign in to this account and reload saved plans.'
               : state.cursor
                 ? 'This saved-plan page is no longer available. Reload saved plans to return to the latest references.'
                 : 'Could not confirm your saved study plans. Retry this read or reload the latest references.'}
-          </p>
+          </ErrorBanner>
           {!state.account && !state.cursor && (
             <Button
               type="button"
@@ -181,11 +178,11 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
       {state.status === 'ready' && (
         <div className="mt-4 space-y-4">
           {state.page.plans.length === 0 ? (
-            <p className="text-sm text-gray-700">
+            <EmptyState>
               {state.page.after
                 ? 'No older saved study plans are available.'
                 : 'No saved study plans for your account yet.'}
-            </p>
+            </EmptyState>
           ) : (
             <ul className="divide-y divide-gray-200">
               {state.page.plans.map((plan, index) => (
@@ -260,7 +257,7 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
           )}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -273,15 +270,12 @@ export function SavedStudyPlansPanel({
 }) {
   if (blocked)
     return (
-      <section
-        aria-label="Your saved study plans"
-        className="rounded-xl border border-gray-200 bg-white p-5"
-      >
+      <Card as="section" variant="panel" aria-label="Your saved study plans">
         <h3 className="text-lg font-semibold text-gray-900">Your saved study plans</h3>
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <ErrorBanner className="mt-3 text-sm text-red-700">
           Sign in as this account to read your saved study plans.
-        </p>
-      </section>
+        </ErrorBanner>
+      </Card>
     );
   return <SavedStudyPlansBody key={ownerId.toLowerCase()} ownerId={ownerId.toLowerCase()} />;
 }

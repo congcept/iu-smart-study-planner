@@ -9,7 +9,7 @@ import {
   type AllocationJobOutcomeDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   enqueueAllocationJob,
   getAllocationJob,
@@ -45,6 +45,7 @@ function JobPanel({ userId, scope }: Props) {
   const [job, setJob] = useState<AllocationJobDTO | null>(null);
   const [outcome, setOutcome] = useState<AllocationJobOutcomeDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeOperation, setActiveOperation] = useState<Operation | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
   const requestedScope = useCallback(
@@ -79,11 +80,12 @@ function JobPanel({ userId, scope }: Props) {
       throw new Error('Simulation outcome does not match its immutable receipt');
     return result;
   }, []);
-  const begin = useCallback(() => {
+  const begin = useCallback((operation: Operation) => {
     if (busy.current) return null;
     busy.current = true;
     focusDetail.current = false;
     setLoading(true);
+    setActiveOperation(operation);
     setError('');
     return ++generation.current;
   }, []);
@@ -91,6 +93,7 @@ function JobPanel({ userId, scope }: Props) {
     if (token !== generation.current) return;
     busy.current = false;
     setLoading(false);
+    setActiveOperation(null);
   }, []);
   const report = useCallback((failure: unknown, operation: Operation) => {
     if (failure instanceof AllocationJobRecoveryError) {
@@ -132,7 +135,7 @@ function JobPanel({ userId, scope }: Props) {
   );
   const recover = useCallback(
     async (userTriggered = false) => {
-      const token = begin();
+      const token = begin('read');
       if (token === null) return;
       setBlocked(false);
       setJob(null);
@@ -176,7 +179,7 @@ function JobPanel({ userId, scope }: Props) {
   const queue = useCallback(async () => {
     if (blocked || (journalRef.current?.jobId && (!outcome || outcome.status === 'PENDING')))
       return;
-    const token = begin();
+    const token = begin('queue');
     if (token === null) return;
     setJob(null);
     setOutcome(null);
@@ -232,7 +235,7 @@ function JobPanel({ userId, scope }: Props) {
   const execute = useCallback(async () => {
     if (blocked || !job || outcome?.status !== 'PENDING' || journalRef.current?.jobId !== job.id)
       return;
-    const token = begin();
+    const token = begin('execute');
     if (token === null) return;
     setOutcome(null);
     try {
@@ -300,6 +303,7 @@ function JobPanel({ userId, scope }: Props) {
           variant="secondary"
           className="min-h-11"
           disabled={loading || queueBlocked}
+          isLoading={loading && activeOperation === 'queue'}
           onClick={() => void queue()}
         >
           {pendingReceipt
@@ -313,6 +317,7 @@ function JobPanel({ userId, scope }: Props) {
             variant="secondary"
             className="min-h-11"
             disabled={loading}
+            isLoading={loading && activeOperation === 'read'}
             onClick={() => void recover(true)}
           >
             {blocked || (!job && journal?.jobId)
@@ -320,8 +325,13 @@ function JobPanel({ userId, scope }: Props) {
               : 'Check request outcome'}
           </Button>
         )}
-        {job && outcome?.status === 'PENDING' && (
-          <Button className="min-h-11" disabled={loading || blocked} onClick={() => void execute()}>
+        {job && (outcome?.status === 'PENDING' || (loading && activeOperation === 'execute')) && (
+          <Button
+            className="min-h-11"
+            disabled={loading || blocked}
+            isLoading={loading && activeOperation === 'execute'}
+            onClick={() => void execute()}
+          >
             Execute selected request
           </Button>
         )}
@@ -331,11 +341,7 @@ function JobPanel({ userId, scope }: Props) {
           Checking simulation request…
         </p>
       )}
-      {error && (
-        <p role="alert" className="max-w-prose text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <ErrorBanner className="max-w-prose text-sm text-red-700">{error}</ErrorBanner>}
       {!loading && pendingReceipt && (
         <p className="max-w-prose text-sm text-gray-600">
           This tab has an unconfirmed enqueue request. Retry explicitly with the original key to
@@ -343,22 +349,24 @@ function JobPanel({ userId, scope }: Props) {
         </p>
       )}
       {job && (
-        <dl className="space-y-2 text-sm text-gray-700">
-          <div>
-            <dt className="font-medium">Selected request</dt>
-            <dd className="break-all">{job.id}</dd>
-          </div>
-          <div>
-            <dt className="font-medium">Queued</dt>
-            <dd>{new Date(job.queuedAt).toLocaleString()}</dd>
-          </div>
-        </dl>
+        <MetricList
+          items={[
+            {
+              key: 'request',
+              label: 'Selected request',
+              value: job.id,
+              valueClassName: 'break-all',
+            },
+            { key: 'queued', label: 'Queued', value: new Date(job.queuedAt).toLocaleString() },
+          ]}
+        />
       )}
       {outcome && (
         <div className="space-y-2 text-sm text-gray-700">
           <h4 ref={detailHeading} tabIndex={-1} className="font-semibold text-gray-900">
             Selected request outcome
           </h4>
+          <StatusPill status={outcome.status} />
           <p role="status" className="max-w-prose">
             {outcome.status === 'PENDING'
               ? 'No terminal outcome is committed. Another execution may be in progress; checking the outcome never starts work.'

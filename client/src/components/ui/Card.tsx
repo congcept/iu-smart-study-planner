@@ -6,6 +6,9 @@ interface CardProps {
   title?: string;
   subtitle?: string;
   headerAction?: React.ReactNode;
+  variant?: 'default' | 'panel';
+  as?: 'div' | 'section';
+  'aria-label'?: string;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -14,9 +17,24 @@ export const Card: React.FC<CardProps> = ({
   title,
   subtitle,
   headerAction,
+  variant = 'default',
+  as: Element = 'div',
+  'aria-label': ariaLabel,
 }) => {
+  if (variant === 'panel')
+    return (
+      <Element
+        aria-label={ariaLabel}
+        className={`rounded-xl border border-gray-200 bg-white p-5 ${className}`.trim()}
+      >
+        {children}
+      </Element>
+    );
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}>
+    <Element
+      aria-label={ariaLabel}
+      className={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}
+    >
       {(title || subtitle || headerAction) && (
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
@@ -27,6 +45,6 @@ export const Card: React.FC<CardProps> = ({
         </div>
       )}
       <div className="p-6">{children}</div>
-    </div>
+    </Element>
   );
 };

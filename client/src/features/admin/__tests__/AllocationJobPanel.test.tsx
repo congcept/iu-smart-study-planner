@@ -745,3 +745,40 @@ describe('durable tab recovery and compare-and-save protection', () => {
     expect(recovery()).toBeEnabled();
   });
 });
+
+describe('allocation outcome presentation', () => {
+  it.each([
+    ['PENDING', 'bg-yellow-100'],
+    ['SUCCEEDED', 'bg-green-100'],
+    ['FAILED', 'bg-red-100'],
+  ] as const)('distinguishes %s with a visible status pill', async (status, colour) => {
+    vi.mocked(getAllocationJobOutcome).mockResolvedValue(outcome(status));
+    seed(jobId);
+    mount();
+    const pill = await screen.findByText(status);
+    expect(pill).toHaveClass(colour);
+  });
+
+  it('shows progress inside the admin button while queueing', async () => {
+    const request = deferred<AllocationJobDTO>();
+    vi.mocked(enqueueAllocationJob).mockReturnValueOnce(request.promise);
+    mount();
+    await ready();
+    const button = queue();
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    expect(button.querySelector('svg.animate-spin')).not.toBeNull();
+    await act(async () => request.resolve(receipt()));
+  });
+
+  it('keeps the execute button visible with progress during execution', async () => {
+    const request = deferred<{ processed: boolean; outcome: AllocationJobOutcomeDTO }>();
+    vi.mocked(executeAllocationJob).mockReturnValueOnce(request.promise);
+    await showPending();
+    fireEvent.click(execute());
+    const button = execute();
+    expect(button).toBeDisabled();
+    expect(button.querySelector('svg.animate-spin')).not.toBeNull();
+    await act(async () => request.resolve({ processed: true, outcome: outcome('SUCCEEDED') }));
+  });
+});

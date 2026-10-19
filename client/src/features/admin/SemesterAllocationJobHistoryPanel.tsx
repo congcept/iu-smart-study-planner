@@ -11,7 +11,7 @@ import {
   type SemesterAllocationJobHistoryDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, EmptyState, ErrorBanner, StatusPill } from '@/components/ui';
 import {
   SemesterJobSessionChangedError,
   getSemesterAllocationJob,
@@ -276,9 +276,7 @@ function HistoryPanel({ userId, scope }: Props) {
       )}
       {failure && (
         <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {failure.message}
-          </p>
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{failure.message}</ErrorBanner>
           {failure.kind === 'page' && lastPageRequest.current && (
             <Button
               variant="secondary"
@@ -308,11 +306,11 @@ function HistoryPanel({ userId, scope }: Props) {
       {page && (
         <div className="space-y-3">
           {page.requests.length === 0 ? (
-            <p className="text-sm text-gray-700">
+            <EmptyState>
               {page.after === null
                 ? 'No semester requests have been queued for this scenario.'
                 : 'No older semester requests.'}
-            </p>
+            </EmptyState>
           ) : (
             <ul
               aria-label="Semester requests on this page"
@@ -340,6 +338,7 @@ function HistoryPanel({ userId, scope }: Props) {
                           ? 'Completed · student results saved'
                           : 'Failed · no result saved'}
                     </p>
+                    <StatusPill status={entry.outcome.status} />
                   </div>
                   <Button
                     variant="secondary"
@@ -390,6 +389,7 @@ function HistoryPanel({ userId, scope }: Props) {
           >
             Selected semester request outcome
           </h4>
+          <StatusPill status={selected.outcome.status} />
           <p className="break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
             {selected.job.id}
           </p>

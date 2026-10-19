@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Course, Recommendation } from '@/types';
 import { getRecommendations } from '@/lib/api';
 import { categoryLabels, formatCredits } from '@/lib/utils';
-import { Badge, Button, Card } from '@components/ui';
+import { Badge, Button, Card, ErrorBanner, LoadingSpinner } from '@components/ui';
 import { Check, Plus } from 'lucide-react';
 
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
@@ -127,10 +127,7 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
           role="status"
           className="flex items-center justify-center gap-3 py-12 text-sm text-gray-700"
         >
-          <div
-            aria-hidden="true"
-            className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600"
-          />
+          <LoadingSpinner variant="ring" />
           Loading suggestions…
         </div>
       </Card>
@@ -140,14 +137,14 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
   if (hasError || !recommendations) {
     return (
       <Card title="Course suggestions">
-        <div role="alert" className="space-y-3 py-4">
+        <ErrorBanner as="div" className="space-y-3 py-4">
           <p className="text-sm text-gray-700">
             We couldn’t load course suggestions. Check your connection and try again.
           </p>
           <Button variant="secondary" onClick={() => void fetchRecommendations()}>
             Retry loading
           </Button>
-        </div>
+        </ErrorBanner>
       </Card>
     );
   }

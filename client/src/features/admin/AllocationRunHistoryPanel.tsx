@@ -8,7 +8,7 @@ import {
   type AllocationRunV1DTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, EmptyState, ErrorBanner, MetricList, PaginationFooter } from '@/components/ui';
 import { getAllocationRun, listAllocationRuns } from '@/lib/allocationRunsApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
@@ -203,9 +203,7 @@ function HistoryPanel({ userId, scope }: Props) {
       )}
       {pageError && (
         <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {pageError}
-          </p>
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{pageError}</ErrorBanner>
           <Button
             variant="secondary"
             className="min-h-11"
@@ -222,7 +220,7 @@ function HistoryPanel({ userId, scope }: Props) {
             {page.runs.length} saved {page.runs.length === 1 ? 'capture' : 'captures'} on this page.
           </p>
           {page.runs.length === 0 ? (
-            <p className="text-sm text-gray-700">No saved simulation captures for this scenario.</p>
+            <EmptyState>No saved simulation captures for this scenario.</EmptyState>
           ) : (
             <ul
               aria-label="Saved captures"
@@ -267,21 +265,22 @@ function HistoryPanel({ userId, scope }: Props) {
               ))}
             </ul>
           )}
-          {page.nextAfter !== null && !pageError && (
-            <Button
-              variant="secondary"
-              className="min-h-11"
-              disabled={pending !== null}
-              onClick={() =>
-                void readPage({ after: page.nextAfter ?? undefined, boundary: page.runs.at(-1) })
-              }
-            >
-              Load older captures
-            </Button>
-          )}
-          {page.runs.length > 0 && page.nextAfter === null && (
-            <p className="text-sm text-gray-600">No older captures.</p>
-          )}
+          <PaginationFooter
+            next={
+              page.nextAfter !== null && !pageError
+                ? {
+                    label: 'Load older captures',
+                    disabled: pending !== null,
+                    onClick: () =>
+                      void readPage({
+                        after: page.nextAfter ?? undefined,
+                        boundary: page.runs.at(-1),
+                      }),
+                  }
+                : undefined
+            }
+            end={page.runs.length > 0 && page.nextAfter === null ? 'No older captures.' : undefined}
+          />
         </div>
       )}
       {pending === 'detail' && (
@@ -291,9 +290,7 @@ function HistoryPanel({ userId, scope }: Props) {
       )}
       {detailError && selectedId && (
         <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {detailError}
-          </p>
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{detailError}</ErrorBanner>
           <Button
             variant="secondary"
             className="min-h-11"
@@ -330,38 +327,33 @@ function CaptureDetail({
         {result.curriculum.name} · {result.scope.semester} {result.scope.year}. Saved historical
         results; current settings and cohort changes do not update this capture.
       </p>
-      <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-        {[
+      <MetricList
+        layout="grid"
+        items={[
           ['Students in captured cohort', result.cohortStudentCount],
           ['Assigned in simulation', result.assignedStudentCount],
           ['No eligible choices', result.noChoicesStudentCount],
           ['Unresolved without resource settings', result.resourceUnknownStudentCount],
           ['Unassigned after capacity is exhausted', result.capacityExhaustedStudentCount],
           ['Unresolved numeric GPA path', result.unresolvedGpaStudentCount],
-        ].map(([label, value]) => (
-          <div
-            key={label}
-            className="flex items-baseline justify-between gap-4 border-b border-gray-200 pb-2"
-          >
-            <dt className="text-gray-700">{label}</dt>
-            <dd className="font-semibold tabular-nums text-gray-900">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <dl className="space-y-2 text-sm text-gray-700">
-        <div>
-          <dt className="font-medium">Capture completed</dt>
-          <dd>
-            <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
-          </dd>
-        </div>
-        <div>
-          <dt className="font-medium">Stored on server</dt>
-          <dd>
-            <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>
-          </dd>
-        </div>
-      </dl>
+        ].map(([label, value]) => ({ key: String(label), label, value }))}
+      />
+      <MetricList
+        items={[
+          {
+            key: 'captured',
+            label: 'Capture completed',
+            value: (
+              <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
+            ),
+          },
+          {
+            key: 'stored',
+            label: 'Stored on server',
+            value: <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>,
+          },
+        ]}
+      />
       <p className="max-w-prose text-sm text-gray-600">
         {resources
           ? `Captured resource revision ${resources.resourceRevision}. Professors: ${resources.professors}; classrooms: ${resources.classrooms}; lab rooms: ${resources.labRooms}; students per section: ${resources.maxStudentsPerSection}. Classroom blocks: ${resources.classroomTimeBlocks}; sections per professor: ${resources.sectionsPerProfessor}. ${result.usedSections} of ${resources.sharedSectionCeiling} shared sections opened, with a ${resources.sharedSeatCeiling}-seat ceiling.`
