@@ -101,4 +101,19 @@ describe('nested admin route guard', () => {
       ).not.toBeInTheDocument();
     },
   );
+
+  it('gives the withheld page its own heading instead of a bare sentence', () => {
+    render(view(session(student)));
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Simulation resources' }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers the withheld visitor a route back to their own progress', () => {
+    render(view(session(student)));
+    expect(screen.getByRole('link', { name: 'Go to My curriculum' })).toHaveAttribute(
+      'href',
+      '/curriculum',
+    );
+  });
 });
