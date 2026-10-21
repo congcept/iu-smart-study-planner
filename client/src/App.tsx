@@ -114,7 +114,13 @@ function AppShell() {
               <span className="rounded-full bg-primary-50 px-2 py-1 text-primary-700">
                 {user.role === 'ADMIN' ? 'School admin' : 'Student'}
               </span>
-              <Button size="sm" variant="secondary" isLoading={isLoggingOut} onClick={signOut}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="min-h-11"
+                isLoading={isLoggingOut}
+                onClick={signOut}
+              >
                 Sign out
               </Button>
             </>

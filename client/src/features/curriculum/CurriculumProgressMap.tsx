@@ -636,7 +636,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           </span>
           <span>
             <span className="font-semibold">Completed:</span>{' '}
-            <span className="font-bold text-green-600 tabular-nums">
+            <span className="font-bold text-green-700 tabular-nums">
               {completedCredits} / {REQUIRED_CREDITS} credits
             </span>
           </span>
@@ -809,7 +809,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                       let statusRing = '';
                       if (isComplete) {
                         statusIcon = (
-                          <span className="text-green-600 font-bold text-[11px]">DONE</span>
+                          <span className="text-green-700 font-bold text-[11px]">DONE</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-green-500';
                       } else if (hasPlanned) {

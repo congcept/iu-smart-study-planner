@@ -142,6 +142,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Button
               size="sm"
+              className="min-h-11"
               onClick={() => void handleAnalyze()}
               isLoading={isAnalyzing}
               disabled={isAnalyzing}
@@ -149,7 +150,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
               {isAnalyzing ? 'Calculating…' : hasError ? 'Retry analysis' : 'Calculate estimate'}
             </Button>
             {onClear && (
-              <Button variant="ghost" size="sm" onClick={onClear}>
+              <Button variant="ghost" size="sm" className="min-h-11" onClick={onClear}>
                 Clear selection
               </Button>
             )}
@@ -157,31 +158,33 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
           <p className="mb-2 text-sm text-gray-700">
             Use the arrow keys to scroll the selected courses list.
           </p>
-          <ul
+          <div
             role="region"
             aria-label="Selected courses"
             tabIndex={0}
-            className="max-h-56 divide-y divide-gray-200 overflow-y-auto border-y border-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            className="max-h-56 overflow-y-auto border-y border-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
           >
-            {selectedCourses.map((course) => (
-              <li
-                key={course.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 py-3"
-              >
-                <div className="min-w-0">
-                  <strong className="text-gray-900">{course.code}</strong>
-                  <span className="ml-2 text-gray-700">{course.name}</span>
-                  <p className="text-sm text-gray-700">{categoryLabels[course.category]}</p>
-                  {hasDifficultyEstimate(course) ? (
-                    <CourseRatingBadge course={course} />
-                  ) : (
-                    <p className="text-xs text-gray-700">Difficulty estimate unavailable</p>
-                  )}
-                </div>
-                <span className="text-sm text-gray-700">{formatCredits(course.credits)}</span>
-              </li>
-            ))}
-          </ul>
+            <ul className="divide-y divide-gray-200">
+              {selectedCourses.map((course) => (
+                <li
+                  key={course.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 py-3"
+                >
+                  <div className="min-w-0">
+                    <strong className="text-gray-900">{course.code}</strong>
+                    <span className="ml-2 text-gray-700">{course.name}</span>
+                    <p className="text-sm text-gray-700">{categoryLabels[course.category]}</p>
+                    {hasDifficultyEstimate(course) ? (
+                      <CourseRatingBadge course={course} />
+                    ) : (
+                      <p className="text-xs text-gray-700">Difficulty estimate unavailable</p>
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700">{formatCredits(course.credits)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <p className="mt-4 max-w-2xl text-sm text-gray-700">
             This estimate combines credits with rating-based difficulty estimates. It does not
