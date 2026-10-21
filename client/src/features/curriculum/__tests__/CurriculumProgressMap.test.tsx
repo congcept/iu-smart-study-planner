@@ -371,3 +371,33 @@ describe('elective group panel reachability', () => {
     expect(trigger).toHaveFocus();
   });
 });
+
+describe('zoom limits', () => {
+  it('states the limit instead of ignoring a click on the zoom button', async () => {
+    await showCurriculum([course('A')]);
+    const zoomIn = screen.getByRole('button', { name: 'Zoom in' });
+    const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
+    // The readout sits between the two buttons; the page has other percentages.
+    const percent = () => zoomIn.previousElementSibling?.textContent;
+
+    expect(percent()).toBe('100%');
+    expect(zoomOut).toHaveAttribute('aria-disabled', 'true');
+    expect(zoomOut).toHaveAttribute('title', 'Already at the smallest zoom');
+    expect(zoomIn).not.toHaveAttribute('aria-disabled');
+    fireEvent.click(zoomOut);
+    expect(percent()).toBe('100%');
+
+    for (let step = 0; step < 6; step += 1) fireEvent.click(zoomIn);
+    expect(percent()).toBe('200%');
+    expect(zoomIn).toHaveAttribute('aria-disabled', 'true');
+    expect(zoomIn).toHaveAttribute('title', 'Already at the largest zoom');
+    expect(zoomOut).not.toHaveAttribute('aria-disabled');
+
+    // The button keeps its place in the tab order and in focus: this is a
+    // stated limit, not a control that has been taken away.
+    zoomIn.focus();
+    fireEvent.click(zoomIn);
+    expect(percent()).toBe('200%');
+    expect(document.activeElement).toBe(zoomIn);
+  });
+});

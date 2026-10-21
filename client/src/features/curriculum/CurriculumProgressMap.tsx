@@ -541,6 +541,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
   const handleZoomIn = useCallback(() => zoomAt(1.25), [zoomAt]);
   const handleZoomOut = useCallback(() => zoomAt(0.8), [zoomAt]);
+  // The zoom stops at 100% and 200%. Keeping the button that cannot move any
+  // further enabled means it looks available and swallows the click, so the
+  // limit is stated instead. It stays focusable (aria-disabled, not disabled)
+  // so a keyboard user does not lose their place in the zoom controls.
+  const atMinZoom = zoomMultiplier <= 1;
+  const atMaxZoom = zoomMultiplier >= 2;
 
   if (
     loading ||
@@ -894,10 +900,14 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
         <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
           <button
+            type="button"
             aria-label="Zoom out"
-            title="Zoom out"
+            title={atMinZoom ? 'Already at the smallest zoom' : 'Zoom out'}
+            aria-disabled={atMinZoom || undefined}
             onClick={handleZoomOut}
-            className="min-w-11 min-h-11 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+            className={`min-w-11 min-h-11 flex items-center justify-center rounded-md text-gray-600 font-bold text-lg leading-none ${
+              atMinZoom ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-100'
+            }`}
           >
             −
           </button>
@@ -905,10 +915,14 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
             {Math.round(zoomMultiplier * 100)}%
           </span>
           <button
+            type="button"
             aria-label="Zoom in"
-            title="Zoom in"
+            title={atMaxZoom ? 'Already at the largest zoom' : 'Zoom in'}
+            aria-disabled={atMaxZoom || undefined}
             onClick={handleZoomIn}
-            className="min-w-11 min-h-11 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+            className={`min-w-11 min-h-11 flex items-center justify-center rounded-md text-gray-600 font-bold text-lg leading-none ${
+              atMaxZoom ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-100'
+            }`}
           >
             +
           </button>
