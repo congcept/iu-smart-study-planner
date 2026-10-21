@@ -352,6 +352,20 @@ describe('saved semester course references', () => {
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(savedCourseFixture()));
     await waitFor(() => expect(target).toBeEnabled());
-    expect(document.activeElement).toBe(target);
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+
+  it('puts focus on the failure message when a retry button is replaced', async () => {
+    read.mockRejectedValueOnce(new Error('offline'));
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    const retry = await screen.findByRole('button', { name: 'Retry saved courses' });
+    read.mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    act(() => {
+      fireEvent.click(retry);
+      retry.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent('Could not confirm saved course references');
   });
 });

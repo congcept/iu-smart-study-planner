@@ -362,6 +362,21 @@ describe('numeric grade dashboard', () => {
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(scored));
     await waitFor(() => expect(target).toBeEnabled());
-    expect(document.activeElement).toBe(target);
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+
+  it('puts focus on the failure message when the failed-load button is replaced', async () => {
+    getGrades
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'));
+    render(<GradeDashboard userId="one" />);
+    const retry = await screen.findByRole('button', { name: 'Reload grades' });
+    retry.focus();
+    act(() => {
+      fireEvent.click(retry);
+      retry.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent('Could not load your grades');
   });
 });

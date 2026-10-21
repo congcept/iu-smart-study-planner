@@ -378,6 +378,6 @@ describe('server-backed planner dashboard', () => {
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(saved));
     await waitFor(() => expect(target).toBeEnabled());
-    expect(document.activeElement).toBe(target);
+    await waitFor(() => expect(document.activeElement).toBe(target));
   });
 });

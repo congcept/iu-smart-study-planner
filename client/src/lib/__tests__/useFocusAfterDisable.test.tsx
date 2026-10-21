@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
+import { useRef } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useFocusAfterDisable } from '../useFocusAfterDisable';
 
@@ -17,6 +18,31 @@ function Pair({ busyFirst, busySecond }: Props) {
         Second action
       </button>
       <button type="button">Elsewhere</button>
+    </div>
+  );
+}
+
+/** A control that its own read replaces: the retry button goes away either way. */
+function Vanishing({ busy, phase }: { busy: boolean; phase: 'retry' | 'failed' | 'content' }) {
+  const errorRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const remember = useFocusAfterDisable(busy, () => errorRef.current ?? headingRef.current);
+  return (
+    <div>
+      <h2 ref={headingRef} tabIndex={-1}>
+        Panel heading
+      </h2>
+      {phase === 'failed' && (
+        <div ref={errorRef} tabIndex={-1} role="alert">
+          Failure message
+        </div>
+      )}
+      {phase === 'retry' && (
+        <button type="button" disabled={busy} onClick={remember}>
+          Retry the read
+        </button>
+      )}
+      {phase === 'content' && <p>The read returned a list</p>}
     </div>
   );
 }
@@ -71,5 +97,28 @@ describe('useFocusAfterDisable', () => {
 
     act(() => rerender(<Pair busyFirst={false} busySecond={false} />));
     expect(document.activeElement).toBe(second);
+  });
+
+  it('moves focus to the failure message when the remembered control is gone', () => {
+    const { rerender } = render(<Vanishing busy={false} phase="retry" />);
+    const retry = screen.getByRole('button', { name: 'Retry the read' });
+    retry.focus();
+    retry.click();
+    retry.blur();
+    act(() => rerender(<Vanishing busy phase="retry" />));
+    expect(document.activeElement).toBe(document.body);
+    act(() => rerender(<Vanishing busy={false} phase="failed" />));
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
+  });
+
+  it('falls back to the panel heading when the read returns content instead', () => {
+    const { rerender } = render(<Vanishing busy={false} phase="retry" />);
+    const retry = screen.getByRole('button', { name: 'Retry the read' });
+    retry.focus();
+    retry.click();
+    retry.blur();
+    act(() => rerender(<Vanishing busy phase="retry" />));
+    act(() => rerender(<Vanishing busy={false} phase="content" />));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Panel heading' }));
   });
 });

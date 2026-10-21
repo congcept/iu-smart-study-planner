@@ -170,7 +170,7 @@ describe('focus while a read is in flight', () => {
 
     await act(async () => pendingRead.reject(new Error('Offline')));
     await waitFor(() => expect(target).toBeEnabled());
-    expect(document.activeElement).toBe(target);
+    await waitFor(() => expect(document.activeElement).toBe(target));
   });
 });
 

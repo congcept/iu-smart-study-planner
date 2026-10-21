@@ -62,7 +62,11 @@ function OwnHistoryBody({ ownerId }: { ownerId: string }) {
   const busy = useRef(false);
   const confirmedPage = useRef<OwnSemesterAllocationHistoryDTO | null>(null);
   const lastRequest = useRef<ReadRequest>({ kind: 'page', input: {} });
-  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
+  const errorRef = useRef<HTMLDivElement>(null);
+  const rememberFocus = useFocusAfterDisable(
+    state.status === 'loading',
+    () => errorRef.current ?? resultHeading.current,
+  );
 
   const read = useCallback(
     async (request: ReadRequest) => {
@@ -185,14 +189,21 @@ function OwnHistoryBody({ ownerId }: { ownerId: string }) {
         </p>
       )}
       {state.status === 'error' && (
-        <div className="mt-4">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-4 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <ErrorBanner className="max-w-prose text-sm text-red-700">{state.message}</ErrorBanner>
           {state.retry && (
             <Button
               type="button"
               variant="secondary"
               className="mt-3 min-h-11"
-              onClick={() => void read(lastRequest.current)}
+              onClick={() => {
+                rememberFocus();
+                void read(lastRequest.current);
+              }}
             >
               {lastRequest.current.kind === 'page' ? 'Retry history read' : 'Retry result read'}
             </Button>
@@ -248,6 +259,7 @@ function OwnHistoryBody({ ownerId }: { ownerId: string }) {
                 ? {
                     label: 'Older results',
                     onClick: () => {
+                      rememberFocus();
                       const boundary = OwnSemesterAllocationRunV1Schema.parse(
                         state.page.runs.at(-1),
                       );

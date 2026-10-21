@@ -37,7 +37,11 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
+  const errorRef = useRef<HTMLDivElement>(null);
+  const rememberFocus = useFocusAfterDisable(
+    state.status === 'loading',
+    () => errorRef.current ?? heading.current,
+  );
 
   useEffect(() => {
     heading.current?.focus();
@@ -144,7 +148,11 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
         </p>
       )}
       {state.status === 'error' && (
-        <div className="mt-4">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-4 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Return to saved semesters after signing in.'
@@ -157,7 +165,10 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
               type="button"
               variant="secondary"
               className="mt-3 min-h-11"
-              onClick={() => void read()}
+              onClick={() => {
+                rememberFocus();
+                void read();
+              }}
             >
               Retry saved courses
             </Button>

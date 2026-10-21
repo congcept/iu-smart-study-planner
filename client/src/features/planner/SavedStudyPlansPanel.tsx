@@ -29,7 +29,11 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
   const lastRequest = useRef<Request>({});
   const heading = useRef<HTMLHeadingElement>(null);
   const focusOnReturn = useRef(false);
-  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
+  const errorRef = useRef<HTMLDivElement>(null);
+  const rememberFocus = useFocusAfterDisable(
+    state.status === 'loading',
+    () => errorRef.current ?? heading.current,
+  );
   const isSelected = state.status === 'selected';
 
   useEffect(() => {
@@ -160,7 +164,11 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
         </p>
       )}
       {state.status === 'error' && (
-        <div className="mt-4">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-4 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Sign in to this account and reload saved plans.'
@@ -173,7 +181,10 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
               type="button"
               variant="secondary"
               className="mt-3 min-h-11"
-              onClick={() => void read(lastRequest.current)}
+              onClick={() => {
+                rememberFocus();
+                void read(lastRequest.current);
+              }}
             >
               Retry saved plans
             </Button>
@@ -239,12 +250,14 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
               state.page.nextAfter
                 ? {
                     label: 'Older saved plans',
-                    onClick: () =>
+                    onClick: () => {
+                      rememberFocus();
                       void read({
                         after: state.page.nextAfter!,
                         boundary: state.page.plans.at(-1),
                         curriculumId: state.page.scope.curriculumId,
-                      }),
+                      });
+                    },
                   }
                 : undefined
             }
@@ -254,7 +267,10 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
               type="button"
               variant="secondary"
               className="min-h-11"
-              onClick={() => void read({})}
+              onClick={() => {
+                rememberFocus();
+                void read({});
+              }}
             >
               Latest saved plans
             </Button>

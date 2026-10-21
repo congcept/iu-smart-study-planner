@@ -36,7 +36,11 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<Request>({});
   const heading = useRef<HTMLHeadingElement>(null);
-  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
+  const errorRef = useRef<HTMLDivElement>(null);
+  const rememberFocus = useFocusAfterDisable(
+    state.status === 'loading',
+    () => errorRef.current ?? heading.current,
+  );
   const isSelected = state.status === 'selected';
 
   useEffect(() => {
@@ -171,7 +175,11 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
         </p>
       )}
       {state.status === 'error' && (
-        <div className="mt-4">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-4 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Return to saved plans and reload after signing in.'
@@ -186,7 +194,10 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
               type="button"
               variant="secondary"
               className="mt-3 min-h-11"
-              onClick={() => void read(lastRequest.current)}
+              onClick={() => {
+                rememberFocus();
+                void read(lastRequest.current);
+              }}
             >
               Retry saved semesters
             </Button>
@@ -249,11 +260,13 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
               state.page.nextAfter
                 ? {
                     label: 'Older saved semesters',
-                    onClick: () =>
+                    onClick: () => {
+                      rememberFocus();
                       void read({
                         after: state.page.nextAfter!,
                         boundary: state.page.semesters.at(-1),
-                      }),
+                      });
+                    },
                   }
                 : undefined
             }
@@ -263,7 +276,10 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
               type="button"
               variant="secondary"
               className="min-h-11"
-              onClick={() => void read({})}
+              onClick={() => {
+                rememberFocus();
+                void read({});
+              }}
             >
               Latest saved semesters
             </Button>
