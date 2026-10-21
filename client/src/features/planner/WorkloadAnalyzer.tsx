@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Course, WorkloadAnalysis } from '@/types';
 import { analyzeWorkload } from '@/lib/api';
-import { categoryLabels, formatCredits } from '@/lib/utils';
+import { categoryLabels, formatCount, formatCredits } from '@/lib/utils';
 import { Button, Card, StatusPill } from '@components/ui';
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
 
@@ -129,7 +129,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
       title="Workload estimate"
       subtitle={
         selectedCourses.length > 0
-          ? `${selectedCourses.length} selected courses · ${formatCredits(totalCredits)}`
+          ? `${formatCount(selectedCourses.length, 'selected course', 'selected courses')} · ${formatCredits(totalCredits)}`
           : 'Review a selected set of courses'
       }
     >

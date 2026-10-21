@@ -105,6 +105,13 @@ describe('selected-course workload analysis', () => {
     },
   );
 
+  it('counts a single selected course in the singular', () => {
+    render(<WorkloadAnalyzer selectedCourses={[course('A', { credits: 1 })]} />);
+
+    expect(screen.getByText('1 selected course · 1 credit')).toBeVisible();
+    expect(screen.queryByText(/1 selected courses/)).toBeNull();
+  });
+
   it('uses authoritative server numbers and includes physical training in the selected request', async () => {
     vi.mocked(analyzeWorkload).mockResolvedValue(response());
     render(<WorkloadAnalyzer selectedCourses={[course('A'), course('PT001IU', { credits: 2 })]} />);
