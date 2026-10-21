@@ -805,22 +805,26 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                       const isActive = activeElectiveGroup === eg.name;
 
                       let statusIcon = null;
+                      let statusText = '';
                       let borderColor = 'border-gray-300';
                       let statusRing = '';
                       if (isComplete) {
+                        statusText = 'DONE';
                         statusIcon = (
-                          <span className="text-green-700 font-bold text-[11px]">DONE</span>
+                          <span className="text-green-700 font-bold text-[11px]">{statusText}</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-green-500';
                       } else if (hasPlanned) {
+                        statusText = 'PLANNED';
                         statusIcon = (
-                          <span className="text-blue-600 font-bold text-[11px]">PLANNED</span>
+                          <span className="text-blue-600 font-bold text-[11px]">{statusText}</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-blue-500';
                         if (!isActive) statusRing = 'ring-2 ring-blue-200';
                       } else if (hasRecommended) {
+                        statusText = 'NEXT';
                         statusIcon = (
-                          <span className="text-amber-600 font-bold text-[11px]">NEXT</span>
+                          <span className="text-amber-600 font-bold text-[11px]">{statusText}</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-amber-500';
                         if (!isActive) statusRing = 'ring-2 ring-amber-200';
@@ -830,7 +834,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                         <button
                           type="button"
                           aria-expanded={isActive}
-                          aria-label={`Open elective group ${getElectiveGroupLabel(eg.name)}: ${completedCount} of ${eg.selectCount} completed`}
+                          aria-label={`Elective Group ${getElectiveGroupLabel(eg.name)}${statusText ? ` ${statusText}` : ''} ${completedCount}/${eg.selectCount} completed`}
                           key={`${eg.name}-summary`}
                           className={`w-full min-h-11 rounded-md border p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
                             isActive
@@ -844,9 +848,9 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                               <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
                               <span className="text-[11px] font-bold text-gray-700">
                                 Elective Group {getElectiveGroupLabel(eg.name)}
-                              </span>
+                              </span>{' '}
                             </div>
-                            {statusIcon}
+                            {statusIcon}{' '}
                           </div>
                           <div className="flex items-center justify-between mt-1">
                             <span className="text-[11px] text-gray-500">

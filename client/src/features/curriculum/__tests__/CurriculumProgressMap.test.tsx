@@ -202,6 +202,30 @@ describe('prerequisite interactions', () => {
     expect(useAppStore.getState().completedIds.IT002IU).toBe('Group 1');
   });
 
+  // WCAG 2.5.3: a voice-control user must be able to say what they see.
+  const nameMustContainVisibleText = (button: HTMLElement) => {
+    const visibleText = (button.textContent ?? '').replace(/\s+/g, ' ').trim();
+    expect(button).toHaveAccessibleName(
+      new RegExp(visibleText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    );
+    return visibleText;
+  };
+
+  it('keeps an elective group button name in sync with its visible text', async () => {
+    await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU'], 'Group 1')]);
+
+    const button = screen.getByRole('button', { name: /^Elective Group 1/ });
+    expect(nameMustContainVisibleText(button)).toBe('Elective Group 1 0/1 completed');
+  });
+
+  it('includes an elective group status word in its visible text and name', async () => {
+    useAppStore.setState({ completedIds: { IT002IU: 'Group 1' } });
+    await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU'], 'Group 1')]);
+
+    const button = screen.getByRole('button', { name: /^Elective Group 1 DONE/ });
+    expect(nameMustContainVisibleText(button)).toBe('Elective Group 1 DONE 1/1 completed');
+  });
+
   it.each(['uncomplete', 'complete to planned'])(
     'cascades %s through an incomplete intermediate course',
     async (action) => {
