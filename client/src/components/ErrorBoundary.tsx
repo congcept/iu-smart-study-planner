@@ -30,12 +30,20 @@ export class ErrorBoundary extends Component<Props, State> {
         <Card title="Something went wrong">
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">An unexpected error occurred. Please try again.</p>
-            <Button
-              variant="primary"
-              onClick={() => this.setState({ hasError: false, error: null })}
-            >
-              Try Again
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button
+                variant="primary"
+                onClick={() => this.setState({ hasError: false, error: null })}
+              >
+                Try Again
+              </Button>
+              {/* Retrying re-renders the same tree, so an error that depends on
+                  the current state reappears immediately. A reload is the only
+                  way out that always works. */}
+              <Button variant="secondary" onClick={() => window.location.reload()}>
+                Reload the page
+              </Button>
+            </div>
           </div>
         </Card>
       );
