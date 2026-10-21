@@ -148,7 +148,7 @@ function AppShell() {
           )}
         </nav>
         {apiStatus === 'error' && (
-          <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full ml-auto">
+          <span className="text-sm text-red-700 bg-red-50 px-3 py-1 rounded-full ml-auto">
             Cannot connect to the planner. Reload the page to try again.
           </span>
         )}
