@@ -142,7 +142,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             handlePlan();
           }
         }}
-        aria-label={`${course.code} ${course.name}: ${isLocked ? 'Show prerequisites' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
+        aria-label={`${course.code} ${course.credits} cr ${course.name} ${status}${isLocked ? ' · prerequisites' : ''}: ${isLocked ? 'Show prerequisites' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
         aria-pressed={isLocked ? undefined : isCompleted}
         aria-expanded={isLocked ? showPrerequisites : undefined}
         aria-describedby={disabledNote ? disabledNoteId : undefined}
@@ -158,12 +158,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
             )}
             <span className="truncate">{course.code}</span>
-          </span>
+          </span>{' '}
           <span className="shrink-0 text-gray-600">{course.credits} cr</span>
-        </span>
+        </span>{' '}
         <span className="mt-0.5 block break-words text-xs font-medium leading-snug text-gray-900">
           {course.name}
-        </span>
+        </span>{' '}
         <span
           className={`mt-0.5 block text-[11px] font-semibold leading-tight ${
             isCompleted
@@ -186,7 +186,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           type="button"
           disabled={disabled}
           onClick={handlePlan}
-          aria-label={`${course.code} ${course.name}: ${isCompleted ? 'Move to plan' : isPlanned ? 'Remove from plan' : 'Add to plan'}`}
+          aria-label={`${isPlanned ? 'Unplan ' : ''}${course.code} ${course.name}: ${isCompleted ? 'Move to plan' : isPlanned ? 'Remove from plan' : 'Add to plan'}`}
           aria-pressed={isPlanned}
           aria-describedby={disabledNote ? disabledNoteId : undefined}
           className={`min-h-11 min-w-11 shrink-0 rounded px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${

@@ -60,6 +60,60 @@ afterEach(() => {
 
 describe('compact course node controls', () => {
   it.each([
+    { state: 'available', props: {}, status: 'Available', action: 'Mark complete' },
+    {
+      state: 'completed',
+      props: { isCompleted: true },
+      status: 'Done',
+      action: 'Mark incomplete',
+    },
+    {
+      state: 'planned',
+      props: { isPlanned: true },
+      status: 'Planned',
+      action: 'Mark complete',
+    },
+    {
+      state: 'recommended',
+      props: { isRecommended: true },
+      status: 'Next',
+      action: 'Mark complete',
+    },
+    {
+      state: 'locked',
+      props: { isLocked: true },
+      status: 'Locked · prerequisites',
+      action: 'Show prerequisites',
+    },
+    {
+      state: 'planned and locked',
+      props: { isPlanned: true, isLocked: true },
+      status: 'Planned · prerequisites',
+      action: 'Show prerequisites',
+    },
+    {
+      state: 'recommended and locked',
+      props: { isRecommended: true, isLocked: true },
+      status: 'Next · prerequisites',
+      action: 'Show prerequisites',
+    },
+  ])(
+    'includes visible credits and status in the accessible name for $state',
+    ({ props, status, action }) => {
+      const { button } = showCard({ ...props, course: { ...course, category: 'MAJOR_ELECTIVE' } });
+      expect(button).toHaveTextContent(`IT002IU 4 cr Data Structures ${status}`);
+      expect(button).toHaveAccessibleName(`IT002IU 4 cr Data Structures ${status}: ${action}`);
+    },
+  );
+
+  it('includes the visible Unplan label in the planning control accessible name', () => {
+    showCard({ isPlanned: true });
+    const button = screen.getByRole('button', { name: /: Remove from plan$/ });
+    expect(button).toHaveTextContent('Unplan');
+    expect(button).toHaveAccessibleName(/^Unplan IT002IU Data Structures: Remove from plan$/);
+  });
+
+  it.each([
     {
       state: 'available',
       isCompleted: false,
@@ -93,7 +147,7 @@ describe('compact course node controls', () => {
     (props) => {
       const { button, onToggleComplete, onTogglePlanned, onCompleteToPlanned } = showCard(props);
       const planButton = screen.getByRole('button', {
-        name: `IT002IU Data Structures: ${props.action}`,
+        name: new RegExp(`IT002IU Data Structures: ${props.action}$`),
       });
       expect(planButton).toBeVisible();
       expect(planButton).toHaveTextContent(props.isPlanned ? 'Unplan' : 'Plan');
@@ -194,7 +248,7 @@ describe('compact course node controls', () => {
   it.each([false, true])('allows the completion button to toggle completed=%s', (isCompleted) => {
     const { button, onToggleComplete, onTogglePlanned } = showCard({ isCompleted });
     expect(button).toHaveAccessibleName(
-      `IT002IU Data Structures: Mark ${isCompleted ? 'incomplete' : 'complete'}`,
+      new RegExp(`^IT002IU .*: Mark ${isCompleted ? 'incomplete' : 'complete'}$`),
     );
     expect(button).toHaveAttribute('aria-pressed', String(isCompleted));
     fireEvent.click(button);
@@ -277,7 +331,7 @@ describe('compact course node controls', () => {
 
   it('opens prerequisites instead of completing a locked course and allows closing them', () => {
     const { button, onToggleComplete } = showCard({ isLocked: true });
-    expect(button).toHaveAccessibleName('IT002IU Data Structures: Show prerequisites');
+    expect(button).toHaveAccessibleName(/^IT002IU .*: Show prerequisites$/);
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('IT001IU')).toBeVisible();

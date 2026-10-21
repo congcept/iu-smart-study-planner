@@ -56,9 +56,7 @@ async function showCurriculum(courses: Course[], userId?: string) {
   });
   render(<CurriculumProgressMap userId={userId} />);
   await screen.findByRole('button', {
-    name: new RegExp(
-      `^${courses[0].code} Course ${courses[0].code}: (Mark (in)?complete|Show prerequisites)$`,
-    ),
+    name: new RegExp(`^${courses[0].code} .*: (Mark (in)?complete|Show prerequisites)$`),
   });
 }
 
@@ -177,17 +175,15 @@ describe('prerequisite interactions', () => {
     await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU'])]);
     fireEvent.contextMenu(screen.getByText('IT002IU'));
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'IT002IU Course IT002IU: Show prerequisites' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: /^IT002IU .*: Show prerequisites$/ }));
     expect(
-      screen.getByRole('button', { name: 'IT002IU Course IT002IU: Show prerequisites' }),
+      screen.getByRole('button', { name: /^IT002IU .*: Show prerequisites$/ }),
     ).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Requires')).toBeVisible();
     expect(useAppStore.getState().completedIds).toEqual({});
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'IT001IU Course IT001IU: Mark complete' }));
+    fireEvent.click(screen.getByRole('button', { name: /^IT001IU .*: Mark complete$/ }));
     fireEvent.click(screen.getByText('IT002IU'));
     expect(useAppStore.getState().completedIds).toEqual({ IT001IU: null, IT002IU: null });
     expect(useAppStore.getState().plannedIds).toEqual([]);
@@ -201,7 +197,7 @@ describe('prerequisite interactions', () => {
     expect(useAppStore.getState().completedIds).toEqual({});
     expect(useAppStore.getState().plannedIds).toEqual(['IT002IU']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'IT001IU Course IT001IU: Mark complete' }));
+    fireEvent.click(screen.getByRole('button', { name: /^IT001IU .*: Mark complete$/ }));
     fireEvent.click(screen.getByText('IT002IU'));
     expect(useAppStore.getState().completedIds.IT002IU).toBe('Group 1');
   });
