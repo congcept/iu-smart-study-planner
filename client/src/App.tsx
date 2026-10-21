@@ -169,7 +169,7 @@ function AppShell() {
                 Sign out
               </Button>
             </>
-          ) : (
+          ) : sessionError ? null : (
             <>
               <NavLink
                 to="/"

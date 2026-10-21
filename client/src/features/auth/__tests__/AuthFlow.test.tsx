@@ -262,6 +262,19 @@ describe('authentication screens and session routing', () => {
     expect(screen.queryByText(student.name)).toBeNull();
   });
 
+  it('stops offering sign-in links while the session check cannot be answered', async () => {
+    vi.mocked(api.getSession).mockRejectedValue(new Error('Network unavailable'));
+    render(<App />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not check whether you are signed in',
+    );
+    // The panel replaces every route, so a header link to /login would change the
+    // URL and nothing else. Offering it there is worse than hiding it.
+    expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  });
+
   it('offers retry for a server failure instead of treating it as an expired session', async () => {
     vi.mocked(api.getSession)
       .mockRejectedValueOnce(new Error('Network unavailable'))
