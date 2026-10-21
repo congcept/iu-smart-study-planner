@@ -437,7 +437,7 @@ function RatingSession({ userId }: { userId: string }) {
               </select>
             </label>
             {selected && (
-              <div className="mt-3" aria-label="Selected course rating">
+              <div role="group" className="mt-3" aria-label="Selected course rating">
                 <CourseRatingBadge course={selected} />
                 <p className="mt-2 text-sm text-gray-700">
                   {yourRating === undefined

@@ -94,7 +94,7 @@ function CheckBody({
       aria-label="Proposed course check"
       className="space-y-3 rounded border border-gray-200 p-3"
     >
-      <h5 className="font-semibold text-gray-900">Check proposed courses</h5>
+      <h4 className="font-semibold text-gray-900">Check proposed courses</h4>
       <p className="max-w-prose text-sm text-gray-700">
         Check this selection against current completed records, academic placements and numeric GPA.
         This does not save courses or confirm a timetable or degree plan. Saving checks the rules
