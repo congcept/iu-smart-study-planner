@@ -78,6 +78,7 @@ function EditorBody(props: Props) {
   const currentState = useRef(state);
   const [draftRecovery, setDraftRecovery] = useState<DraftRecovery>({ status: 'NONE' });
   const recoveryRef = useRef(draftRecovery);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [storageWarning, setStorageWarning] = useState('');
   const [choice, setChoice] = useState('');
   const choiceRef = useRef('');
@@ -124,7 +125,16 @@ function EditorBody(props: Props) {
   const installRecovery = useCallback((value: DraftRecovery) => {
     recoveryRef.current = value;
     setDraftRecovery(value);
+    setConfirmingDiscard(false);
   }, []);
+  useEffect(() => {
+    if (!confirmingDiscard) return;
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setConfirmingDiscard(false);
+    };
+    document.addEventListener('keydown', cancel);
+    return () => document.removeEventListener('keydown', cancel);
+  }, [confirmingDiscard]);
   const clearPromotedDraft = useCallback(
     (body: OwnStudyPlanReferenceSelectionBodyDTO) => {
       if (body.expectedScope.curriculumId !== expectedCurriculumId) return;
@@ -401,6 +411,50 @@ function EditorBody(props: Props) {
   const fieldClass =
     'mt-1 block min-h-11 w-full min-w-0 rounded border border-gray-300 bg-white p-2 disabled:bg-gray-100';
   const options = state?.editing.status === 'AVAILABLE' ? state.editing.courses : [];
+  const discardDraftBlocked = () =>
+    !alive.current ||
+    busy.current ||
+    Boolean(pending.current) ||
+    Boolean(journal.error) ||
+    currentState.current !== state ||
+    currentDraft.current !== draft ||
+    recoveryRef.current !== draftRecovery;
+  const requestDraftDiscard = () => {
+    if (discardDraftBlocked()) return;
+    setConfirmingDiscard(true);
+  };
+  const discardDraft = () => {
+    if (discardDraftBlocked()) {
+      setConfirmingDiscard(false);
+      return;
+    }
+    const latest = loadReferenceSelectionDraft({
+      ownerId,
+      planId,
+      semesterId,
+      expectedCurriculumId,
+    });
+    if (
+      (draftRecovery.status === 'FOUND' &&
+        (latest.status !== 'FOUND' || latest.raw !== draftRecovery.raw)) ||
+      (draftRecovery.status === 'INVALID' && latest.status !== 'INVALID')
+    ) {
+      installRecovery(latest);
+      setMessage('The stored draft changed. Reload and review it before discarding.');
+      return;
+    }
+    try {
+      sessionStorage.removeItem(draftKey);
+      installRecovery({ status: 'NONE' });
+      setStorageWarning('');
+      setMessage('Unsent draft discarded. The latest saved courses are shown.');
+    } catch {
+      setStorageWarning(
+        'The unsent draft could not be discarded. It is still retained; restore storage access and try again.',
+      );
+    }
+    setConfirmingDiscard(false);
+  };
   return (
     <section
       aria-label="Edit saved course selection"
@@ -509,54 +563,47 @@ function EditorBody(props: Props) {
                       Restore unsent draft
                     </Button>
                   )}
-                {draftRecovery.status !== 'UNAVAILABLE' && (
+                {draftRecovery.status !== 'UNAVAILABLE' && !confirmingDiscard && (
                   <Button
                     type="button"
                     variant="secondary"
                     className="min-h-11"
                     disabled={phase !== 'ready'}
-                    onClick={() => {
-                      if (
-                        !alive.current ||
-                        busy.current ||
-                        pending.current ||
-                        journal.error ||
-                        currentState.current !== state ||
-                        currentDraft.current !== draft ||
-                        recoveryRef.current !== draftRecovery
-                      )
-                        return;
-                      const latest = loadReferenceSelectionDraft({
-                        ownerId,
-                        planId,
-                        semesterId,
-                        expectedCurriculumId,
-                      });
-                      if (
-                        (draftRecovery.status === 'FOUND' &&
-                          (latest.status !== 'FOUND' || latest.raw !== draftRecovery.raw)) ||
-                        (draftRecovery.status === 'INVALID' && latest.status !== 'INVALID')
-                      ) {
-                        installRecovery(latest);
-                        setMessage(
-                          'The stored draft changed. Reload and review it before discarding.',
-                        );
-                        return;
-                      }
-                      try {
-                        sessionStorage.removeItem(draftKey);
-                        installRecovery({ status: 'NONE' });
-                        setStorageWarning('');
-                        setMessage('Unsent draft discarded. The latest saved courses are shown.');
-                      } catch {
-                        setStorageWarning(
-                          'The unsent draft could not be discarded. It is still retained; restore storage access and try again.',
-                        );
-                      }
-                    }}
+                    onClick={requestDraftDiscard}
                   >
                     Discard unsent draft
                   </Button>
+                )}
+                {draftRecovery.status !== 'UNAVAILABLE' && confirmingDiscard && (
+                  <div
+                    role="group"
+                    aria-label="Confirm discarding the unsent draft"
+                    className="w-full rounded border border-red-200 bg-red-50 p-3"
+                  >
+                    <p className="text-sm text-gray-800">
+                      Discard this tab&rsquo;s unsent draft for this selection? The saved course
+                      selection on the server is not affected.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="danger"
+                        className="min-h-11"
+                        onClick={discardDraft}
+                      >
+                        Discard this draft
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-11"
+                        autoFocus
+                        onClick={() => setConfirmingDiscard(false)}
+                      >
+                        Keep draft
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

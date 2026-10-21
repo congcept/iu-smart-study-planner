@@ -528,6 +528,7 @@ describe('unsent draft recovery', () => {
     expect(screen.getByText(/cannot be restored onto the newer version/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Restore unsent draft' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(sessionStorage.getItem(draftKey)).toBeNull();
     expect(sessionStorage.getItem(otherKey)).toBe('separate draft');
     expect(screen.getByLabelText('Selection academic year')).toBeEnabled();
@@ -570,6 +571,7 @@ describe('unsent draft recovery', () => {
     expect(screen.queryByRole('button', { name: 'Restore unsent draft' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Selection academic year')).toHaveValue(null);
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(sessionStorage.getItem(draftKey)).toBeNull();
     expect(screen.getByLabelText('Selection academic year')).toBeEnabled();
   });
@@ -579,6 +581,7 @@ describe('unsent draft recovery', () => {
     await open();
     sessionStorage.setItem(draftKey, JSON.stringify(storedDraft()));
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(screen.getByText(/stored draft changed/)).toBeInTheDocument();
     expect(sessionStorage.getItem(draftKey)).not.toBeNull();
     expect(screen.getByLabelText('Selection academic year')).toBeDisabled();
@@ -651,6 +654,7 @@ describe('unsent draft recovery', () => {
     render(<SavedReferenceSelectionEditor {...props} />);
     await open();
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(screen.getByText(/could not be discarded/)).toBeInTheDocument();
     expect(sessionStorage.getItem(draftKey)).not.toBeNull();
     expect(screen.getByLabelText('Selection academic year')).toBeDisabled();
@@ -689,12 +693,38 @@ describe('unsent draft recovery', () => {
     render(<SavedReferenceSelectionEditor {...props} />);
     await open();
     const restore = screen.getByRole('button', { name: 'Restore unsent draft' });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    const confirmDiscard = screen.getByRole('button', { name: 'Discard this draft' });
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+      fireEvent.click(confirmDiscard);
       fireEvent.click(restore);
     });
     expect(read).toHaveBeenCalledTimes(1);
     expect(sessionStorage.getItem(draftKey)).toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('requires confirmation before discarding an unsent draft', async () => {
+    sessionStorage.setItem(draftKey, JSON.stringify(storedDraft()));
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    expect(
+      screen.getByRole('group', { name: 'Confirm discarding the unsent draft' }),
+    ).toBeInTheDocument();
+    expect(sessionStorage.getItem(draftKey)).not.toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('keeps the unsent draft when the discard confirmation is dismissed with Escape', async () => {
+    sessionStorage.setItem(draftKey, JSON.stringify(storedDraft()));
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(
+      screen.queryByRole('group', { name: 'Confirm discarding the unsent draft' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Discard unsent draft' })).toBeInTheDocument();
+    expect(sessionStorage.getItem(draftKey)).not.toBeNull();
     expect(save).not.toHaveBeenCalled();
   });
 });
