@@ -342,3 +342,76 @@ describe('compact course node controls', () => {
     expect(screen.queryByText('IT001IU')).not.toBeInTheDocument();
   });
 });
+
+describe('focus while a save is in flight', () => {
+  function editor() {
+    const onToggleComplete = vi.fn();
+    const onTogglePlanned = vi.fn();
+    const props = {
+      course,
+      isCompleted: false,
+      isPlanned: false,
+      isLocked: false,
+      isRecommended: false,
+      onToggleComplete,
+      onTogglePlanned,
+      onCompleteToPlanned: vi.fn(),
+    };
+    return { props, onToggleComplete, onTogglePlanned };
+  }
+
+  it.each(['completion', 'plan'] as const)(
+    'returns focus to the %s control after saving finishes',
+    (control) => {
+      const { props, onToggleComplete, onTogglePlanned } = editor();
+      const { rerender } = render(<CourseCard {...props} />);
+      const target =
+        control === 'completion'
+          ? screen.getByRole('button', { name: /: Mark complete$/ })
+          : screen.getByRole('button', { name: /: Add to plan$/ });
+
+      target.focus();
+      fireEvent.click(target);
+      expect(control === 'completion' ? onToggleComplete : onTogglePlanned).toHaveBeenCalledOnce();
+
+      // Chromium moves focus to <body> the moment the focused control becomes
+      // disabled, which is what a pending save does here; jsdom has no such
+      // focus fixup, so the blur it performs is applied explicitly.
+      target.blur();
+      rerender(<CourseCard {...props} disabledReason="pending" />);
+      expect(document.activeElement).toBe(document.body);
+
+      rerender(<CourseCard {...props} />);
+      expect(document.activeElement).toBe(target);
+    },
+  );
+
+  it('does not take focus back once the user has moved on', () => {
+    const { props } = editor();
+    const { rerender } = render(
+      <div>
+        <CourseCard {...props} />
+        <a href="/elsewhere">Elsewhere</a>
+      </div>,
+    );
+    const target = screen.getByRole('button', { name: /: Mark complete$/ });
+    target.focus();
+    fireEvent.click(target);
+    rerender(
+      <div>
+        <CourseCard {...props} disabledReason="pending" />
+        <a href="/elsewhere">Elsewhere</a>
+      </div>,
+    );
+    const elsewhere = screen.getByRole('link', { name: 'Elsewhere' });
+    elsewhere.focus();
+
+    rerender(
+      <div>
+        <CourseCard {...props} />
+        <a href="/elsewhere">Elsewhere</a>
+      </div>,
+    );
+    expect(document.activeElement).toBe(elsewhere);
+  });
+});

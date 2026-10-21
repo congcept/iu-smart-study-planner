@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { Course } from '@/types';
 import { playLockedSound } from '@/lib/sounds';
 import { CourseRatingBadge } from './CourseRatingBadge';
@@ -60,6 +60,31 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   };
 
   const disabled = disabledReason !== undefined;
+  const completeButtonRef = useRef<HTMLButtonElement>(null);
+  const planButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusTarget = useRef<'complete' | 'plan' | null>(null);
+  // A save in flight disables every card's controls. Disabling the control the
+  // user just activated moves focus to <body>, which in a map of a hundred-odd
+  // cards costs them their place entirely. Remember which control had focus so
+  // it can be handed back once saving finishes.
+  const rememberFocus = useCallback((target: 'complete' | 'plan') => {
+    const ref = target === 'complete' ? completeButtonRef : planButtonRef;
+    restoreFocusTarget.current = document.activeElement === ref.current ? target : null;
+  }, []);
+
+  useEffect(() => {
+    if (disabled) return;
+    const target = restoreFocusTarget.current;
+    if (!target) return;
+    restoreFocusTarget.current = null;
+    // Only claim focus back when it is genuinely stranded, never steal it from
+    // somewhere the user has deliberately moved on to.
+    if (document.activeElement !== document.body) return;
+    (target === 'complete' ? completeButtonRef : planButtonRef).current?.focus({
+      preventScroll: true,
+    });
+  }, [disabled]);
+
   const disabledNoteId = useId();
   // Only a genuine in-flight save reads as busy. A card paused because progress
   // or the GPA path is unresolved is simply unavailable.
@@ -78,18 +103,20 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       playLockedSound();
       setShowPrerequisites((open) => !open);
     } else {
+      rememberFocus('complete');
       onToggleComplete(course.id);
     }
-  }, [course.id, disabled, isLocked, onToggleComplete]);
+  }, [course.id, disabled, isLocked, onToggleComplete, rememberFocus]);
 
   const handlePlan = useCallback(() => {
     if (disabled) return;
+    rememberFocus('plan');
     if (isCompleted) {
       onCompleteToPlanned(course.id);
     } else {
       onTogglePlanned(course.id);
     }
-  }, [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned]);
+  }, [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned, rememberFocus]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -138,6 +165,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     >
       <button
         type="button"
+        ref={completeButtonRef}
         disabled={disabled}
         onClick={handleClick}
         onKeyDown={(event) => {
@@ -189,6 +217,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         <CourseRatingBadge course={course} compact />
         <button
           type="button"
+          ref={planButtonRef}
           disabled={disabled}
           onClick={handlePlan}
           aria-label={`${isPlanned ? 'Unplan ' : ''}${course.code} ${course.name}: ${isCompleted ? 'Move to plan' : isPlanned ? 'Remove from plan' : 'Add to plan'}`}
