@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -17,12 +17,26 @@ import { PlannerDashboard } from './features/planner/PlannerDashboard';
 import { AdminGuard } from './features/admin/AdminGuard';
 import { AdminResourceDashboard } from './features/admin/AdminResourceDashboard';
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Demo curriculum',
+  '/curriculum': 'My curriculum',
+  '/grades': 'Grades',
+  '/ratings': 'Ratings',
+  '/planner': 'Planner',
+  '/admin': 'Simulation resources',
+  '/login': 'Sign in',
+  '/register': 'Create account',
+};
+
 function AppShell() {
   const { user, status, sessionError, refresh, logout } = useAuth();
   const [isLoggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement | null>(null);
+  const isFirstRoute = useRef(true);
 
   const initializeApp = useCallback(async () => {
     try {
@@ -43,6 +57,25 @@ function AppShell() {
   useEffect(() => {
     initializeApp();
   }, [initializeApp]);
+
+  useEffect(() => {
+    const page = PAGE_TITLES[location.pathname];
+    document.title = page ? `${page} · IU Smart Study Planner` : 'IU Smart Study Planner';
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (isFirstRoute.current) {
+      isFirstRoute.current = false;
+      return;
+    }
+    const main = mainRef.current;
+    if (!main) return;
+    // A route may deliberately focus something inside the page, such as a new
+    // result heading. Keep that focus instead of overriding it here.
+    const active = document.activeElement;
+    if (active && active !== document.body && main.contains(active)) return;
+    main.focus();
+  }, [location.pathname]);
 
   if (isLoading || status === 'loading') {
     return (
@@ -69,6 +102,12 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <a
+        href="#main-content"
+        className="sr-only rounded bg-white px-4 py-2 text-primary-700 underline focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+      >
+        Skip to main content
+      </a>
       <header className="bg-white shadow-sm border-b px-6 py-4 flex flex-wrap items-center gap-4">
         <GraduationCap size={28} className="text-primary-600" />
         <h1 className="font-bold text-lg text-gray-900">IU Smart Study Planner</h1>
@@ -154,7 +193,12 @@ function AppShell() {
         )}
       </header>
 
-      <main className="flex-1 p-6 overflow-hidden w-full max-w-full">
+      <main
+        id="main-content"
+        ref={mainRef}
+        tabIndex={-1}
+        className="flex-1 p-6 overflow-hidden w-full max-w-full focus:outline-none"
+      >
         {logoutError && (
           <p role="alert" className="mb-4 text-sm text-red-700">
             {logoutError}
