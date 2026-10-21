@@ -35,4 +35,19 @@ describe('Button', () => {
     expect(getByTestId('left-icon')).toBeTruthy();
     expect(getByTestId('right-icon')).toBeTruthy();
   });
+
+  it('defaults to a non-submitting type so it cannot submit a surrounding form', () => {
+    // A <button> without an explicit type defaults to "submit", so a plain action button
+    // rendered inside a form would silently submit it. This happened in the auth form:
+    // clicking "Demo student" also submitted the empty credential form and flashed a
+    // spurious validation error. Defaulting the primitive to "button" removes the whole
+    // class of bug rather than fixing one call site.
+    const { getByRole } = render(<Button>Action</Button>);
+    expect((getByRole('button', { name: 'Action' }) as HTMLButtonElement).type).toBe('button');
+  });
+
+  it('keeps an explicit submit type for real form submission controls', () => {
+    const { getByRole } = render(<Button type="submit">Save</Button>);
+    expect((getByRole('button', { name: 'Save' }) as HTMLButtonElement).type).toBe('submit');
+  });
 });
