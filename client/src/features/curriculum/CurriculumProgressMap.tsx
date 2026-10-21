@@ -649,7 +649,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
             </span>
             {plannedCredits > PLANNED_CREDIT_SOFT_LIMIT && (
               <span className="block text-xs text-gray-700">
-                Over the typical load. Reduce the plan or raise the course load above.
+                Over the typical load. Reduce the plan to get back under.
               </span>
             )}
           </span>

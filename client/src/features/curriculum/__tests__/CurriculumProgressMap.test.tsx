@@ -315,3 +315,18 @@ describe('curriculum load recovery', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load the curriculum');
   });
 });
+
+describe('planned credit warning', () => {
+  it('points at the fixed reference instead of a control that never moves it', async () => {
+    useAppStore.setState({ plannedIds: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] });
+    await showCurriculum([...'ABCDEFGHI'].map((id) => course(id)));
+
+    expect(screen.getByText(/27 \/ 24 credits/)).toBeInTheDocument();
+    expect(screen.getByText(/Over the typical load/)).toHaveTextContent(
+      'Reduce the plan to get back under',
+    );
+    // The 24-credit reference is fixed; the course-load control does not move it,
+    // so the warning must not send the user to a control that cannot clear it.
+    expect(screen.queryByText(/raise the course load/i)).not.toBeInTheDocument();
+  });
+});
