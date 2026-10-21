@@ -16,7 +16,12 @@ interface CourseCardProps {
    */
   disabledReason?: 'progress' | 'pending' | 'gpa-path';
   isHighlighted?: boolean;
-  isBlurred?: boolean;
+  /**
+   * De-emphasised while another card's prerequisite chain is being inspected.
+   * This is a background change, never a text opacity: these cards stay
+   * interactive, so their labels must keep their contrast.
+   */
+  isMuted?: boolean;
   onToggleComplete: (courseId: string) => void;
   onTogglePlanned: (courseId: string) => void;
   onCompleteToPlanned: (courseId: string) => void;
@@ -32,7 +37,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   isRecommended,
   disabledReason,
   isHighlighted = false,
-  isBlurred = false,
+  isMuted = false,
   onToggleComplete,
   onTogglePlanned,
   onCompleteToPlanned,
@@ -125,9 +130,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         updatePrereqsHighlight('focused', false);
       }}
       className={`
-        bg-white rounded-md border-2 px-2 py-1.5 transition-colors
+        rounded-md border-2 px-2 py-1.5 transition-colors
+        ${isMuted ? 'bg-gray-100' : 'bg-white'}
         ${isHighlighted ? 'ring-2 ring-violet-500' : ''}
-        ${isBlurred ? 'opacity-40' : ''}
         ${borderColor}
       `}
     >

@@ -330,3 +330,23 @@ describe('planned credit warning', () => {
     expect(screen.queryByText(/raise the course load/i)).not.toBeInTheDocument();
   });
 });
+
+describe('prerequisite hover emphasis', () => {
+  it('de-emphasises unrelated cards without fading their text', async () => {
+    await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU']), course('IT003IU')]);
+
+    const lockedCard = screen.getByRole('button', {
+      name: /^IT002IU .*: Show prerequisites$/,
+    }).parentElement as HTMLElement;
+    const unrelatedCard = screen.getByText('Course IT003IU').closest('div.border-2') as HTMLElement;
+
+    fireEvent.mouseOver(lockedCard);
+
+    // Cards outside the chain are still clickable, so fading the whole card
+    // would push their labels below the contrast minimum. The emphasis comes
+    // from the background instead.
+    expect(unrelatedCard).toHaveClass('bg-gray-100');
+    expect(unrelatedCard.className).not.toMatch(/opacity-/);
+    expect(lockedCard).not.toHaveClass('bg-gray-100');
+  });
+});

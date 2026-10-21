@@ -777,7 +777,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                           isLocked={isLocked}
                           isRecommended={isRecommended}
                           isHighlighted={highlightedPrereqIds.has(course.id)}
-                          isBlurred={
+                          isMuted={
                             hoveredLockedId !== null &&
                             hoveredLockedId !== course.id &&
                             !highlightedPrereqIds.has(course.id)
@@ -963,7 +963,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                             isLocked={isLocked}
                             isRecommended={isRecommended}
                             isHighlighted={highlightedPrereqIds.has(course.id)}
-                            isBlurred={
+                            isMuted={
                               hoveredLockedId !== null &&
                               hoveredLockedId !== course.id &&
                               !highlightedPrereqIds.has(course.id)
