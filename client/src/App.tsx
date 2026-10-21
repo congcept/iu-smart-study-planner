@@ -104,7 +104,7 @@ function AppShell() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <a
         href="#main-content"
-        className="sr-only rounded bg-white px-4 py-2 text-primary-700 underline focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        className="fixed left-4 top-4 z-50 inline-flex min-h-11 -translate-y-24 items-center rounded bg-white px-4 text-sm font-medium text-primary-700 underline shadow focus:translate-y-0 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
       >
         Skip to main content
       </a>
