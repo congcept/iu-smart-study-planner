@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { useAuth } from '@/context/AuthContext';
 import { AuthProvider } from '@/context/AuthProvider';
 import { AuthGuard } from '@/features/auth/AuthGuard';
@@ -31,12 +32,14 @@ const PAGE_TITLES: Record<string, string> = {
 function AppShell() {
   const { user, status, sessionError, refresh, logout } = useAuth();
   const [isLoggingOut, setLoggingOut] = useState(false);
+  const rememberSignOutFocus = useFocusAfterDisable(isLoggingOut, () => logoutErrorRef.current);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingApi, setIsCheckingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
   const location = useLocation();
   const mainRef = useRef<HTMLElement | null>(null);
+  const logoutErrorRef = useRef<HTMLParagraphElement | null>(null);
   const isFirstRoute = useRef(true);
 
   const initializeApp = useCallback(async (initial = false) => {
@@ -164,7 +167,10 @@ function AppShell() {
                 variant="secondary"
                 className="min-h-11"
                 isLoading={isLoggingOut}
-                onClick={signOut}
+                onClick={() => {
+                  rememberSignOutFocus();
+                  void signOut();
+                }}
               >
                 Sign out
               </Button>
@@ -215,7 +221,12 @@ function AppShell() {
         className="flex-1 p-6 overflow-hidden w-full max-w-full focus:outline-none"
       >
         {logoutError && (
-          <p role="alert" className="mb-4 text-sm text-red-700">
+          <p
+            ref={logoutErrorRef}
+            tabIndex={-1}
+            role="alert"
+            className="mb-4 rounded-lg text-sm text-red-700 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+          >
             {logoutError}
           </p>
         )}

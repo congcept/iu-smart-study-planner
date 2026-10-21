@@ -340,4 +340,20 @@ describe('authentication screens and session routing', () => {
     expect(window.location.pathname).toBe('/curriculum');
     expect(useAppStore.getState().progressOwnerId).toBe(student.id);
   });
+
+  it('returns focus to the sign-out control when signing out fails', async () => {
+    vi.mocked(api.getSession).mockResolvedValue(student);
+    vi.mocked(api.logout).mockRejectedValueOnce(httpError(500, 'Could not sign out'));
+    render(<App />);
+    await screen.findByText(student.name);
+    const signOut = screen.getByRole('button', { name: 'Sign out' });
+    signOut.focus();
+    act(() => {
+      fireEvent.click(signOut);
+      signOut.blur();
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out');
+    expect(signOut).toBeEnabled();
+    await waitFor(() => expect(document.activeElement).toBe(signOut));
+  });
 });
