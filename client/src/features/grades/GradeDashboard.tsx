@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeEntry } from './GradeEntry';
 import { ScoreDistribution } from './ScoreDistribution';
+
+const SESSION_EXPIRED_MESSAGE = 'Your session expired. Sign out and sign in again.';
 
 export function GradeDashboard({ userId }: { userId: string }) {
   const [result, setResult] = useState<{ ownerId: string; grades: StudentGradesDTO } | null>(null);
@@ -18,11 +21,14 @@ export function GradeDashboard({ userId }: { userId: string }) {
       const grades = await getStudentGrades();
       if (grades.scope && grades.scope.userId !== userId) throw new Error('Wrong grade owner');
       if (request === generation.current) setResult({ ownerId: userId, grades });
-    } catch {
+    } catch (error) {
+      const sessionExpired = isAxiosError(error) && error.response?.status === 401;
       if (request === generation.current)
         setError({
           ownerId: userId,
-          message: 'Could not load your grades. Check your connection and try again.',
+          message: sessionExpired
+            ? SESSION_EXPIRED_MESSAGE
+            : 'Could not load your grades. Check your connection and try again.',
         });
     } finally {
       if (request === generation.current) setLoading(false);
@@ -76,6 +82,11 @@ export function GradeDashboard({ userId }: { userId: string }) {
       ) : (
         grades && (
           <>
+            {currentError ? (
+              <p role="alert" className="text-red-700">
+                {currentError} The grades below are from your last successful load.
+              </p>
+            ) : null}
             <Button
               variant="secondary"
               className="min-h-11"

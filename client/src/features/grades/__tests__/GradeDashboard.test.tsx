@@ -291,6 +291,30 @@ describe('numeric grade dashboard', () => {
     expect(await screen.findByText('90.00')).toBeInTheDocument();
     expect(getGrades).toHaveBeenCalledTimes(2);
   });
+  it('keeps the loaded grades visible and reports a failed reload', async () => {
+    getGrades.mockResolvedValueOnce(scored).mockRejectedValueOnce(new Error('offline'));
+    render(<GradeDashboard userId="one" />);
+    expect(await screen.findByText('90.00')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your grades');
+    expect(screen.getByText('90.00')).toBeInTheDocument();
+    expect(screen.getByText(/last successful load/)).toBeInTheDocument();
+  });
+  it('names an expired session when the reload is refused', async () => {
+    getGrades.mockResolvedValueOnce(scored).mockRejectedValueOnce(
+      Object.assign(new Error('Unauthorized'), {
+        isAxiosError: true,
+        response: { status: 401, data: { success: false, error: 'Unauthorized' } },
+      }),
+    );
+    render(<GradeDashboard userId="one" />);
+    expect(await screen.findByText('90.00')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your session expired. Sign out and sign in again.',
+    );
+    expect(screen.getByText('90.00')).toBeInTheDocument();
+  });
   it('ignores an old account response after account changes', async () => {
     const old = deferred<StudentGradesDTO>();
     getGrades.mockReturnValueOnce(old.promise).mockResolvedValueOnce(empty);
