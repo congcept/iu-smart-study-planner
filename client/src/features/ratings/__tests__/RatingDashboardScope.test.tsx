@@ -391,6 +391,27 @@ describe('durable rating retry scope and account isolation', () => {
     expect(rateCourse).not.toHaveBeenCalled();
   });
 
+  it('keeps the form usable when a refresh drops the selected course but leaves others', async () => {
+    const other = choice({ id: historicalId, code: 'IT001IU', name: 'Computing' });
+    vi.mocked(getRatingCourseChoices).mockResolvedValue(choices([choice(), other]));
+    render(<RatingDashboard userId={owner} />);
+    await selectCourse();
+
+    // A focus refresh replaces the eligible list; the selected course is gone.
+    vi.mocked(getRatingCourseChoices).mockResolvedValue(choices([other]));
+    focus();
+    await waitFor(() => expect(screen.queryByRole('option', { name: /MA001IU/ })).toBeNull());
+
+    save();
+    expect(await screen.findByText(/Choose another completed course/)).toBeInTheDocument();
+    // The form must stay editable: this selection was never sent, so there is
+    // nothing to recover and blocking the controls would strand the user.
+    expect(screen.getByRole('combobox', { name: /^Course$/ })).toBeEnabled();
+    expect(screen.getByRole('combobox', { name: 'Your difficulty rating' })).toBeEnabled();
+    expect(rateCourse).not.toHaveBeenCalled();
+    expect(storage.has(journal())).toBe(false);
+  });
+
   it('blocks retries for courses that are no longer completed without posting or dropping the journal', async () => {
     storage.set(journal(), JSON.stringify(pending()));
     vi.mocked(getRatingCourseChoices).mockResolvedValue(choices([]));

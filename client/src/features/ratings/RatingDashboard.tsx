@@ -246,6 +246,18 @@ function RatingSession({ userId }: { userId: string }) {
       return;
     }
     if (!courses.some((course) => course.id === payload.courseId)) {
+      if (!pending.current) {
+        // Nothing was sent for this selection, so there is no request to recover.
+        // Clearing it keeps the form editable; blocking every control here would
+        // leave the user with no reload or recovery action to get out.
+        setCourseId('');
+        setRating('');
+        setPhase('idle');
+        setMessage(
+          'That course is no longer marked completed, so it cannot be rated. Choose another completed course.',
+        );
+        return;
+      }
       setPhase('blocked');
       setMessage(
         'This course is no longer completed. Check the saved rating or reload your courses.',
