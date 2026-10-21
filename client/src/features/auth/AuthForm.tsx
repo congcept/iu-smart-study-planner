@@ -1,13 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { LoginSchema, RegisterSchema, type UserRole } from '@iu-study-planner/shared';
 import { Button, Card } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { getDemoLoginStatus } from '@/lib/api';
 import { authErrorMessage } from './errors';
+import { returnPathAfterSignIn } from './returnTo';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const { user, login, register, demoLogin } = useAuth();
+  const location = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<{
@@ -36,7 +38,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const inputClass =
     'mt-1 block min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500';
 
-  if (user) return <Navigate to="/curriculum" replace />;
+  if (user) {
+    return (
+      <Navigate
+        to={returnPathAfterSignIn((location.state as { from?: unknown } | null)?.from)}
+        replace
+      />
+    );
+  }
 
   async function signInDemo(role: UserRole) {
     if (isSubmitting) return;
