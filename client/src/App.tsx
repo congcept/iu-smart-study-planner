@@ -187,9 +187,17 @@ function AppShell() {
           )}
         </nav>
         {apiStatus === 'error' && (
-          <span className="text-sm text-red-700 bg-red-50 px-3 py-1 rounded-full ml-auto">
-            Cannot connect to the planner. Reload the page to try again.
-          </span>
+          <div className="ml-auto flex flex-wrap items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-sm text-red-700">
+            <span role="alert">Cannot connect to the planner.</span>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => void initializeApp()}
+            >
+              Try again
+            </Button>
+          </div>
         )}
       </header>
 

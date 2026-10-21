@@ -148,4 +148,23 @@ describe('app shell navigation', () => {
 
     await waitFor(() => expect(document.title).toBe('Sign in · IU Smart Study Planner'));
   });
+
+  it('offers a retry instead of telling the user to reload the page', async () => {
+    vi.mocked(api.healthCheck).mockRejectedValue(new Error('network down'));
+
+    render(<App />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cannot connect to the planner.');
+    expect(screen.queryByText(/reload the page/i)).not.toBeInTheDocument();
+
+    const retry = screen.getByRole('button', { name: 'Try again' });
+    vi.mocked(api.healthCheck).mockResolvedValue({
+      success: true,
+      data: { status: 'ok', timestamp: '' },
+    });
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(api.healthCheck).toHaveBeenCalledTimes(2);
+  });
 });
