@@ -33,14 +33,19 @@ function AppShell() {
   const [isLoggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingApi, setIsCheckingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
   const location = useLocation();
   const mainRef = useRef<HTMLElement | null>(null);
   const isFirstRoute = useRef(true);
 
-  const initializeApp = useCallback(async () => {
+  const initializeApp = useCallback(async (initial = false) => {
+    // Only the first boot may swap the whole app for the loading screen. A
+    // connectivity re-check from the banner runs while the user is working,
+    // so tearing the page down would discard whatever they had typed.
+    if (initial) setIsLoading(true);
+    else setIsCheckingApi(true);
     try {
-      setIsLoading(true);
       try {
         await healthCheck();
         setApiStatus('connected');
@@ -50,12 +55,13 @@ function AppShell() {
     } catch {
       setApiStatus('error');
     } finally {
-      setIsLoading(false);
+      if (initial) setIsLoading(false);
+      else setIsCheckingApi(false);
     }
   }, []);
 
   useEffect(() => {
-    initializeApp();
+    void initializeApp(true);
   }, [initializeApp]);
 
   useEffect(() => {
@@ -193,9 +199,10 @@ function AppShell() {
               size="sm"
               variant="secondary"
               className="min-h-11"
+              disabled={isCheckingApi}
               onClick={() => void initializeApp()}
             >
-              Try again
+              {isCheckingApi ? 'Checking…' : 'Try again'}
             </Button>
           </div>
         )}

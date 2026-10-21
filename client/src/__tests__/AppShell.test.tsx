@@ -167,4 +167,29 @@ describe('app shell navigation', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(api.healthCheck).toHaveBeenCalledTimes(2);
   });
+
+  it('keeps the page in place while the connection banner retries', async () => {
+    vi.mocked(api.healthCheck).mockRejectedValueOnce(new Error('network down'));
+    render(<App />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cannot connect to the planner.');
+    expect(screen.getByText(/curriculum content/)).toBeInTheDocument();
+
+    // A connectivity re-check must not rebuild the page under the user: any
+    // half-finished selection or typed value lives in that subtree.
+    let finish: () => void = () => {};
+    vi.mocked(api.healthCheck).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = () => resolve({ success: true, data: { status: 'ok', timestamp: '' } });
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await waitFor(() => expect(api.healthCheck).toHaveBeenCalledTimes(2));
+    expect(screen.getByText(/curriculum content/)).toBeInTheDocument();
+    expect(screen.queryByText(/Loading IU Smart Study Planner/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Checking…' })).toBeDisabled();
+
+    finish();
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
 });
