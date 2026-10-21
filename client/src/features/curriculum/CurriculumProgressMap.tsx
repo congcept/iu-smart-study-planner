@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { getCurriculum } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { playRecommendationsSound } from '@/lib/sounds';
@@ -86,6 +86,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
   const [activeElectiveGroup, setActiveElectiveGroup] = useState<string | null>(null);
+  const electivePanelRef = useRef<HTMLDivElement | null>(null);
+  const electiveTriggerRef = useRef<HTMLElement | null>(null);
+  const electivePanelId = useId();
+  const electivePanelHeadingId = `${electivePanelId}-heading`;
   const gpaPolicy = useGpaPath(userId);
   const y4s2GpaMode = gpaPolicy.mode;
   const gpaReady = gpaPolicy.status === 'ready';
@@ -205,9 +209,28 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     setHoveredLockedId(null);
   }, []);
 
-  const handleElectiveCardClick = useCallback((groupName: string | null) => {
-    setActiveElectiveGroup((prev) => (prev === groupName ? null : groupName));
-  }, []);
+  const handleElectiveCardClick = useCallback(
+    (groupName: string | null) => {
+      const next = activeElectiveGroup === groupName ? null : groupName;
+      const active = document.activeElement;
+      if (next !== null && active instanceof HTMLElement) electiveTriggerRef.current = active;
+      setActiveElectiveGroup(next);
+    },
+    [activeElectiveGroup],
+  );
+
+  // The panel is an overlay rendered after the whole canvas, so it sits dozens
+  // of tab stops away from the card that opened it. Move focus in on open and
+  // hand it back to that card when the panel closes.
+  useEffect(() => {
+    if (activeElectiveGroup) {
+      electivePanelRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const trigger = electiveTriggerRef.current;
+    electiveTriggerRef.current = null;
+    if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+  }, [activeElectiveGroup]);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
     return groups.map((group) => {
@@ -834,6 +857,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                         <button
                           type="button"
                           aria-expanded={isActive}
+                          aria-controls={electivePanelId}
                           aria-label={`Elective Group ${getElectiveGroupLabel(eg.name)}${statusText ? ` ${statusText}` : ''} ${completedCount}/${eg.selectCount} completed`}
                           key={`${eg.name}-summary`}
                           className={`w-full min-h-11 rounded-md border p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
@@ -899,6 +923,16 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         </div>
 
         <div
+          ref={electivePanelRef}
+          id={electivePanelId}
+          role="region"
+          aria-labelledby={activeElectiveGroup ? electivePanelHeadingId : undefined}
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            event.stopPropagation();
+            handleElectiveCardClick(null);
+          }}
           className="absolute right-0 top-0 z-30 h-full rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm transition-[width] duration-200 ease-in-out"
           style={{
             width: activeElectiveGroup ? 'min(20rem, 85vw)' : '0px',
@@ -930,7 +964,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                   <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50 border-b border-gray-200 shrink-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xs font-semibold text-gray-800 whitespace-nowrap">
+                        <h3
+                          id={electivePanelHeadingId}
+                          className="text-xs font-semibold text-gray-800 whitespace-nowrap"
+                        >
                           Elective Group {getElectiveGroupLabel(activeGroup.name)}
                         </h3>
                         <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums">

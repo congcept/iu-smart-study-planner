@@ -350,3 +350,24 @@ describe('prerequisite hover emphasis', () => {
     expect(lockedCard).not.toHaveClass('bg-gray-100');
   });
 });
+
+describe('elective group panel reachability', () => {
+  it('moves focus into the panel it opens and hands it back on Escape', async () => {
+    await showCurriculum([course('IT001IU'), course('IT002IU', ['IT001IU'], 'Group 1')]);
+
+    const trigger = screen.getByRole('button', { name: /^Elective Group 1/ });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    // The panel renders after the whole canvas in DOM order, which is dozens of
+    // tab stops away from the card that opened it.
+    const panel = await screen.findByRole('region', { name: /Elective Group 1/ });
+    expect(panel).toHaveFocus();
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger).toHaveAttribute('aria-controls', panel.id);
+
+    fireEvent.keyDown(panel, { key: 'Escape' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
+  });
+});
