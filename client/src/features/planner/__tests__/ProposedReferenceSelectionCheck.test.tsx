@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError } from 'axios';
 import { previewReferenceSelection } from '@/lib/savedStudyPlanReferenceSelectionApi';
@@ -161,5 +161,22 @@ describe('proposed reference course diagnostics', () => {
     await act(async () => first.resolve(proposedSelectionPreview()));
     expect(screen.queryByText(/No blockers found/)).not.toBeInTheDocument();
     expect(props.onInvalidated).not.toHaveBeenCalled();
+  });
+
+  it('returns focus to the check control when the check finishes', async () => {
+    const pendingRead = deferred<Awaited<ReturnType<typeof previewReferenceSelection>>>();
+    preview.mockReturnValueOnce(pendingRead.promise);
+    render(<ProposedReferenceSelectionCheck {...props} />);
+    const target = screen.getByRole('button', { name: 'Check proposed courses' });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(await proposedSelectionPreview(props.input)));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
   });
 });

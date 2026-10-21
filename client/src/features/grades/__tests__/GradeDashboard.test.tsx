@@ -345,4 +345,23 @@ describe('numeric grade dashboard', () => {
     await act(async () => pending.resolve(scored));
     await waitFor(() => expect(screen.queryByText('90.00')).not.toBeInTheDocument());
   });
+
+  it('returns focus to Reload grades when the reload finishes', async () => {
+    getGrades.mockResolvedValueOnce(scored);
+    render(<GradeDashboard userId="one" />);
+    expect(await screen.findByText('90.00')).toBeInTheDocument();
+    const pendingRead = deferred<StudentGradesDTO>();
+    getGrades.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload grades' });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(scored));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
 });

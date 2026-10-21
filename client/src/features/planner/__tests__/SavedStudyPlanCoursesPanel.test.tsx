@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OwnStudyPlanCoursesDTO } from '@iu-study-planner/shared';
 import {
@@ -335,5 +335,23 @@ describe('saved semester course references', () => {
     render(<SavedStudyPlanCoursesPanel {...props} />);
     await screen.findByRole('alert');
     expect(screen.queryByRole('button', { name: 'Retry saved courses' })).not.toBeInTheDocument();
+  });
+
+  it('returns focus to Reload saved courses when the read finishes', async () => {
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    await screen.findByRole('button', { name: 'Edit saved course selection' });
+    const pendingRead = deferred();
+    read.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved courses' });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(savedCourseFixture()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
   });
 });

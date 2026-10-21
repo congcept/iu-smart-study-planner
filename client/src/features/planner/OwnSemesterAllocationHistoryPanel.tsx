@@ -8,6 +8,7 @@ import {
   type OwnSemesterAllocationRunV1DTO,
 } from '@iu-study-planner/shared';
 import { Button, ErrorBanner, PaginationFooter } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import {
   getOwnSemesterAllocationRun,
   listOwnSemesterAllocationRuns,
@@ -61,6 +62,7 @@ function OwnHistoryBody({ ownerId }: { ownerId: string }) {
   const busy = useRef(false);
   const confirmedPage = useRef<OwnSemesterAllocationHistoryDTO | null>(null);
   const lastRequest = useRef<ReadRequest>({ kind: 'page', input: {} });
+  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
 
   const read = useCallback(
     async (request: ReadRequest) => {
@@ -169,7 +171,10 @@ function OwnHistoryBody({ ownerId }: { ownerId: string }) {
           variant="secondary"
           className="min-h-11"
           disabled={pending}
-          onClick={() => void read({ kind: 'page', input: {} })}
+          onClick={() => {
+            rememberFocus();
+            void read({ kind: 'page', input: {} });
+          }}
         >
           Reload simulation history
         </Button>

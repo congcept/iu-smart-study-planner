@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import type { CurriculumSemesterPreviewDTO, PlanSemesterDTO } from '@iu-study-planner/shared';
 import { Button, ErrorBanner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import {
   getCourses,
   getCurrentStudentProgress,
@@ -204,6 +205,7 @@ export function PlannerDashboard({ userId }: { userId: string }) {
           assigned: assignedOwner.current === userId,
         };
   const assigned = current.status === 'ready' ? current.kind === 'context' : current.assigned;
+  const rememberFocus = useFocusAfterDisable(current.status === 'loading');
   const changeIntensity = (value: string) => {
     if (
       current.status === 'loading' ||
@@ -213,6 +215,7 @@ export function PlannerDashboard({ userId }: { userId: string }) {
       value === intensityMode
     )
       return;
+    rememberFocus();
     generation.current++;
     pending.current = null;
     setIntensityMode(value);
@@ -234,7 +237,10 @@ export function PlannerDashboard({ userId }: { userId: string }) {
           variant="secondary"
           className="min-h-11"
           disabled={current.status === 'loading'}
-          onClick={() => void reload()}
+          onClick={() => {
+            rememberFocus();
+            void reload();
+          }}
         >
           Reload planner
         </Button>

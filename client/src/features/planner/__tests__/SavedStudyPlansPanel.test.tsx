@@ -306,4 +306,22 @@ describe('saved study plan reference browser', () => {
       { boundary: undefined, expectedCurriculumId: undefined, signal: expect.any(AbortSignal) },
     );
   });
+
+  it('returns focus to Reload saved plans when the read finishes', async () => {
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    const pendingRead = deferred<OwnStudyPlansDTO>();
+    read.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved plans' });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(page()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
 });

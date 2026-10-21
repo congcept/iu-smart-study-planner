@@ -5,6 +5,7 @@ import {
   type OwnStudyPlanReferenceReviewDTO,
 } from '@iu-study-planner/shared';
 import { Button, ErrorBanner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 
@@ -41,6 +42,7 @@ function ReferenceReviewBody({
   const alive = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const busy = useRef(false);
+  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
   const invalidate = useCallback(() => {
     generation.current++;
     controller.current?.abort();
@@ -135,6 +137,7 @@ function ReferenceReviewBody({
         className="mt-4 flex flex-wrap items-end gap-3"
         onSubmit={(event) => {
           event.preventDefault();
+          rememberFocus();
           void review();
         }}
       >

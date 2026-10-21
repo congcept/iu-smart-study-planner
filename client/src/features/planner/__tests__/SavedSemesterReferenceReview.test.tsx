@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OwnStudyPlanReferenceReviewDTO } from '@iu-study-planner/shared';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
@@ -209,5 +209,23 @@ describe('saved semester explicit reference review', () => {
       fireEvent.submit(form);
     });
     if (read.mock.calls.length) expect(read.mock.calls[0][4]).toBe(3);
+  });
+
+  it('returns focus to the review control when the slot review finishes', async () => {
+    const pendingRead = deferred();
+    read.mockReturnValueOnce(pendingRead.promise);
+    render(<SavedSemesterReferenceReview {...props} />);
+    choose();
+    const target = screen.getByRole('button', { name: 'Review reference slot' });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(referenceReviewFixture()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
   });
 });

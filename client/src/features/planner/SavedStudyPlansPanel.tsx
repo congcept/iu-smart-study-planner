@@ -6,6 +6,7 @@ import {
   type OwnStudyPlansDTO,
 } from '@iu-study-planner/shared';
 import { Button, Card, EmptyState, ErrorBanner, PaginationFooter } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import {
   isOlderSavedStudyPlan,
   listSavedStudyPlans,
@@ -28,6 +29,7 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
   const lastRequest = useRef<Request>({});
   const heading = useRef<HTMLHeadingElement>(null);
   const focusOnReturn = useRef(false);
+  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
   const isSelected = state.status === 'selected';
 
   useEffect(() => {
@@ -144,7 +146,10 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
           variant="secondary"
           className="min-h-11"
           disabled={pending}
-          onClick={() => void read({})}
+          onClick={() => {
+            rememberFocus();
+            void read({});
+          }}
         >
           Reload saved plans
         </Button>

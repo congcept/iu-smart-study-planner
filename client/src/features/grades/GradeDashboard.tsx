@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeEntry } from './GradeEntry';
 import { ScoreDistribution } from './ScoreDistribution';
@@ -11,6 +12,7 @@ const SESSION_EXPIRED_MESSAGE = 'Your session expired. Sign out and sign in agai
 export function GradeDashboard({ userId }: { userId: string }) {
   const [result, setResult] = useState<{ ownerId: string; grades: StudentGradesDTO } | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [error, setError] = useState<{ ownerId: string; message: string } | null>(null);
   const generation = useRef(0);
   const load = useCallback(async () => {
@@ -90,7 +92,10 @@ export function GradeDashboard({ userId }: { userId: string }) {
             <Button
               variant="secondary"
               className="min-h-11"
-              onClick={() => void load()}
+              onClick={() => {
+                rememberFocus();
+                void load();
+              }}
               disabled={loading}
             >
               Reload grades

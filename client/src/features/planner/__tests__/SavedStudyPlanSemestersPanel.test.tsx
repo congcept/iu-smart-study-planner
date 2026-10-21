@@ -274,4 +274,22 @@ describe('saved plan semester references', () => {
       expect(screen.getByRole('button', { name: 'Back to saved plans' })).toBeEnabled();
     },
   );
+
+  it('returns focus to Reload saved semesters when the read finishes', async () => {
+    render(panel());
+    await screen.findByRole('button', { name: /View courses for Spring 2026/ });
+    const pendingRead = deferred<OwnStudyPlanSemestersDTO>();
+    read.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved semesters' });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(page()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { OwnStudyPlanCoursesSchema, type OwnStudyPlanCoursesDTO } from '@iu-study-planner/shared';
 import { Button, ErrorBanner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import {
   getSavedStudyPlanCourses,
   SavedStudyPlanCoursesSessionChangedError,
@@ -36,6 +37,7 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
 
   useEffect(() => {
     heading.current?.focus();
@@ -127,7 +129,10 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
             variant="secondary"
             className="min-h-11"
             disabled={state.status === 'loading'}
-            onClick={() => void read()}
+            onClick={() => {
+              rememberFocus();
+              void read();
+            }}
           >
             Reload saved courses
           </Button>

@@ -555,4 +555,22 @@ describe('current-account saved semester simulations', () => {
     expect(selected()).toHaveTextContent('No courses were assigned.');
     expect(selected()).not.toHaveTextContent('All eligible sections are full');
   });
+
+  it('returns focus to Reload simulation history when the read finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<OwnSemesterAllocationHistoryDTO>();
+    vi.mocked(listOwnSemesterAllocationRuns).mockReturnValueOnce(pendingRead.promise);
+    const target = reload();
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(firstPage()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
 });

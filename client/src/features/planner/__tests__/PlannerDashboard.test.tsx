@@ -362,4 +362,22 @@ describe('server-backed planner dashboard', () => {
     expect(children.workload).not.toHaveBeenCalled();
     expect(children.recommendations).not.toHaveBeenCalled();
   });
+
+  it('returns focus to Reload planner when the reload finishes', async () => {
+    render(dashboard());
+    expect(await screen.findByRole('region', { name: 'Workload child' })).toBeInTheDocument();
+    const pendingRead = deferred<StudentProgressDTO>();
+    progress.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload planner' });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(saved));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
 });
