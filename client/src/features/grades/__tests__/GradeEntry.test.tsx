@@ -503,4 +503,27 @@ describe('numeric grade entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reload courses' }));
     await waitFor(() => expect(screen.getByLabelText('Course')).toBeEnabled());
   });
+  it('moves focus to the course choice it names when no course was chosen', async () => {
+    await mount();
+    submit();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveAttribute('id', 'grade-entry-message');
+    const course = screen.getByLabelText('Course');
+    expect(course).toHaveAttribute('aria-invalid', 'true');
+    expect(course).toHaveAttribute('aria-describedby', 'grade-entry-message');
+    await waitFor(() => expect(document.activeElement).toBe(course));
+    fireEvent.change(course, { target: { value: courseId } });
+    expect(course).not.toHaveAttribute('aria-invalid');
+    expect(course).not.toHaveAttribute('aria-describedby');
+  });
+  it('moves focus to the score field when the score is outside 0 to 100', async () => {
+    await mount();
+    fill('101');
+    submit();
+    const scoreField = screen.getByLabelText('Score out of 100');
+    expect(scoreField).toHaveAttribute('aria-invalid', 'true');
+    expect(scoreField).toHaveAttribute('aria-describedby', 'grade-entry-message');
+    await waitFor(() => expect(document.activeElement).toBe(scoreField));
+    expect(append).not.toHaveBeenCalled();
+  });
 });
