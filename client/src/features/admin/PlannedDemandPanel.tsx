@@ -6,6 +6,7 @@ import {
   type SimulationCapacitySnapshotDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, ErrorBanner } from '@/components/ui';
 import { getSimulationCapacity } from '@/lib/adminResourcesApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
@@ -37,6 +38,7 @@ function PlannedSelectionReport({ userId, scope, resourceRevision }: Props) {
   const busy = useRef(false);
   const [snapshot, setSnapshot] = useState<SimulationCapacitySnapshotDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [error, setError] = useState('');
   const verifySession = useVerifyAdminSession(userId);
   const load = useCallback(async () => {
@@ -100,7 +102,10 @@ function PlannedSelectionReport({ userId, scope, resourceRevision }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void load()}
+        onClick={() => {
+          rememberFocus();
+          void load();
+        }}
       >
         Reload planned selections
       </Button>

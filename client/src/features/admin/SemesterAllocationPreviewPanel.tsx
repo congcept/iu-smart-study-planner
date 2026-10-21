@@ -6,6 +6,7 @@ import {
   type ResourceScopeDTO,
   type SemesterAllocationPreviewDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import { getSemesterAllocationPreview } from '@/lib/semesterAllocationApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
@@ -35,6 +36,7 @@ function SemesterReport({ userId, scope, resourceRevision, courses }: Props) {
   const busy = useRef(false);
   const [report, setReport] = useState<SemesterAllocationPreviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [error, setError] = useState('');
   const verifySession = useVerifyAdminSession(userId);
   const load = useCallback(async () => {
@@ -112,7 +114,10 @@ function SemesterReport({ userId, scope, resourceRevision, courses }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void load()}
+        onClick={() => {
+          rememberFocus();
+          void load();
+        }}
       >
         Reload semester preview
       </Button>

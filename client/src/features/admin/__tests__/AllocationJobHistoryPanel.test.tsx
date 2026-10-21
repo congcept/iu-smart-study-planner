@@ -97,6 +97,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof listAllocationJobs>>>();
+    vi.mocked(listAllocationJobs).mockReturnValueOnce(pendingRead.promise);
+    const target = reload();
+
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(page()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
+});
+
 describe('bounded read-only simulation request history', () => {
   it('keeps focus on initial history and announces a user selected outcome heading', async () => {
     const trigger = document.createElement('div');

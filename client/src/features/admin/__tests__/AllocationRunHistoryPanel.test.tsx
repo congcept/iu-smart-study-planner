@@ -56,6 +56,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof listAllocationRuns>>>();
+    vi.mocked(listAllocationRuns).mockReturnValueOnce(pendingRead.promise);
+    const target = reload();
+
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(allocationHistory()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
+});
+
 describe('simulation run history', () => {
   it('keeps focus on initial history and announces a user selected capture heading', async () => {
     const trigger = document.createElement('div');

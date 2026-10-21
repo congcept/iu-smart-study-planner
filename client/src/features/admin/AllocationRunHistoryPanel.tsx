@@ -8,6 +8,7 @@ import {
   type AllocationRunV1DTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, EmptyState, ErrorBanner, MetricList, PaginationFooter } from '@/components/ui';
 import { getAllocationRun, listAllocationRuns } from '@/lib/allocationRunsApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
@@ -45,6 +46,7 @@ function HistoryPanel({ userId, scope }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [run, setRun] = useState<AllocationRunV1DTO | null>(null);
   const [pending, setPending] = useState<'page' | 'detail' | null>('page');
+  const rememberFocus = useFocusAfterDisable(pending !== null);
   const [pageError, setPageError] = useState('');
   const [detailError, setDetailError] = useState('');
   const requestedScope = useCallback(
@@ -192,7 +194,10 @@ function HistoryPanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={pending !== null}
-        onClick={() => void readPage()}
+        onClick={() => {
+          rememberFocus();
+          void readPage();
+        }}
       >
         Reload simulation history
       </Button>

@@ -41,6 +41,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getAllocationPreview>>>();
+    vi.mocked(getAllocationPreview).mockReturnValueOnce(pendingRead.promise);
+    const target = reload();
+
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(allocationPreview()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
+});
+
 describe('read-only aggregate allocation panel', () => {
   it('checks current admin before reading and before publishing', async () => {
     const initial = deferred<AuthUserDTO>();

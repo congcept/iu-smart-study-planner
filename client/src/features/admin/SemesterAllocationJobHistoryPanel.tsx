@@ -11,6 +11,7 @@ import {
   type SemesterAllocationJobHistoryDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, EmptyState, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   SemesterJobSessionChangedError,
@@ -55,6 +56,7 @@ function HistoryPanel({ userId, scope }: Props) {
   const [page, setPage] = useState<SemesterAllocationJobHistoryDTO | null>(null);
   const [selected, setSelected] = useState<Selected | null>(null);
   const [pending, setPending] = useState<'page' | 'detail' | null>('page');
+  const rememberFocus = useFocusAfterDisable(pending !== null);
   const [failure, setFailure] = useState<{ kind: 'page' | 'detail'; message: string } | null>(null);
   const intent = generation.current;
   const requestedScope = useCallback(
@@ -263,7 +265,10 @@ function HistoryPanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={pending !== null}
-        onClick={() => void readPage({ input: requestedScope() }, intent)}
+        onClick={() => {
+          rememberFocus();
+          void readPage({ input: requestedScope() }, intent);
+        }}
       >
         Reload semester request history
       </Button>

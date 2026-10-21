@@ -9,6 +9,7 @@ import {
   type SemesterAllocationJobDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   SemesterJobSessionChangedError,
@@ -59,6 +60,7 @@ function JobPanel({ userId, scope }: Props) {
   const [journal, setJournal] = useState<SemesterAllocationJobJournal | null>(null);
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [activeOperation, setActiveOperation] = useState<'queue' | 'read' | 'execute' | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
@@ -372,7 +374,10 @@ function JobPanel({ userId, scope }: Props) {
             className="min-h-11"
             disabled={loading}
             isLoading={loading && activeOperation === 'read'}
-            onClick={() => void recover(true)}
+            onClick={() => {
+              rememberFocus();
+              void recover(true);
+            }}
           >
             {blocked || (!confirmed && journal?.job)
               ? 'Retry semester request recovery'

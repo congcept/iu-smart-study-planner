@@ -125,6 +125,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getSimulationCapacity>>>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(pendingRead.promise);
+    const target = reloadButton();
+
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(snapshot()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
+});
+
 describe('readonly current planned selections panel', () => {
   it('waits for a fresh matching admin session before reading the private report', async () => {
     const auth = deferred<AuthUserDTO>();

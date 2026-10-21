@@ -124,6 +124,29 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after a failed read finishes', async () => {
+    seed(jobId);
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getAllocationJobOutcome>>>();
+    vi.mocked(getAllocationJobOutcome).mockReturnValueOnce(pendingRead.promise);
+    const target = check();
+
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.reject(new Error('Offline')));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
+});
+
 describe('explicit queued simulation panel', () => {
   it('keeps focus during mount recovery and announces a user checked outcome', async () => {
     seed(jobId);

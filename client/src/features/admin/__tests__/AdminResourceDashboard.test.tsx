@@ -178,6 +178,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    render(<AdminResourceDashboard userId={ownerId} />);
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getResources>>>();
+    vi.mocked(getResources).mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved settings' });
+
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    await waitFor(() => expect(target).toBeDisabled());
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(snapshot()));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
+  });
+});
+
 describe('AdminResourceDashboard scope and durable save proof', () => {
   it('proves the cookie owner and current ADMIN role before catalog or private reads', async () => {
     const pending = deferred<AuthUserDTO>();

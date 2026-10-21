@@ -6,6 +6,7 @@ import {
   type AllocationPreviewDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import { getAllocationPreview } from '@/lib/adminResourcesApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
@@ -33,6 +34,7 @@ function AllocationReport({ userId, scope, resourceRevision }: Props) {
   const busy = useRef(false);
   const [report, setReport] = useState<AllocationPreviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [error, setError] = useState('');
   const verifySession = useVerifyAdminSession(userId);
   const load = useCallback(async () => {
@@ -99,7 +101,10 @@ function AllocationReport({ userId, scope, resourceRevision }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void load()}
+        onClick={() => {
+          rememberFocus();
+          void load();
+        }}
       >
         Reload allocation preview
       </Button>

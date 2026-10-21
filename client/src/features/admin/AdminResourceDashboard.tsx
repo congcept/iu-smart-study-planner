@@ -9,6 +9,7 @@ import {
   type ResourcesSnapshotDTO,
   type UpsertResourcesDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, ErrorBanner } from '@/components/ui';
 import { getResources, saveResources } from '@/lib/adminResourcesApi';
 import { getCurriculumReference, getCurriculumReferences } from '@/lib/curriculumApi';
@@ -83,6 +84,7 @@ function ResourceSession({ userId }: { userId: string }) {
   const [loadError, setLoadError] = useState('');
   const [semesterSessionBlocked, setSemesterSessionBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
+  const rememberFocus = useFocusAfterDisable(saving || loading);
   const [message, setMessage] = useState(
     journal.invalid
       ? 'This tab’s recovery data cannot be verified. Clear the local request before saving.'
@@ -433,7 +435,10 @@ function ResourceSession({ userId }: { userId: string }) {
               variant="secondary"
               className="mt-3 min-h-11"
               disabled={saving || loading}
-              onClick={() => void load()}
+              onClick={() => {
+                rememberFocus();
+                void load();
+              }}
             >
               Reload saved settings
             </Button>

@@ -8,6 +8,7 @@ import {
   type AllocationJobOutcomeDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, EmptyState, ErrorBanner, PaginationFooter, StatusPill } from '@/components/ui';
 import { getAllocationJobOutcome, listAllocationJobs } from '@/lib/allocationJobsApi';
 import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
@@ -57,6 +58,7 @@ function HistoryPanel({ userId, scope }: Props) {
   const [selectedRow, setSelectedRow] = useState<AllocationJobOutcomeDTO | null>(null);
   const [detail, setDetail] = useState<AllocationJobOutcomeDTO | null>(null);
   const [pending, setPending] = useState<'page' | 'detail' | null>('page');
+  const rememberFocus = useFocusAfterDisable(pending !== null);
   const [pageError, setPageError] = useState('');
   const [detailError, setDetailError] = useState('');
   const requestedScope = useCallback(
@@ -235,7 +237,10 @@ function HistoryPanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={pending !== null}
-        onClick={() => void readPage()}
+        onClick={() => {
+          rememberFocus();
+          void readPage();
+        }}
       >
         Reload request history
       </Button>

@@ -6,6 +6,7 @@ import {
   type ResourceScopeDTO,
   type SemesterAllocationRunV1DTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import {
   createSemesterAllocationRun,
@@ -40,6 +41,7 @@ function CapturePanel({ userId, scope }: Props) {
   const [journal, setJournal] = useState<SemesterAllocationRunJournal | null>(null);
   const [run, setRun] = useState<SemesterAllocationRunV1DTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
   const requestedScope = useCallback(
@@ -250,7 +252,10 @@ function CapturePanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void (recoveryAction ? recover(true) : capture())}
+        onClick={() => {
+          rememberFocus();
+          void (recoveryAction ? recover(true) : capture());
+        }}
       >
         {recoveryAction
           ? 'Retry semester capture recovery'

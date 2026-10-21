@@ -9,6 +9,7 @@ import {
   type AllocationJobOutcomeDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { Button, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   enqueueAllocationJob,
@@ -45,6 +46,7 @@ function JobPanel({ userId, scope }: Props) {
   const [job, setJob] = useState<AllocationJobDTO | null>(null);
   const [outcome, setOutcome] = useState<AllocationJobOutcomeDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [activeOperation, setActiveOperation] = useState<Operation | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
@@ -318,7 +320,10 @@ function JobPanel({ userId, scope }: Props) {
             className="min-h-11"
             disabled={loading}
             isLoading={loading && activeOperation === 'read'}
-            onClick={() => void recover(true)}
+            onClick={() => {
+              rememberFocus();
+              void recover(true);
+            }}
           >
             {blocked || (!job && journal?.jobId)
               ? 'Retry request recovery'
