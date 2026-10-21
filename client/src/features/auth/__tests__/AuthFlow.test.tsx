@@ -119,6 +119,27 @@ describe('authentication screens and session routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Demo student' }));
     expect(await screen.findByText(student.name)).toBeInTheDocument();
   });
+  it('keeps a failed sign-in inside the form by focusing the error message', async () => {
+    vi.mocked(api.login).mockRejectedValue(httpError(401, 'Email or password is incorrect'));
+    render(<App />);
+    await screen.findByLabelText('Email');
+    fillCredentials();
+    submit('Sign in');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not sign in');
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+  });
+
+  it('focuses the demo failure message instead of dropping focus to the page', async () => {
+    vi.mocked(api.getDemoLoginStatus).mockResolvedValue({ enabled: true });
+    vi.mocked(api.demoLogin).mockRejectedValue(httpError(404, 'Demo login is unavailable'));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Demo student' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Demo sign-in is unavailable');
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+  });
+
   it('waits for session lookup before redirecting protected content to sign in', async () => {
     let rejectSession: (error: Error) => void = () => {};
     vi.mocked(api.getSession).mockReturnValue(

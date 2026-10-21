@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { LoginSchema, RegisterSchema, type UserRole } from '@iu-study-planner/shared';
 import { Button, Card } from '@/components/ui';
@@ -17,8 +17,22 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     message: string;
   } | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+  const formErrorRef = useRef<HTMLParagraphElement | null>(null);
+  const demoErrorRef = useRef<HTMLParagraphElement | null>(null);
   const isRegister = mode === 'register';
   const [demoEnabled, setDemoEnabled] = useState(false);
+
+  // Submitting disables the whole fieldset, so Chromium drops focus to <body>.
+  // Move it to the failure message instead of stranding the user at the top.
+  useEffect(() => {
+    if (isSubmitting || !error) return;
+    formErrorRef.current?.focus();
+  }, [error, isSubmitting]);
+
+  useEffect(() => {
+    if (isSubmitting || !demoError) return;
+    demoErrorRef.current?.focus();
+  }, [demoError, isSubmitting]);
 
   useEffect(() => {
     if (isRegister) return;
@@ -236,7 +250,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               </p>
             )}
             {error && (
-              <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <p
+                ref={formErrorRef}
+                tabIndex={-1}
+                role="alert"
+                className="rounded-lg bg-red-50 p-3 text-sm text-red-700 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+              >
                 {error}
               </p>
             )}
@@ -265,7 +284,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               </Button>
             </div>
             {demoError && (
-              <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <p
+                ref={demoErrorRef}
+                tabIndex={-1}
+                role="alert"
+                className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+              >
                 {demoError}
               </p>
             )}
