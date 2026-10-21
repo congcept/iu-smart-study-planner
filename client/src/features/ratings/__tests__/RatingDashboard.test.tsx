@@ -79,6 +79,45 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+describe('focus while a rating save is in flight', () => {
+  it.each([
+    { retry: false, moveFocus: false },
+    { retry: false, moveFocus: true },
+    { retry: true, moveFocus: false },
+    { retry: true, moveFocus: true },
+  ])('preserves focus for retry=$retry, moved=$moveFocus', async ({ retry, moveFocus }) => {
+    if (retry) {
+      storage.set(key(), JSON.stringify({ courseId: id, rating: 4, expectedScope: scope }));
+    }
+    const request = deferred<SubmittedCourseRatingDTO>();
+    vi.mocked(rateCourse).mockReturnValue(request.promise);
+    render(
+      <>
+        <RatingDashboard userId={one} />
+        <a href="/elsewhere">Elsewhere</a>
+      </>,
+    );
+    if (!retry) await choose();
+    const target = await screen.findByRole('button', {
+      name: retry ? 'Retry same rating' : 'Save rating',
+    });
+    target.focus();
+    act(() => {
+      fireEvent.click(target);
+      target.blur();
+    });
+    expect(target).toBeDisabled();
+    expect(document.activeElement).toBe(document.body);
+    const elsewhere = screen.getByRole('link', { name: 'Elsewhere' });
+    if (moveFocus) elsewhere.focus();
+
+    await act(async () => request.resolve(saved));
+
+    expect(target).toBeEnabled();
+    expect(document.activeElement).toBe(moveFocus ? elsewhere : target);
+  });
+});
+
 describe('course rating form', () => {
   it('loads authoritative completion and offers no planned courses', async () => {
     render(<RatingDashboard userId={one} />);

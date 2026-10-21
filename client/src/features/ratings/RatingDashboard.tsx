@@ -10,6 +10,7 @@ import {
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import { getRatingCourseChoices, getScopedOwnRatings, rateCourse } from '@/lib/ratingsApi';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
 
 const PendingVote = RateCourseSchema.extend({
@@ -53,6 +54,7 @@ function RatingSession({ userId }: { userId: string }) {
   const [phase, setPhase] = useState<'idle' | 'saving' | 'retry' | 'blocked'>(
     journal.error ? 'blocked' : journal.vote ? 'retry' : 'idle',
   );
+  const rememberFocus = useFocusAfterDisable(phase === 'saving');
   const [message, setMessage] = useState(
     journal.error
       ? 'Browser recovery data is unavailable. Clear this tab’s pending retry before saving a rating.'
@@ -216,6 +218,7 @@ function RatingSession({ userId }: { userId: string }) {
     }
   };
   const save = async (event: FormEvent) => {
+    rememberFocus();
     event.preventDefault();
     if (busy.current) return;
     if (loadError) {

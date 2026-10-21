@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Course, WorkloadAnalysis } from '@/types';
 import { analyzeWorkload } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { categoryLabels, formatCount, formatCredits } from '@/lib/utils';
 import { Button, Card, StatusPill } from '@components/ui';
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
@@ -81,6 +82,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
   const isCurrentState = (value: { key: string; request: number } | null) =>
     value?.key === selectionKey && value.request === requestId.current;
   const isAnalyzing = isCurrentState(analyzing);
+  const rememberFocus = useFocusAfterDisable(isAnalyzing);
   const hasError = isCurrentState(failure);
   const analysis = isCurrentState(result) && !isAnalyzing ? result!.data : null;
   const totalCredits = selectedCourses.reduce((sum, course) => sum + course.credits, 0);
@@ -93,6 +95,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
       : null;
 
   const handleAnalyze = async () => {
+    rememberFocus();
     if (
       selectedCourses.length === 0 ||
       activeRequest.current !== null ||
@@ -218,7 +221,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div>
                   <h4 className="font-semibold text-gray-900">Estimated workload</h4>
-                  <p className="mt-1 text-sm text-gray-700">
+                  <p role="status" className="mt-1 text-sm text-gray-700">
                     Server estimate: {analysis.totalCredits} credits · Heuristic score{' '}
                     {analysis.workloadScore.toFixed(1)} · Average rating difficulty{' '}
                     {analysis.averageDifficulty.toFixed(1)}

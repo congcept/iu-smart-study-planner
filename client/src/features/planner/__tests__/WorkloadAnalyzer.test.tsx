@@ -61,6 +61,49 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe('focus while analysis is in flight', () => {
+  it.each([false, true])(
+    'restores focus only when it is stranded (focus moved: %s)',
+    async (moveFocus) => {
+      const request = pending();
+      vi.mocked(analyzeWorkload).mockReturnValue(request.promise);
+      render(
+        <>
+          <WorkloadAnalyzer selectedCourses={[course('A')]} />
+          <a href="/elsewhere">Elsewhere</a>
+        </>,
+      );
+      const target = screen.getByRole('button', { name: 'Calculate estimate' });
+      target.focus();
+      act(() => {
+        fireEvent.click(target);
+        target.blur();
+      });
+      expect(target).toBeDisabled();
+      expect(document.activeElement).toBe(document.body);
+      const elsewhere = screen.getByRole('link', { name: 'Elsewhere' });
+      if (moveFocus) elsewhere.focus();
+
+      await act(async () => request.resolve(response()));
+
+      expect(target).toBeEnabled();
+      expect(document.activeElement).toBe(moveFocus ? elsewhere : target);
+    },
+  );
+
+  it('announces the server estimate through the existing summary', async () => {
+    vi.mocked(analyzeWorkload).mockResolvedValue(response());
+    render(<WorkloadAnalyzer selectedCourses={[course('A')]} />);
+    calculate();
+
+    const summary = await screen.findByText(/^Server estimate:/);
+    expect(summary).toHaveAttribute('role', 'status');
+    expect(summary.tagName).toBe('P');
+    expect(summary).toHaveTextContent('Server estimate: 7 credits');
+    expect(screen.getAllByText(/Server estimate:/)).toEqual([summary]);
+  });
+});
+
 describe('selected-course workload analysis', () => {
   it('shows rating estimates and their actual counts instead of the seed difficulty', () => {
     render(
