@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { isAxiosError } from 'axios';
 import type { AuthUserDTO, DemoLoginDTO, LoginDTO, RegisterDTO } from '@iu-study-planner/shared';
 import * as api from '@/lib/api';
+import { onSessionExpired } from '@/lib/sessionExpiry';
 import { useAppStore } from '@/lib/store';
 import { AuthContext, type AuthContextValue } from './AuthContext';
 
@@ -52,6 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
     return invalidatePendingRequests;
   }, [refresh, invalidatePendingRequests]);
+
+  useEffect(
+    () =>
+      onSessionExpired(() => {
+        // The cookie is no longer accepted, so no authenticated read can succeed.
+        // Dropping the local session sends the user through the normal sign-in
+        // recovery instead of leaving a panel that offers a pointless reload.
+        requestVersion.current++;
+        applyUser(null);
+      }),
+    [applyUser],
+  );
 
   const login = useCallback(
     async (data: LoginDTO) => {

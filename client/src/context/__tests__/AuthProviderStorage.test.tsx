@@ -3,6 +3,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthUserDTO } from '@iu-study-planner/shared';
 import * as api from '@/lib/api';
+import { notifySessionExpired } from '@/lib/sessionExpiry';
 import { useAuth } from '../AuthContext';
 import { AuthProvider } from '../AuthProvider';
 
@@ -123,6 +124,24 @@ describe('cookie session recovery when obsolete token cleanup fails', () => {
     expect(api.getSession).toHaveBeenCalledTimes(2);
     expect(setProgressOwner).toHaveBeenCalledTimes(1);
     expect(setProgressOwner).toHaveBeenCalledWith(student.id);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('drops the confirmed session when an authenticated read comes back refused', async () => {
+    vi.mocked(api.getSession).mockResolvedValue(student);
+    render(
+      <AuthProvider>
+        <SessionState />
+      </AuthProvider>,
+    );
+    await screen.findByText(`authenticated:${student.id}`);
+
+    // The cookie expired while the page sat open; the next read answers 401.
+    act(() => notifySessionExpired());
+
+    // Leaving the account mounted would keep a panel on screen offering a
+    // reload that the server refuses, so the session must end instead.
+    expect(screen.getByTestId('session')).toHaveTextContent('unauthenticated:guest');
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });

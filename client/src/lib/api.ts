@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { isAuthRequest, notifySessionExpired } from './sessionExpiry';
 import {
   CurriculumSemesterPreviewSchema,
   CreateSemesterSchema,
@@ -53,6 +54,10 @@ apiClient.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 401:
+          // A read the server refuses for identity reasons cannot succeed on
+          // retry, so let the app return to sign-in instead of leaving a panel
+          // offering a reload that can never work.
+          if (!isAuthRequest(error.config?.url)) notifySessionExpired();
           break;
         case 403:
           console.error('Access forbidden');
