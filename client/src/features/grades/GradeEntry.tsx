@@ -19,15 +19,26 @@ export function GradeEntry(props: Props) {
 }
 
 function GradeEntrySession({ userId, onSaved }: Props) {
-  const [journal] = useState(() => {
+  const [journal] = useState<{
+    pending: AppendGradeAttemptDTO | null;
+    problem: 'storage' | 'unreadable' | null;
+  }>(() => {
+    let raw: string | null;
     try {
-      const raw = sessionStorage.getItem(requestKey(userId));
-      const pending = raw ? AppendGradeAttemptSchema.parse(JSON.parse(raw)) : null;
-      if (pending?.expectedScope && pending.expectedScope.userId !== userId.toLowerCase())
-        throw new Error('Wrong pending grade owner');
-      return { pending, error: false };
+      raw = sessionStorage.getItem(requestKey(userId));
     } catch {
-      return { pending: null, error: true };
+      // Reading is impossible, so nothing about the stored bytes is known.
+      return { pending: null, problem: 'storage' };
+    }
+    if (!raw) return { pending: null, problem: null };
+    try {
+      const pending = AppendGradeAttemptSchema.parse(JSON.parse(raw));
+      if (pending.expectedScope && pending.expectedScope.userId !== userId.toLowerCase())
+        throw new Error('Wrong pending grade owner');
+      return { pending, problem: null };
+    } catch {
+      // Storage works; the bytes in it are unusable and can only be cleared.
+      return { pending: null, problem: 'unreadable' };
     }
   });
   const pending = useRef<AppendGradeAttemptDTO | null>(journal.pending);
@@ -36,12 +47,14 @@ function GradeEntrySession({ userId, onSaved }: Props) {
   const busy = useRef(false);
   const scoreInput = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>(
-    journal.error ? 'blocked' : journal.pending ? 'checking' : 'idle',
+    journal.problem ? 'blocked' : journal.pending ? 'checking' : 'idle',
   );
   const [message, setMessage] = useState(
-    journal.error
+    journal.problem === 'storage'
       ? 'Browser recovery data is unavailable. Restore access to this tab’s storage before recording another score.'
-      : '',
+      : journal.problem === 'unreadable'
+        ? 'Browser recovery data in this tab can’t be read, so this form is locked. Any score the server already accepted still appears in Grade history. Clear the unreadable data to record another score.'
+        : '',
   );
   const [courseId, setCourseId] = useState(journal.pending?.courseId ?? '');
   const [score, setScore] = useState(journal.pending ? String(journal.pending.score) : '');
@@ -240,6 +253,21 @@ function GradeEntrySession({ userId, onSaved }: Props) {
     }
   };
 
+  const clearUnreadableJournal = () => {
+    if (busy.current) return;
+    try {
+      sessionStorage.removeItem(requestKey(userId));
+      setPhase('idle');
+      setMessage(
+        'This tab’s unreadable recovery data was cleared. Any score already saved on the server is unchanged.',
+      );
+    } catch {
+      setMessage(
+        'Could not clear this tab’s unreadable recovery data. Close this tab and open Grades in a new one.',
+      );
+    }
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (phase !== 'idle' || busy.current || catalogStatus !== 'ready') return;
@@ -418,6 +446,16 @@ function GradeEntrySession({ userId, onSaved }: Props) {
           {phase === 'blocked' && pending.current && (
             <Button type="button" variant="ghost" className="min-h-11" onClick={discardPending}>
               Discard this pending attempt
+            </Button>
+          )}
+          {phase === 'blocked' && journal.problem === 'unreadable' && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11"
+              onClick={clearUnreadableJournal}
+            >
+              Clear unreadable recovery data
             </Button>
           )}
         </div>

@@ -453,6 +453,18 @@ describe('numeric grade entry', () => {
     expect(storage.get(key)).toBe('broken');
     expect(append).not.toHaveBeenCalled();
   });
+  it('lets the user clear recovery data that can never be retried', async () => {
+    storage.set(key, 'broken');
+    await mount();
+    // Storage is reachable here; only its contents are unusable, so the copy must
+    // not send the user off to restore access they already have.
+    expect(screen.getByRole('alert')).toHaveTextContent(/can’t be read/);
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/Restore access to this tab/);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear unreadable recovery data' }));
+    expect(storage.has(key)).toBe(false);
+    expect(screen.getByLabelText('Course')).not.toBeDisabled();
+    expect(append).not.toHaveBeenCalled();
+  });
   it('does not send when browser request persistence fails', async () => {
     await mount();
     vi.stubGlobal('sessionStorage', {
