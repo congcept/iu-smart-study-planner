@@ -5,6 +5,7 @@ import type { OwnStudyPlanMetadataDTO, OwnStudyPlansDTO } from '@iu-study-planne
 import { listSavedStudyPlans, SavedStudyPlansSessionChangedError } from '@/lib/savedStudyPlansApi';
 import { ownerId, referenceId } from '@/test/fixtures/curriculumReference';
 import { dropFocusToBody } from '@/test/dropFocusToBody';
+import { resetFocusActivations } from '@/lib/useFocusAfterDisable';
 import { SavedStudyPlansPanel } from '../SavedStudyPlansPanel';
 
 vi.mock('@/lib/savedStudyPlansApi', async (original) => ({
@@ -63,6 +64,8 @@ function deferred<T>() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  // Each case starts from the state of a freshly opened page.
+  resetFocusActivations();
   read.mockResolvedValue(page());
 });
 afterEach(cleanup);
@@ -82,6 +85,11 @@ describe('saved study plan reference browser', () => {
     act(() => window.dispatchEvent(new Event('focus')));
     await screen.findByRole('heading', { name: 'Reference 1' });
     expect(outside).toHaveFocus();
+  });
+  it('does not take the focus when its first read finishes', async () => {
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    expect(document.activeElement).toBe(document.body);
   });
   it('opens only the selected plan and requires a fresh list read when returning', async () => {
     const pending = deferred<OwnStudyPlansDTO>();

@@ -200,6 +200,20 @@ describe('course rating form', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reload courses' }));
     await choose();
   });
+  it('puts focus on the failure message when the reload control is replaced', async () => {
+    vi.mocked(getRatingCourseChoices).mockRejectedValue(new Error('offline'));
+    render(<RatingDashboard userId={one} />);
+    const reload = await screen.findByRole('button', { name: 'Reload courses' });
+    reload.focus();
+    act(() => {
+      fireEvent.click(reload);
+      reload.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent(
+      'Could not load your courses and saved ratings',
+    );
+  });
   it('rejects an empty form without posting', async () => {
     render(<RatingDashboard userId={one} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Save rating' }));

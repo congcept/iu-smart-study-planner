@@ -8,15 +8,25 @@ import { useCallback, useEffect, useRef } from 'react';
 let latestActivation = 0;
 
 /**
- * Chromium moves focus to the body when a focused control becomes disabled.
- * Remember focus before activation and restore it after work finishes, unless
- * the user has moved focus elsewhere, the original control was removed, or a
- * newer activation has been started since.
+ * Forget the activations recorded so far. Tests use this so that every case
+ * starts from the same state as a freshly opened page.
+ */
+export function resetFocusActivations(): void {
+  latestActivation = 0;
+}
+
+/**
+ * Chromium moves focus to the body when a focused control becomes disabled, and
+ * when the focused control is removed from the page. Remember focus before
+ * activation and restore it after work finishes, unless the user has moved
+ * focus elsewhere, the original control was removed, or a newer activation has
+ * been started since.
  *
- * `fallback` covers triggers that disappear while their read runs, such as a
- * retry button inside an error block or a paging button inside a list that is
- * replaced: focus then goes to whatever the panel now shows, usually its error
- * banner or its heading.
+ * `fallback` covers the case where the control that started the work is gone
+ * and something else now holds that place: focus then goes to what the panel
+ * shows instead, usually its error banner or its heading. It is only used when
+ * the user really had something focused that the work removed, so a read that
+ * finishes on its own never takes focus.
  */
 export function useFocusAfterDisable(
   disabled: boolean,
@@ -26,6 +36,7 @@ export function useFocusAfterDisable(
   const activation = useRef(0);
   const wasDisabled = useRef(disabled);
   const fallbackRef = useRef(fallback);
+  const lastFocused = useRef<HTMLElement | null>(null);
   fallbackRef.current = fallback;
 
   const rememberFocus = useCallback(() => {
@@ -34,18 +45,31 @@ export function useFocusAfterDisable(
   }, []);
 
   useEffect(() => {
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement) lastFocused.current = event.target;
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+
+  useEffect(() => {
     const settled = wasDisabled.current && !disabled;
     wasDisabled.current = disabled;
     if (!settled) return;
-    const element = target.current;
-    target.current = null;
-    if (activation.current !== latestActivation) return;
     const active = document.activeElement;
     if (active !== null && active !== document.body) return;
+    const element = target.current;
+    target.current = null;
     if (element?.isConnected) {
+      if (activation.current !== latestActivation) return;
       element.focus({ preventScroll: true });
       return;
     }
+    if (activation.current !== 0 && activation.current !== latestActivation) return;
+    // Whatever held the focus is gone, so the place it held has to go
+    // somewhere. A read that finished on its own never took that place.
+    const lost = lastFocused.current ?? element;
+    if (!lost || lost.isConnected) return;
     const alternative = fallbackRef.current?.();
     if (alternative?.isConnected) alternative.focus({ preventScroll: true });
   }, [disabled]);

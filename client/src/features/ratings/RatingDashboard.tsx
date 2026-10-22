@@ -54,7 +54,13 @@ function RatingSession({ userId }: { userId: string }) {
   const [phase, setPhase] = useState<'idle' | 'saving' | 'retry' | 'blocked'>(
     journal.error ? 'blocked' : journal.vote ? 'retry' : 'idle',
   );
+  const errorRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const rememberFocus = useFocusAfterDisable(phase === 'saving');
+  const rememberReloadFocus = useFocusAfterDisable(
+    loading,
+    () => errorRef.current ?? headingRef.current,
+  );
   const [message, setMessage] = useState(
     journal.error
       ? 'Browser recovery data is unavailable. Clear this tab’s pending retry before saving a rating.'
@@ -353,7 +359,9 @@ function RatingSession({ userId }: { userId: string }) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
-        <h2 className="text-2xl font-bold text-gray-900">Course ratings</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900">
+          Course ratings
+        </h2>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Rate the difficulty of a course you have completed: 1 means very easy and 5 means very
           difficult. Each account has one vote per course; saving again replaces it.
@@ -400,14 +408,21 @@ function RatingSession({ userId }: { userId: string }) {
           Loading your completed courses and ratings…
         </p>
       ) : loadError ? (
-        <div>
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <p role="alert" className="text-red-700">
             Could not load your courses and saved ratings. Check your connection and reload.
           </p>
           <Button
             className="mt-3 min-h-11"
             disabled={phase === 'saving'}
-            onClick={() => void load()}
+            onClick={() => {
+              rememberReloadFocus();
+              void load();
+            }}
           >
             Reload courses
           </Button>
@@ -502,7 +517,10 @@ function RatingSession({ userId }: { userId: string }) {
                   type="button"
                   variant="secondary"
                   className="min-h-11"
-                  onClick={() => void load()}
+                  onClick={() => {
+                    rememberReloadFocus();
+                    void load();
+                  }}
                 >
                   Reload courses
                 </Button>

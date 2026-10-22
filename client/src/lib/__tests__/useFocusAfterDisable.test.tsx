@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { useRef } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { useFocusAfterDisable } from '../useFocusAfterDisable';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { resetFocusActivations, useFocusAfterDisable } from '../useFocusAfterDisable';
 
 type Props = { busyFirst: boolean; busySecond: boolean };
 
@@ -46,6 +46,11 @@ function Vanishing({ busy, phase }: { busy: boolean; phase: 'retry' | 'failed' |
     </div>
   );
 }
+
+beforeEach(() => {
+  // Every case starts from the state of a freshly opened page.
+  resetFocusActivations();
+});
 
 afterEach(cleanup);
 
@@ -120,5 +125,20 @@ describe('useFocusAfterDisable', () => {
     act(() => rerender(<Vanishing busy phase="retry" />));
     act(() => rerender(<Vanishing busy={false} phase="content" />));
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Panel heading' }));
+  });
+
+  it('does not take focus when a read finishes on its own', () => {
+    const { rerender } = render(<Vanishing busy phase="retry" />);
+    expect(document.activeElement).toBe(document.body);
+    act(() => rerender(<Vanishing busy={false} phase="failed" />));
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('moves focus to the failure message when a background read removes the control the user was on', () => {
+    const { rerender } = render(<Vanishing busy={false} phase="retry" />);
+    screen.getByRole('button', { name: 'Retry the read' }).focus();
+    act(() => rerender(<Vanishing busy phase="retry" />));
+    act(() => rerender(<Vanishing busy={false} phase="failed" />));
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
   });
 });
