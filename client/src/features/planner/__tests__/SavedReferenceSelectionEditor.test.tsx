@@ -790,6 +790,30 @@ describe('saved course display order', () => {
     await waitFor(() => expect(document.activeElement).toBe(reload));
   });
 
+  it('keeps the focus in the list when a course is removed', async () => {
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    addSecondCourse();
+
+    const removes = screen.getAllByRole('button', { name: /^Remove selected course/ });
+    expect(removes).toHaveLength(2);
+    removes[0].focus();
+    fireEvent.click(removes[0]);
+
+    // The course that took the removed one's place takes the focus.
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: /^Remove selected course/ })).toHaveLength(1),
+    );
+    expect(screen.getAllByRole('button', { name: /^Remove selected course/ })[0]).toHaveFocus();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Remove selected course/ })[0]);
+
+    // With no course left, the control that adds one takes the focus.
+    await waitFor(() =>
+      expect(screen.getByLabelText('Add a current curriculum course')).toHaveFocus(),
+    );
+  });
+
   it('names the list controls so their visible text is part of the name', async () => {
     render(<SavedReferenceSelectionEditor {...props} />);
     await open();
