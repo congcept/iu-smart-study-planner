@@ -12,6 +12,7 @@ import {
   referenceId,
   referenceSession,
 } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AccountCurriculum } from '../AccountCurriculum';
 
 const legacy = vi.hoisted(() => ({ mount: vi.fn() }));
@@ -113,6 +114,25 @@ describe('account curriculum reference', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reload curriculum' }));
     await screen.findByText('SIM · Simulated reference');
     expect(session).toHaveBeenCalledTimes(3);
+  });
+  it('returns focus to the reload control after the curriculum is read again', async () => {
+    reference.mockRejectedValueOnce(new Error('offline'));
+    render(view());
+    await screen.findByRole('alert');
+    const pending = deferred<CurriculumDetailDTO>();
+    reference.mockReturnValueOnce(pending.promise);
+    const reload = screen.getByRole('button', { name: 'Reload curriculum' });
+    reload.focus();
+    fireEvent.click(reload);
+    await waitFor(() => expect(reload).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pending.resolve(curriculumReference()));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload curriculum' })).toBeEnabled(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(reload));
   });
   it('hides confirmed reference while focus refresh is pending and does not fall back after failure', async () => {
     render(view());

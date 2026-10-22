@@ -5,6 +5,7 @@ import type { ContextStudentProgressDTO } from '@iu-study-planner/shared';
 import { getContextStudentProgress } from '@/lib/curriculumApi';
 import { contextProgress } from '@/test/fixtures/contextProgress';
 import { otherReferenceId, ownerId, referenceId } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { CurriculumProgressSummary } from '../CurriculumProgressSummary';
 vi.mock('@/lib/curriculumApi', () => ({ getContextStudentProgress: vi.fn() }));
 const getProgress = vi.mocked(getContextStudentProgress);
@@ -87,6 +88,24 @@ describe('read-only curriculum progress summary', () => {
     await screen.findByText('No saved course selections in this curriculum yet.');
     await act(async () => old.resolve(contextProgress()));
     expect(screen.queryByText('MA001IU · Scoped Calculus')).not.toBeInTheDocument();
+  });
+  it('returns focus to the reload control after the progress is read again', async () => {
+    render(<CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />);
+    await screen.findByRole('list', { name: 'Current saved course selections' });
+    const pending = deferred<ContextStudentProgressDTO>();
+    getProgress.mockReturnValueOnce(pending.promise);
+    const reload = screen.getByRole('button', { name: 'Reload progress' });
+    reload.focus();
+    fireEvent.click(reload);
+    await waitFor(() => expect(reload).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pending.resolve(contextProgress()));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload progress' })).toBeEnabled(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(reload));
   });
   it('shows member totals with no degree percentage or mutation controls', async () => {
     render(<CurriculumProgressSummary userId={ownerId} curriculumId={referenceId} />);

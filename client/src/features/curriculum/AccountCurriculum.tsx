@@ -4,6 +4,7 @@ import type { CurriculumDetailDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import { getSession } from '@/lib/api';
 import { getCurriculumReference } from '@/lib/curriculumApi';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { CurriculumProgressMap } from './CurriculumProgressMap';
 import { CurriculumReference } from './CurriculumReference';
 import { CurriculumProgressSummary } from './CurriculumProgressSummary';
@@ -102,13 +103,23 @@ export function AccountCurriculum({ userId }: { userId: string }) {
     state.ownerId === userId && state.request === generation.current
       ? state
       : { ownerId: userId, request: generation.current, status: 'loading' as const };
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  // The reload control is replaced by the loading line while the curriculum is
+  // read, so the focus has to go to what the panel shows instead.
+  const rememberFocus = useFocusAfterDisable(
+    visible.status === 'loading',
+    () => errorRef.current ?? headingRef.current,
+  );
   if (visible.status === 'ready' && visible.curriculum === null)
     return <CurriculumProgressMap key={`${userId}:${visible.request}`} userId={userId} />;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">My curriculum</h2>
+          <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900">
+            My curriculum
+          </h2>
           <p className="mt-2 max-w-prose text-sm text-gray-600">
             Review the reference curriculum attached to your account.
           </p>
@@ -117,7 +128,10 @@ export function AccountCurriculum({ userId }: { userId: string }) {
           variant="secondary"
           className="min-h-11"
           disabled={visible.status === 'loading'}
-          onClick={() => void reload()}
+          onClick={() => {
+            rememberFocus();
+            void reload();
+          }}
         >
           Reload curriculum
         </Button>
@@ -127,7 +141,12 @@ export function AccountCurriculum({ userId }: { userId: string }) {
           Loading your curriculum…
         </p>
       ) : visible.status === 'error' ? (
-        <p role="alert" className="text-red-700">
+        <p
+          ref={errorRef}
+          tabIndex={-1}
+          role="alert"
+          className="text-red-700 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           Could not confirm your curriculum. Check your connection and reload.
         </p>
       ) : (
