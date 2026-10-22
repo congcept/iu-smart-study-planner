@@ -240,6 +240,12 @@ verified assignment/switching, full degree/calendar planning, real staff/lab con
 production hosting and thesis evaluation remain separate gates. Follow the current
 [roadmap checkpoint](AGENTS.md) instead of treating reference outputs as validated plans.
 
+For a single readable account of what changed in October 2026 — the account scope,
+the curriculum-context data model, grades, ratings, the saved-selection editor, the
+admin simulation stack, the client accessibility pass, the locked decisions and the
+gates that are still open — see the
+[October 2026 recap](docs/october-2026-recap.md).
+
 ## Troubleshooting
 
 - **Cannot connect / loading curriculum:** check Docker Desktop, the PostgreSQL container,
