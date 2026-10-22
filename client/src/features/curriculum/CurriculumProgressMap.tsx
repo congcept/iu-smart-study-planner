@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { getCurriculum } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { useAppStore } from '@/lib/store';
 import { playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
@@ -38,6 +39,8 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [error, setError] = useState<string | null>(null);
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
   const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
+  const curriculumErrorRef = useRef<HTMLDivElement>(null);
+  const progressErrorRef = useRef<HTMLDivElement>(null);
 
   const loadCurriculum = useCallback(async () => {
     setLoading(true);
@@ -72,6 +75,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   } = useAppStore();
   const progressReady =
     !userId || (progressStatus === 'ready' && progressImportStatus !== 'importing');
+  // A retry replaces the message that offered it, so the focus has to go to
+  // the message that replaced it.
+  const rememberFocus = useFocusAfterDisable(
+    loading || progressStatus === 'loading',
+    () => curriculumErrorRef.current ?? progressErrorRef.current,
+  );
 
   useEffect(() => {
     if (userId) void loadProgress();
@@ -559,12 +568,20 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     );
   if (error)
     return (
-      <div role="alert" className="p-8 text-center">
+      <div
+        ref={curriculumErrorRef}
+        tabIndex={-1}
+        role="alert"
+        className="rounded-lg p-8 text-center focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+      >
         <p className="text-red-700">{error}</p>
         <button
           type="button"
           className="mt-3 min-h-11 rounded bg-primary-600 px-4 py-2 text-white"
-          onClick={() => void loadCurriculum()}
+          onClick={() => {
+            rememberFocus();
+            void loadCurriculum();
+          }}
         >
           Try loading the curriculum again
         </button>
@@ -573,14 +590,24 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
   if (userId && progressStatus === 'error')
     return (
-      <div className="p-8 text-center">
+      <div
+        ref={progressErrorRef}
+        tabIndex={-1}
+        className="rounded-lg p-8 text-center focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+      >
         <p role="alert" className="mb-3 text-red-700">
           {progressError || 'Could not load your progress.'}
         </p>
         <p className="mb-3 text-sm text-gray-600">
           Editing is paused until your saved progress can be loaded.
         </p>
-        <button className="text-primary-700 underline" onClick={() => void loadProgress()}>
+        <button
+          className="min-h-11 text-primary-700 underline"
+          onClick={() => {
+            rememberFocus();
+            void loadProgress();
+          }}
+        >
           Reload saved progress
         </button>
       </div>

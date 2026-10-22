@@ -287,6 +287,16 @@ describe('curriculum load recovery', () => {
     expect(getCurriculum).toHaveBeenCalledTimes(2);
   });
 
+  it('puts focus on the failure message when the retry fails again', async () => {
+    vi.mocked(getCurriculum).mockRejectedValue(new Error('Offline'));
+    render(<CurriculumProgressMap />);
+    const retry = await screen.findByRole('button', { name: /try loading the curriculum again/i });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toBe(screen.getByRole('alert'));
+  });
+
   it('recovers in place when a retry succeeds after a network failure', async () => {
     vi.mocked(getCurriculum).mockRejectedValueOnce(new Error('Offline'));
     vi.mocked(getCurriculum).mockResolvedValueOnce({
