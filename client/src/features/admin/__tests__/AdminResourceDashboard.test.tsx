@@ -179,6 +179,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('puts focus on the panel heading when the references are read again', async () => {
+  vi.mocked(getCurriculumReferences).mockRejectedValue(new Error('offline'));
+  render(<AdminResourceDashboard userId={ownerId} />);
+  const reload = await screen.findByRole('button', { name: 'Reload references' });
+  reload.focus();
+  fireEvent.click(reload);
+  await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+  expect(document.activeElement).toBe(
+    screen.getByRole('heading', { name: 'Simulation resources' }),
+  );
+});
+
 describe('focus while a read is in flight', () => {
   it('returns focus to the reload control after reading finishes', async () => {
     render(<AdminResourceDashboard userId={ownerId} />);

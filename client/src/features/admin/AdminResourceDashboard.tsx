@@ -84,7 +84,13 @@ function ResourceSession({ userId }: { userId: string }) {
   const [loadError, setLoadError] = useState('');
   const [semesterSessionBlocked, setSemesterSessionBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
-  const rememberFocus = useFocusAfterDisable(saving || loading);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The references panel replaces the control that read it, so the focus has to
+  // go to the panel that took its place.
+  const rememberFocus = useFocusAfterDisable(
+    saving || loading || catalogLoading,
+    () => headingRef.current,
+  );
   const [message, setMessage] = useState(
     journal.invalid
       ? 'This tab’s recovery data cannot be verified. Clear the local request before saving.'
@@ -311,7 +317,9 @@ function ResourceSession({ userId }: { userId: string }) {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <header>
-        <h2 className="text-2xl font-bold text-gray-900">Simulation resources</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900">
+          Simulation resources
+        </h2>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Configure a school-admin resource scenario for a curriculum and semester. These inputs are
           simulated. Review planned selections, allocation previews and saved simulation outcomes.
@@ -359,7 +367,13 @@ function ResourceSession({ userId }: { userId: string }) {
           Loading simulation curriculum references…
         </p>
       ) : catalogError ? (
-        <Button className="min-h-11" onClick={() => void loadCatalog()}>
+        <Button
+          className="min-h-11"
+          onClick={() => {
+            rememberFocus();
+            void loadCatalog();
+          }}
+        >
           Reload references
         </Button>
       ) : references.length === 0 && !pendingRequest ? (
