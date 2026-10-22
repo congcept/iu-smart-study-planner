@@ -42,6 +42,7 @@ function AppShell() {
   const logoutErrorRef = useRef<HTMLParagraphElement | null>(null);
   const isFirstRoute = useRef(true);
   const connectionWasLost = useRef(false);
+  const sessionCheckFailed = useRef(false);
 
   const initializeApp = useCallback(async (initial = false) => {
     // Only the first boot may swap the whole app for the loading screen. A
@@ -67,6 +68,22 @@ function AppShell() {
   useEffect(() => {
     void initializeApp(true);
   }, [initializeApp]);
+
+  useEffect(() => {
+    if (sessionError) {
+      sessionCheckFailed.current = true;
+      return;
+    }
+    // The session is only back once the account is confirmed again. Until then
+    // the app shows its loading screen and there is no page to focus.
+    if (!sessionCheckFailed.current || status !== 'authenticated') return;
+    sessionCheckFailed.current = false;
+    // The retry that offered to check the session again is gone with the
+    // message, so the focus it held goes back to the page.
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [sessionError, status]);
 
   useEffect(() => {
     if (apiStatus === 'error') {

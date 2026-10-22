@@ -342,6 +342,19 @@ describe('authentication screens and session routing', () => {
     expect(useAppStore.getState().progressOwnerId).toBe(student.id);
   });
 
+  it('moves focus back to the page when the session check recovers', async () => {
+    vi.mocked(api.getSession)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(student);
+    window.history.replaceState({}, '', '/curriculum');
+    render(<App />);
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull());
+    expect(document.activeElement).toBe(document.getElementById('main-content'));
+  });
+
   it('moves focus back to the page when the connection banner recovers', async () => {
     vi.mocked(api.healthCheck)
       .mockRejectedValueOnce(new Error('offline'))
