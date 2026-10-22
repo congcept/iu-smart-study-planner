@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { isAxiosError } from 'axios';
 import type { AuthUserDTO, DemoLoginDTO, LoginDTO, RegisterDTO } from '@iu-study-planner/shared';
 import * as api from '@/lib/api';
-import { onSessionExpired } from '@/lib/sessionExpiry';
+import { beginAuthenticationGeneration, onSessionExpired } from '@/lib/sessionExpiry';
 import { useAppStore } from '@/lib/store';
 import { AuthContext, type AuthContextValue } from './AuthContext';
 
@@ -13,6 +13,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const requestVersion = useRef(0);
 
   const applyUser = useCallback((nextUser: AuthUserDTO | null) => {
+    beginAuthenticationGeneration();
     useAppStore.getState().setProgressOwner(nextUser?.id ?? null);
     setUser(nextUser);
     setSessionError(null);
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const invalidatePendingRequests = useCallback(() => {
     requestVersion.current++;
+    beginAuthenticationGeneration();
   }, []);
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (data: LoginDTO) => {
       const version = ++requestVersion.current;
+      beginAuthenticationGeneration();
       const nextUser = await api.login(data);
       if (version === requestVersion.current) applyUser(nextUser);
     },
@@ -78,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (data: RegisterDTO) => {
       const version = ++requestVersion.current;
+      beginAuthenticationGeneration();
       const nextUser = await api.register(data);
       if (version === requestVersion.current) applyUser(nextUser);
     },
@@ -87,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const demoLogin = useCallback(
     async (data: DemoLoginDTO) => {
       const version = ++requestVersion.current;
+      beginAuthenticationGeneration();
       const nextUser = await api.demoLogin(data);
       if (version === requestVersion.current) applyUser(nextUser);
     },
@@ -95,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const version = ++requestVersion.current;
+    beginAuthenticationGeneration();
     await api.logout();
     if (version === requestVersion.current) applyUser(null);
   }, [applyUser]);

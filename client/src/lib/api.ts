@@ -1,5 +1,10 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { isAuthRequest, notifySessionExpired } from './sessionExpiry';
+import {
+  bindRequestAuthentication,
+  isAuthRequest,
+  isRequestAuthenticationCurrent,
+  notifySessionExpired,
+} from './sessionExpiry';
 import {
   CurriculumSemesterPreviewSchema,
   CreateSemesterSchema,
@@ -48,6 +53,11 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
+apiClient.interceptors.request.use((config) => {
+  bindRequestAuthentication(config);
+  return config;
+});
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
@@ -56,8 +66,16 @@ apiClient.interceptors.response.use(
         case 401:
           // A read the server refuses for identity reasons cannot succeed on
           // retry, so let the app return to sign-in instead of leaving a panel
-          // offering a reload that can never work.
-          if (!isAuthRequest(error.config?.url)) notifySessionExpired();
+          // offering a reload that can never work. A refusal that belongs to an
+          // earlier session says nothing about the session in use now: the user
+          // may have signed in again while that read was still in flight.
+          if (
+            error.config &&
+            !isAuthRequest(error.config.url) &&
+            isRequestAuthenticationCurrent(error.config)
+          ) {
+            notifySessionExpired();
+          }
           break;
         case 403:
           console.error('Access forbidden');

@@ -1,6 +1,8 @@
 type Listener = () => void;
 
 const listeners = new Set<Listener>();
+const requestGenerations = new WeakMap<object, number>();
+let authenticationGeneration = 0;
 
 /**
  * A rejected sign-in also answers 401, so those requests keep owning their own
@@ -9,6 +11,30 @@ const listeners = new Set<Listener>();
 export function isAuthRequest(url: string | undefined): boolean {
   if (!url) return false;
   return /\/auth\/(login|register|logout|me|demo)/.test(url);
+}
+
+/**
+ * Every sign-in, sign-out or session change starts a new generation. A request
+ * that was sent before the change cannot describe the session in use now.
+ */
+export function beginAuthenticationGeneration(): void {
+  authenticationGeneration++;
+}
+
+/** Remember which session a request was sent under. */
+export function bindRequestAuthentication(config: object): void {
+  requestGenerations.set(config, authenticationGeneration);
+}
+
+/**
+ * Whether the request still belongs to the session that is current now. A
+ * refusal that belongs to an earlier session says nothing about the session in
+ * use, so it must not end it.
+ */
+export function isRequestAuthenticationCurrent(config: object): boolean {
+  const generation = requestGenerations.get(config);
+  requestGenerations.delete(config);
+  return generation === authenticationGeneration;
 }
 
 /** Any authenticated read can discover that the session is gone. */
