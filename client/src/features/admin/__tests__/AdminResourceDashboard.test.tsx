@@ -672,6 +672,22 @@ describe('AdminResourceDashboard scope and durable save proof', () => {
     expect(saveResources).not.toHaveBeenCalled();
   });
 
+  it('moves the focus to the override row it just added', async () => {
+    render(<AdminResourceDashboard userId={ownerId} />);
+    await ready();
+    fill();
+    const add = screen.getByRole('button', { name: 'Add course override' });
+    add.focus();
+
+    fireEvent.click(add);
+
+    // The new row is added before the button in the form, so a keyboard user
+    // would otherwise have to walk backwards to reach it.
+    const courses = screen.getAllByLabelText('Course');
+    expect(courses).toHaveLength(1);
+    expect(courses[0]).toHaveFocus();
+  });
+
   it('rejects duplicate override courses without collapsing them into a record', async () => {
     render(<AdminResourceDashboard userId={ownerId} />);
     await ready();

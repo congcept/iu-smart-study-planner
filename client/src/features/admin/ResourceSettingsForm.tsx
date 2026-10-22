@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import {
   UpsertResourcesSchema,
   type CurriculumDetailDTO,
@@ -44,6 +44,9 @@ export function ResourceSettingsForm({
   );
   const [nextKey, setNextKey] = useState(rows.length);
   const [error, setError] = useState('');
+  // The row that was just added takes the focus, so a keyboard user does not
+  // have to walk backwards through the form to reach the control they asked for.
+  const addedRowKey = useRef<number | null>(null);
   const changeRow = (key: number, field: 'code' | 'capacity' | 'professorCount', value: string) => {
     setRows((current) =>
       current.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
@@ -155,6 +158,11 @@ export function ResourceSettingsForm({
                   onChange={(event) => changeRow(row.key, 'code', event.target.value)}
                   className={inputClass}
                   required
+                  ref={(element) => {
+                    if (!element || addedRowKey.current !== row.key) return;
+                    addedRowKey.current = null;
+                    element.focus();
+                  }}
                 >
                   <option value="">Choose a reference course</option>
                   {row.code && !reference.courses.some((course) => course.code === row.code) && (
@@ -228,6 +236,7 @@ export function ResourceSettingsForm({
               { key: nextKey, code: '', capacity: '', professorCount: '' },
             ]);
             setNextKey((current) => current + 1);
+            addedRowKey.current = nextKey;
           }}
         >
           Add course override
