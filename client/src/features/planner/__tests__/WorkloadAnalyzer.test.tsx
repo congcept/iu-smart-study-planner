@@ -94,6 +94,12 @@ describe('focus while analysis is in flight', () => {
     },
   );
 
+  it('separates the course code from its name in the text that is read', () => {
+    render(<WorkloadAnalyzer selectedCourses={[course('MA001IU')]} />);
+    const item = screen.getByRole('listitem');
+    expect(item).toHaveTextContent('MA001IU — Course MA001IU');
+  });
+
   it('announces the server estimate through the existing summary', async () => {
     vi.mocked(analyzeWorkload).mockResolvedValue(response());
     render(<WorkloadAnalyzer selectedCourses={[course('A')]} />);
