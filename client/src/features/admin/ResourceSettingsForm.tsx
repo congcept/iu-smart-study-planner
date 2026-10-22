@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   UpsertResourcesSchema,
   type CurriculumDetailDTO,
@@ -46,7 +46,14 @@ export function ResourceSettingsForm({
   const [error, setError] = useState('');
   // The row that was just added takes the focus, so a keyboard user does not
   // have to walk backwards through the form to reach the control they asked for.
-  const addedRowKey = useRef<number | null>(null);
+  // The same goes for the row that took the place of a removed one.
+  const pendingFocusId = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingFocusId.current;
+    if (!id) return;
+    pendingFocusId.current = null;
+    document.getElementById(id)?.focus();
+  }, [rows]);
   const changeRow = (key: number, field: 'code' | 'capacity' | 'professorCount', value: string) => {
     setRows((current) =>
       current.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
@@ -154,15 +161,11 @@ export function ResourceSettingsForm({
               <label className="block text-sm font-medium text-gray-900">
                 Course
                 <select
+                  id={`override-course-${row.key}`}
                   value={row.code}
                   onChange={(event) => changeRow(row.key, 'code', event.target.value)}
                   className={inputClass}
                   required
-                  ref={(element) => {
-                    if (!element || addedRowKey.current !== row.key) return;
-                    addedRowKey.current = null;
-                    element.focus();
-                  }}
                 >
                   <option value="">Choose a reference course</option>
                   {row.code && !reference.courses.some((course) => course.code === row.code) && (
@@ -216,6 +219,10 @@ export function ResourceSettingsForm({
                 variant="secondary"
                 className="mt-3 min-h-11"
                 onClick={() => {
+                  const next = rows[index + 1];
+                  pendingFocusId.current = next
+                    ? `override-course-${next.key}`
+                    : 'add-course-override';
                   setRows((current) => current.filter((item) => item.key !== row.key));
                   setError('');
                 }}
@@ -229,6 +236,7 @@ export function ResourceSettingsForm({
           type="button"
           variant="secondary"
           className="mt-4 min-h-11"
+          id="add-course-override"
           disabled={rows.length >= 500 || reference.courses.length === 0}
           onClick={() => {
             setRows((current) => [
@@ -236,7 +244,7 @@ export function ResourceSettingsForm({
               { key: nextKey, code: '', capacity: '', professorCount: '' },
             ]);
             setNextKey((current) => current + 1);
-            addedRowKey.current = nextKey;
+            pendingFocusId.current = `override-course-${nextKey}`;
           }}
         >
           Add course override

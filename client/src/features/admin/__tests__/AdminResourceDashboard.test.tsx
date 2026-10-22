@@ -688,6 +688,29 @@ describe('AdminResourceDashboard scope and durable save proof', () => {
     expect(courses[0]).toHaveFocus();
   });
 
+  it('moves the focus on when an override row is removed', async () => {
+    render(<AdminResourceDashboard userId={ownerId} />);
+    await ready();
+    fill();
+    const add = screen.getByRole('button', { name: 'Add course override' });
+    fireEvent.click(add);
+    fireEvent.click(add);
+
+    const remove = screen.getAllByRole('button', { name: 'Remove override' })[0];
+    remove.focus();
+    fireEvent.click(remove);
+
+    // The row that took the removed one's place takes the focus.
+    expect(screen.getAllByLabelText('Course')[0]).toHaveFocus();
+
+    const last = screen.getAllByRole('button', { name: 'Remove override' })[0];
+    last.focus();
+    fireEvent.click(last);
+
+    // With no row left, the button that adds one takes the focus.
+    expect(screen.getByRole('button', { name: 'Add course override' })).toHaveFocus();
+  });
+
   it('rejects duplicate override courses without collapsing them into a record', async () => {
     render(<AdminResourceDashboard userId={ownerId} />);
     await ready();
