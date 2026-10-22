@@ -1,7 +1,14 @@
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import apiClient from '../api';
-import { isAuthRequest, notifySessionExpired, onSessionExpired } from '../sessionExpiry';
+import {
+  beginAuthenticationGeneration,
+  bindRequestAuthentication,
+  isAuthRequest,
+  isRequestAuthenticationCurrent,
+  notifySessionExpired,
+  onSessionExpired,
+} from '../sessionExpiry';
 
 const originalAdapter = apiClient.defaults.adapter;
 
@@ -66,5 +73,25 @@ describe('expired session reporting', () => {
       expect(seen).toHaveBeenCalledTimes(1);
       off();
     })();
+  });
+});
+
+describe('the session generation', () => {
+  it('treats a request that never recorded a generation as current', () => {
+    expect(isRequestAuthenticationCurrent({})).toBe(true);
+  });
+
+  it('answers the same way twice for the same request', () => {
+    const config = {};
+    bindRequestAuthentication(config);
+    expect(isRequestAuthenticationCurrent(config)).toBe(true);
+    expect(isRequestAuthenticationCurrent(config)).toBe(true);
+  });
+
+  it('does not treat a request from an earlier session as current', () => {
+    const config = {};
+    bindRequestAuthentication(config);
+    beginAuthenticationGeneration();
+    expect(isRequestAuthenticationCurrent(config)).toBe(false);
   });
 });

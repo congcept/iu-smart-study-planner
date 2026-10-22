@@ -49,6 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyUser]);
 
   const invalidatePendingRequests = useCallback(() => {
+    // An unmounted provider must not answer for the session any more, and the
+    // requests it started belong to the session it started them in. The next
+    // refresh is what re-establishes the session; this is not a safety net for
+    // detecting an expiry.
     requestVersion.current++;
     beginAuthenticationGeneration();
   }, []);

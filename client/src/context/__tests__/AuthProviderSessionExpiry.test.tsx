@@ -204,6 +204,37 @@ describe('a refused protected read during session changes', () => {
     });
 
     expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+    const outcome = await refusedRead;
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
+  });
+
+  it('keeps the account signed in when the same account signs in again while a read is in flight', async () => {
+    const backend = await start();
+    await signIn('sign in alice', alice.id);
+
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+
+    // The same account signs in again without signing out first.
+    const login = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in alice' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+
+    await act(async () => {
+      released.open();
+      await refusedRead;
+    });
+
+    // The refusal belongs to the session that the sign-in already replaced.
+    expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+
+    await act(async () => {
+      login.open();
+    });
+    await screen.findByText(`authenticated:${alice.id}`);
   });
 
   it('lets the sign-in in progress finish when the read was sent before it', async () => {
@@ -246,6 +277,9 @@ describe('a refused protected read during session changes', () => {
     });
 
     expect(screen.getByTestId('session')).toHaveTextContent('unauthenticated:guest');
+    const outcome = await refusedRead;
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
   });
 
   it('keeps the current account when a sign-in attempt is refused', async () => {
@@ -297,5 +331,8 @@ describe('a refused protected read during session changes', () => {
     });
 
     expect(screen.getByTestId('session')).toHaveTextContent('unauthenticated:guest');
+    const outcome = await refusedRead;
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
   });
 });
