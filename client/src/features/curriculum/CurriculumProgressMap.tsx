@@ -926,9 +926,21 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         </div>
 
         <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
+          {/* What each control does is said in text a screen reader reads, not
+              only in a tooltip that only a mouse user sees. */}
+          <span className="sr-only" id="map-zoom-out-help">
+            {atMinZoom ? 'Already at the smallest zoom' : 'Zooms the map out'}
+          </span>
+          <span className="sr-only" id="map-zoom-in-help">
+            {atMaxZoom ? 'Already at the largest zoom' : 'Zooms the map in'}
+          </span>
+          <span className="sr-only" id="map-reset-help">
+            Resets the map position and zoom. Course selections stay the same.
+          </span>
           <button
             type="button"
             aria-label="Zoom out"
+            aria-describedby="map-zoom-out-help"
             title={atMinZoom ? 'Already at the smallest zoom' : 'Zoom out'}
             aria-disabled={atMinZoom || undefined}
             onClick={handleZoomOut}
@@ -944,6 +956,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           <button
             type="button"
             aria-label="Zoom in"
+            aria-describedby="map-zoom-in-help"
             title={atMaxZoom ? 'Already at the largest zoom' : 'Zoom in'}
             aria-disabled={atMaxZoom || undefined}
             onClick={handleZoomIn}
@@ -955,6 +968,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           </button>
           <div className="w-px h-4 bg-gray-300" />
           <button
+            aria-describedby="map-reset-help"
             title="Reset the map position and zoom. Course selections stay the same."
             onClick={handleDoubleClick}
             className="min-h-11 text-xs font-medium text-gray-500 hover:text-gray-700 px-1"
