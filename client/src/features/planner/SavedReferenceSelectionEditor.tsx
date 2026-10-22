@@ -411,6 +411,8 @@ function EditorBody(props: Props) {
   const fieldClass =
     'mt-1 block min-h-11 w-full min-w-0 rounded border border-gray-300 bg-white p-2 disabled:bg-gray-100';
   const options = state?.editing.status === 'AVAILABLE' ? state.editing.courses : [];
+  const editingUnavailableReason =
+    state && state.editing.status !== 'AVAILABLE' ? state.editing.reason : null;
   const discardDraftBlocked = () =>
     !alive.current ||
     busy.current ||
@@ -700,7 +702,11 @@ function EditorBody(props: Props) {
                             : `Saved reference ${index + 1}: catalog entry unavailable`}
                           {!option && (
                             <p className="mt-1 text-amber-800">
-                              Not available in current curriculum choices. Remove it before saving.
+                              {editingUnavailableReason === null
+                                ? 'Not available in current curriculum choices. Remove it before saving.'
+                                : editingUnavailableReason === 'NO_ASSIGNED_CURRICULUM'
+                                  ? 'No curriculum is assigned, so this course was not checked against current choices.'
+                                  : 'The saved course list could not be read, so this course was not checked against current choices.'}
                             </p>
                           )}
                         </div>

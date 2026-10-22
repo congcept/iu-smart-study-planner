@@ -363,6 +363,12 @@ describe('saved reference selection editing', () => {
       screen.getByText(/No curriculum is assigned. Course selection editing is unavailable/),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save course selection' })).toBeDisabled();
+    // The courses were never checked against anything, so the editor must not
+    // ask for a removal that the disabled controls cannot carry out.
+    expect(
+      screen.queryByText(/Not available in current curriculum choices/),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText(/was not checked against current choices/)[0]).toBeInTheDocument();
   });
   it('requires explicit removal of a saved course outside current choices', async () => {
     const value = referenceSelectionState();
