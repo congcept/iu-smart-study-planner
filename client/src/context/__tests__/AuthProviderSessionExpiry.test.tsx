@@ -66,11 +66,19 @@ function createBackend() {
   let gradesCalls = 0;
   let sessionChecks = 0;
   let renameNextLogin = false;
+  let sessionGate: Gate | null = null;
 
   const adapter = async (config: InternalAxiosRequestConfig) => {
     const url = config.url ?? '';
     if (url === '/auth/me') {
       sessionChecks++;
+      const pendingSession = sessionGate;
+      if (pendingSession) {
+        // A held check answers with the cookie that is going away.
+        await pendingSession.promise;
+        sessionGate = null;
+        refused(config);
+      }
       if (!signedIn) refused(config);
       return succeeded(config, { success: true, data: { user: signedIn } });
     }
@@ -116,6 +124,10 @@ function createBackend() {
     holdLogin() {
       loginGate = gate();
       return loginGate;
+    },
+    holdSession() {
+      sessionGate = gate();
+      return sessionGate;
     },
     loginCalls: () => loginCalls,
     renameNextLogin() {
@@ -295,14 +307,17 @@ describe('a refused protected read during session changes', () => {
     const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
     await waitFor(() => expect(backend.gradesCalls()).toBe(1));
 
+    let outcome: unknown;
     await act(async () => {
       released.open();
-      await refusedRead;
+      outcome = await refusedRead;
     });
 
     // The refusal belongs to the cookie that the sign-in is replacing, so it
     // must not throw the sign-in away.
     expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
 
     await act(async () => {
       login.open();
@@ -330,12 +345,70 @@ describe('a refused protected read during session changes', () => {
     });
     await screen.findByText(`authenticated:${alice.id}`);
 
+    let outcome: unknown;
+    await act(async () => {
+      released.open();
+      outcome = await refusedRead;
+    });
+
+    expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
+  });
+
+  it('discards a session check that answers after the sign-in completed', async () => {
+    const backend = await start();
+    const login = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in alice' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+
+    // A session check that starts while the sign-in is running.
+    const check = backend.holdSession();
+    const checks = backend.sessionChecks();
+    fireEvent.click(screen.getByRole('button', { name: 'check session' }));
+    await waitFor(() => expect(backend.sessionChecks()).toBeGreaterThan(checks));
+
+    await act(async () => {
+      login.open();
+    });
+    await screen.findByText(`authenticated:${alice.id}`);
+
+    // The held check answers with the cookie that the sign-in replaced.
+    await act(async () => {
+      check.open();
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`),
+    );
+  });
+
+  it('ends the session when the sign-in that was running fails after a refusal', async () => {
+    const backend = await start();
+    await signIn('sign in bob', bob.id);
+
+    // A sign-in that will be refused by the server.
+    const login = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in unknown' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
     await act(async () => {
       released.open();
       await refusedRead;
     });
 
-    expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+    // The refusal belongs to the cookie that the sign-in was going to replace.
+    expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${bob.id}`);
+
+    // The sign-in fails, so the cookie it was going to replace is still dead.
+    await act(async () => {
+      login.open();
+    });
+    await screen.findByText('unauthenticated:guest');
   });
 
   it('still ends the current session when its own protected read is refused', async () => {

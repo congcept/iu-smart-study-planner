@@ -15,7 +15,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // running, and a sign-in must not undo a session check that is still running.
   const refreshVersion = useRef(0);
   const authAttempt = useRef(0);
-  const authInFlight = useRef(false);
+  const authInFlight = useRef(0);
+  const expiryPending = useRef(false);
   const currentUserId = useRef<string | null>(null);
 
   const applyUser = useCallback((nextUser: AuthUserDTO | null) => {
@@ -80,10 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Dropping the local session sends the user through the normal sign-in
         // recovery instead of leaving a panel that offers a pointless reload.
         refreshVersion.current++;
-        // A sign-in that is still running is about to replace the cookie. The
-        // refusal belongs to the cookie that is going away, so it must not
-        // throw away the sign-in the user just completed.
-        if (authInFlight.current) return;
+        if (authInFlight.current > 0) {
+          // A sign-in that is still running is about to replace the cookie. The
+          // refusal belongs to the cookie that is going away, so it must not
+          // throw the sign-in away. If that sign-in does not replace the cookie,
+          // the refusal is applied then.
+          expiryPending.current = true;
+          return;
+        }
         applyUser(null);
       }),
     [applyUser],
@@ -95,22 +100,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // still in flight belongs to the session that is going away.
       refreshVersion.current++;
       const attempt = ++authAttempt.current;
-      authInFlight.current = true;
+      authInFlight.current++;
       beginAuthenticationGeneration();
       try {
         const result = await operation();
+        if (attempt !== authAttempt.current) {
+          authInFlight.current--;
+          return;
+        }
         // The cookie is new now. A read that was sent before this moment cannot
         // describe the session that is in use, so its refusal must not end it.
         beginAuthenticationGeneration();
-        if (attempt !== authAttempt.current) return;
-        authInFlight.current = false;
+        // A session check that is still running belongs to the cookie that is
+        // going away, so it must not answer for the session that replaced it.
+        refreshVersion.current++;
+        authInFlight.current--;
+        expiryPending.current = false;
         apply(result);
       } catch (error) {
-        if (attempt === authAttempt.current) authInFlight.current = false;
+        if (attempt === authAttempt.current) {
+          authInFlight.current--;
+          // A refusal that arrived while the sign-in was running belongs to the
+          // cookie that was going away. If the sign-in did not replace it, the
+          // session really is gone.
+          if (expiryPending.current) {
+            expiryPending.current = false;
+            applyUser(null);
+          }
+        }
         throw error;
       }
     },
-    [],
+    [applyUser],
   );
 
   const login = useCallback(
