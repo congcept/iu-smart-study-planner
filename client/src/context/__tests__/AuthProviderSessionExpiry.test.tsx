@@ -470,11 +470,37 @@ describe('a refused protected read during session changes', () => {
     });
     expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
 
-    // The first sign-in settles and no sign-in replaced the cookie the refusal
-    // belonged to, so the refusal is applied.
+    // The first sign-in settles and reaches the server, so it replaced the
+    // cookie the refusal belonged to. The refusal is not applied against it.
     await act(async () => {
       first.open();
     });
+    await screen.findByText(`authenticated:${bob.id}`);
+  });
+
+  it('ends the session when a refusal arrives after a sign-in failed', async () => {
+    const backend = await start();
+    await signIn('sign in bob', bob.id);
+
+    // A read that goes out before the sign-in is started.
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+
+    // The sign-in fails, so the cookie it was going to replace is still dead.
+    const login = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in unknown' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+
+    await act(async () => {
+      released.open();
+      await refusedRead;
+    });
+    await act(async () => {
+      login.open();
+    });
+
     await screen.findByText('unauthenticated:guest');
   });
 

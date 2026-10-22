@@ -14,7 +14,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // session check that answers late must not undo a sign-in that is still
   // running, and a sign-in must not undo a session check that is still running.
   const refreshVersion = useRef(0);
-  const authAttempt = useRef(0);
   const authInFlight = useRef(0);
   const expiryPending = useRef(false);
   const currentUserId = useRef<string | null>(null);
@@ -96,33 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const runAuthentication = useCallback(
     async <T,>(operation: () => Promise<T>, apply: (result: T) => void) => {
-      const attempt = ++authAttempt.current;
       authInFlight.current++;
-      // A sign-in that starts replaces the cookie, so every request that is
-      // still in flight belongs to the session that is going away.
-      beginAuthenticationGeneration();
       try {
         const result = await operation();
-        if (attempt === authAttempt.current) {
-          // The cookie is new now. A read that was sent before this moment
-          // cannot describe the session that is in use, so its refusal must not
-          // end it.
-          beginAuthenticationGeneration();
-          // A session check that is still running belongs to the cookie that is
-          // going away, so it must not answer for the session that replaced it.
-          refreshVersion.current++;
-          expiryPending.current = false;
-          apply(result);
-        }
-      } catch (error) {
-        if (attempt === authAttempt.current && expiryPending.current) {
-          // A refusal that arrived while the sign-in was running belongs to the
-          // cookie that was going away. The sign-in did not replace it, so the
-          // session really is gone.
-          expiryPending.current = false;
-          applyUser(null);
-        }
-        throw error;
+        // The cookie is new now, whichever attempt reached the server last:
+        // every request that was sent before it describes the cookie it
+        // replaced, and a session check that is still running answers for that
+        // cookie too.
+        beginAuthenticationGeneration();
+        refreshVersion.current++;
+        expiryPending.current = false;
+        // The last sign-in that reached the server is the session in use, so it
+        // is the one the app shows.
+        apply(result);
       } finally {
         // Every attempt counts down once, whether it won, lost or failed.
         authInFlight.current--;
