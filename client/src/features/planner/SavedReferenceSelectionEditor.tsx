@@ -711,7 +711,7 @@ function EditorBody(props: Props) {
                             className="min-h-11"
                             disabled={index === 0}
                             onClick={() => moveCourse(index, -1)}
-                            aria-label={`Move selected course ${index + 1} up`}
+                            aria-label={`Move up selected course ${index + 1}`}
                           >
                             Move up
                           </Button>
@@ -721,7 +721,7 @@ function EditorBody(props: Props) {
                             className="min-h-11"
                             disabled={index === draft.courseIds.length - 1}
                             onClick={() => moveCourse(index, 1)}
-                            aria-label={`Move selected course ${index + 1} down`}
+                            aria-label={`Move down selected course ${index + 1}`}
                           >
                             Move down
                           </Button>
