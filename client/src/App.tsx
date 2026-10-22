@@ -250,7 +250,7 @@ function AppShell() {
         id="main-content"
         ref={mainRef}
         tabIndex={-1}
-        className="flex-1 p-6 overflow-hidden w-full max-w-full focus:outline-none"
+        className="flex-1 p-6 overflow-hidden w-full max-w-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-700"
       >
         {logoutError && (
           <p

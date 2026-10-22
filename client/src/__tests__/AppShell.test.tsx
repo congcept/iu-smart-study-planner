@@ -117,6 +117,20 @@ describe('app shell navigation', () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('main')));
   });
 
+  it('shows where the keyboard landed after a navigation', async () => {
+    render(<App />);
+    await screen.findByText(student.name);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Grades' }));
+
+    await waitFor(() => expect(window.location.pathname).toBe('/grades'));
+    const main = screen.getByRole('main');
+    await waitFor(() => expect(document.activeElement).toBe(main));
+    // The focus move has to be visible, or a keyboard user cannot see that the
+    // page they opened is the one they are now on.
+    expect(main.className).toContain('focus-visible:outline-primary-700');
+  });
+
   it("keeps a route's own deliberate focus instead of overriding it", async () => {
     render(<App />);
     await screen.findByText(student.name);
