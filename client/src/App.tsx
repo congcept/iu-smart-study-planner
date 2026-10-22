@@ -41,6 +41,7 @@ function AppShell() {
   const mainRef = useRef<HTMLElement | null>(null);
   const logoutErrorRef = useRef<HTMLParagraphElement | null>(null);
   const isFirstRoute = useRef(true);
+  const connectionWasLost = useRef(false);
 
   const initializeApp = useCallback(async (initial = false) => {
     // Only the first boot may swap the whole app for the loading screen. A
@@ -66,6 +67,20 @@ function AppShell() {
   useEffect(() => {
     void initializeApp(true);
   }, [initializeApp]);
+
+  useEffect(() => {
+    if (apiStatus === 'error') {
+      connectionWasLost.current = true;
+      return;
+    }
+    if (!connectionWasLost.current) return;
+    connectionWasLost.current = false;
+    // The banner that offered the retry is gone, and it held the focus. Put it
+    // back on the page the user was reading instead of on nothing.
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [apiStatus]);
 
   useEffect(() => {
     const page = PAGE_TITLES[location.pathname];
