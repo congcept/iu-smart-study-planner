@@ -421,6 +421,19 @@ describe('durable rating retry scope and account isolation', () => {
     expect(rateCourse).not.toHaveBeenCalled();
   });
 
+  it('moves the focus to the course list after the pending retry is cleared', async () => {
+    storage.set(journal(), JSON.stringify(pending()));
+    render(<RatingDashboard userId={owner} />);
+    const clear = await screen.findByRole('button', { name: 'Clear pending retry' });
+    clear.focus();
+
+    fireEvent.click(clear);
+
+    // Clearing takes the button with it, so the focus goes to the courses the
+    // user can now rate.
+    await waitFor(() => expect(screen.getByLabelText('Course')).toHaveFocus());
+  });
+
   it('can confirm a remounted uncompleted pending vote using only the saved-rating read', async () => {
     storage.set(journal(), JSON.stringify(pending()));
     vi.mocked(getRatingCourseChoices).mockResolvedValue(choices([]));

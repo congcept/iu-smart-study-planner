@@ -82,6 +82,15 @@ function EditorBody(props: Props) {
   const [state, setState] = useState<OwnStudyPlanReferenceSelectionStateDTO | null>(null);
   const [message, setMessage] = useState('');
   const [draft, setDraft] = useState<Draft>({ year: '', semester: '', courseIds: [] });
+  // Removing a course takes its own button with it, so the focus needs
+  // somewhere to go: the next course's control, or the one that adds a course.
+  const pendingFocusId = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingFocusId.current;
+    if (!id) return;
+    pendingFocusId.current = null;
+    document.getElementById(id)?.focus();
+  }, [draft.courseIds]);
   const currentDraft = useRef(draft);
   const currentState = useRef(state);
   const [draftRecovery, setDraftRecovery] = useState<DraftRecovery>({ status: 'NONE' });
@@ -748,12 +757,17 @@ function EditorBody(props: Props) {
                             type="button"
                             variant="secondary"
                             className="min-h-11"
-                            onClick={() =>
+                            id={`saved-selection-remove-${id}`}
+                            onClick={() => {
+                              const next = draft.courseIds[index + 1] ?? draft.courseIds[index - 1];
+                              pendingFocusId.current = next
+                                ? `saved-selection-remove-${next}`
+                                : 'saved-selection-add-course';
                               change({
                                 ...draft,
                                 courseIds: draft.courseIds.filter((courseId) => courseId !== id),
-                              })
-                            }
+                              });
+                            }}
                             aria-label={`Remove selected course ${index + 1}`}
                           >
                             Remove
@@ -767,6 +781,7 @@ function EditorBody(props: Props) {
                   <label className="min-w-0 flex-1 text-sm">
                     Add a current curriculum course
                     <select
+                      id="saved-selection-add-course"
                       value={choice}
                       className={fieldClass}
                       onChange={(event) => {

@@ -37,6 +37,10 @@ export const IntensitySlider: React.FC<IntensitySliderProps> = ({
             onClick={() => onChange(value)}
             disabled={disabled}
             aria-pressed={mode === value}
+            // The load each option suggests is what makes the option mean
+            // something, so it belongs in the name a screen reader reads, not
+            // only in a tooltip. The visible word stays at the front of it.
+            aria-label={`${label}: ${description}`}
             className={`min-h-11 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               mode === value
                 ? 'bg-white text-gray-900 shadow-sm'

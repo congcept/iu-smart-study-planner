@@ -128,9 +128,18 @@ function RatingSession({ userId }: { userId: string }) {
       document.removeEventListener('visibilitychange', refresh);
     };
   }, [load]);
+  // Clearing the pending retry takes its own button with it, so the focus needs
+  // somewhere to go once the courses are back.
+  const focusCourseAfterClear = useRef(false);
   useEffect(() => {
-    if (phase === 'idle' && !loading && message.startsWith('Rating saved'))
+    if (phase !== 'idle' || loading) return;
+    if (message.startsWith('Rating saved')) {
       courseSelect.current?.focus();
+      return;
+    }
+    if (!focusCourseAfterClear.current) return;
+    focusCourseAfterClear.current = false;
+    courseSelect.current?.focus();
   }, [phase, loading, message]);
 
   const confirm = async (payload: Vote, token: number) => {
@@ -205,6 +214,7 @@ function RatingSession({ userId }: { userId: string }) {
   };
   const clearPending = () => {
     if (busy.current) return;
+    focusCourseAfterClear.current = true;
     try {
       sessionStorage.removeItem(journalKey(userId));
       pending.current = null;

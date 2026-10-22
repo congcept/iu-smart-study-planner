@@ -383,6 +383,25 @@ describe('elective group panel reachability', () => {
 });
 
 describe('zoom limits', () => {
+  it('says the limit in text a screen reader reads', async () => {
+    await showCurriculum([course('A')]);
+    const zoomIn = screen.getByRole('button', { name: 'Zoom in' });
+    const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
+
+    expect(zoomOut).toHaveAccessibleDescription('Already at the smallest zoom');
+    expect(zoomIn).toHaveAccessibleDescription('Zooms the map in');
+
+    for (let step = 0; step < 6; step += 1) fireEvent.click(zoomIn);
+    expect(zoomIn).toHaveAccessibleDescription('Already at the largest zoom');
+  });
+
+  it('says what the reset control keeps when it resets the map', async () => {
+    await showCurriculum([course('A')]);
+    expect(screen.getByRole('button', { name: 'Reset view' })).toHaveAccessibleDescription(
+      'Resets the map position and zoom. Course selections stay the same.',
+    );
+  });
+
   it('states the limit instead of ignoring a click on the zoom button', async () => {
     await showCurriculum([course('A')]);
     const zoomIn = screen.getByRole('button', { name: 'Zoom in' });

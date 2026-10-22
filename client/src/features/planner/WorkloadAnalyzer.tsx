@@ -174,8 +174,11 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
                   className="flex flex-wrap items-baseline justify-between gap-2 py-3"
                 >
                   <div className="min-w-0">
-                    <strong className="text-gray-900">{course.code}</strong>
-                    <span className="ml-2 text-gray-700">{course.name}</span>
+                    {/* The code and the name need a separator in the text itself:
+                        a margin is only a gap on screen, so a screen reader
+                        would run them together. */}
+                    <strong className="text-gray-900">{course.code}</strong>{' '}
+                    <span className="text-gray-700">— {course.name}</span>
                     <p className="text-sm text-gray-700">{categoryLabels[course.category]}</p>
                     {hasDifficultyEstimate(course) ? (
                       <CourseRatingBadge course={course} />
