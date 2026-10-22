@@ -6,6 +6,7 @@ import type { AuthUserDTO } from '@iu-study-planner/shared';
 import App from '@/App';
 import * as api from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 
 vi.mock('@/lib/api', () => ({
   healthCheck: vi.fn(),
@@ -343,15 +344,23 @@ describe('authentication screens and session routing', () => {
 
   it('returns focus to the sign-out control when signing out fails', async () => {
     vi.mocked(api.getSession).mockResolvedValue(student);
-    vi.mocked(api.logout).mockRejectedValueOnce(httpError(500, 'Could not sign out'));
+    let rejectLogout: (error: Error) => void = () => {};
+    vi.mocked(api.logout).mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        rejectLogout = reject;
+      }),
+    );
     render(<App />);
     await screen.findByText(student.name);
     const signOut = screen.getByRole('button', { name: 'Sign out' });
+    await waitFor(() => expect(signOut).toBeEnabled());
     signOut.focus();
-    act(() => {
-      fireEvent.click(signOut);
-      signOut.blur();
-    });
+    fireEvent.click(signOut);
+    await waitFor(() => expect(signOut).toBeDisabled());
+    dropFocusToBody();
+    expect(signOut).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => rejectLogout(httpError(500, 'Could not sign out')));
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out');
     expect(signOut).toBeEnabled();
     await waitFor(() => expect(document.activeElement).toBe(signOut));

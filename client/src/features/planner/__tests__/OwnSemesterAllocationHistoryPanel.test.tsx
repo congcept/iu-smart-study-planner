@@ -12,6 +12,7 @@ import {
 } from '@/lib/ownSemesterAllocationApi';
 import { ownerId } from '@/test/fixtures/curriculumReference';
 import { ownSemesterAllocationRun } from '@/test/fixtures/ownSemesterAllocationRun';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { OwnSemesterAllocationHistoryPanel } from '../OwnSemesterAllocationHistoryPanel';
 
 vi.mock('@/lib/api', () => ({ default: { post: vi.fn(), get: vi.fn() }, getSession: vi.fn() }));
@@ -562,12 +563,12 @@ describe('current-account saved semester simulations', () => {
     const pendingRead = deferred<OwnSemesterAllocationHistoryDTO>();
     vi.mocked(listOwnSemesterAllocationRuns).mockReturnValueOnce(pendingRead.promise);
     const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(firstPage()));
     await waitFor(() => expect(target).toBeEnabled());

@@ -13,6 +13,7 @@ import {
   getSemesterAllocationJobOutcome,
   listSemesterAllocationJobs,
 } from '@/lib/semesterAllocationJobsApi';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SemesterAllocationJobHistoryPanel } from '../SemesterAllocationJobHistoryPanel';
 
 const buttonHandlers = vi.hoisted(
@@ -152,13 +153,13 @@ describe('focus while a read is in flight', () => {
     const pendingRead = deferred<Awaited<ReturnType<typeof listSemesterAllocationJobs>>>();
     vi.mocked(listSemesterAllocationJobs).mockReturnValueOnce(pendingRead.promise);
     const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
 
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
 
     await act(async () => pendingRead.resolve(page()));

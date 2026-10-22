@@ -19,6 +19,7 @@ import {
   previewReferenceSelection,
 } from '@/lib/savedStudyPlanReferenceSelectionApi';
 import { referenceSelectionState } from '@/test/fixtures/savedReferenceSelection';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SavedStudyPlanCoursesPanel } from '../SavedStudyPlanCoursesPanel';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 
@@ -343,12 +344,14 @@ describe('saved semester course references', () => {
     const pendingRead = deferred();
     read.mockReturnValueOnce(pendingRead.promise);
     const target = screen.getByRole('button', { name: 'Reload saved courses' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload saved courses' })).toBeEnabled(),
+    );
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(savedCourseFixture()));
     await waitFor(() => expect(target).toBeEnabled());

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { getStudentGrades } from '@/lib/gradesApi';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { GradeDashboard } from '../GradeDashboard';
 const entry = vi.hoisted(() => ({
   onSaved: undefined as undefined | ((saved: StudentGradesDTO) => void),
@@ -353,12 +354,14 @@ describe('numeric grade dashboard', () => {
     const pendingRead = deferred<StudentGradesDTO>();
     getGrades.mockReturnValueOnce(pendingRead.promise);
     const target = screen.getByRole('button', { name: 'Reload grades' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload grades' })).toBeEnabled(),
+    );
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(scored));
     await waitFor(() => expect(target).toBeEnabled());

@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analyzeWorkload } from '@/lib/api';
 import type { ApiResponse, Course, WorkloadAnalysis } from '@/types';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { WorkloadAnalyzer } from '../WorkloadAnalyzer';
 
 vi.mock('@/lib/api', () => ({ analyzeWorkload: vi.fn() }));
@@ -74,12 +75,14 @@ describe('focus while analysis is in flight', () => {
         </>,
       );
       const target = screen.getByRole('button', { name: 'Calculate estimate' });
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Calculate estimate' })).toBeEnabled(),
+      );
       target.focus();
-      act(() => {
-        fireEvent.click(target);
-        target.blur();
-      });
-      expect(target).toBeDisabled();
+      fireEvent.click(target);
+      await waitFor(() => expect(target).toBeDisabled());
+      dropFocusToBody();
+      expect(target).not.toHaveFocus();
       expect(document.activeElement).toBe(document.body);
       const elsewhere = screen.getByRole('link', { name: 'Elsewhere' });
       if (moveFocus) elsewhere.focus();

@@ -15,6 +15,7 @@ import {
 } from '@/lib/allocationJobsApi';
 import { allocationScope } from '@/test/fixtures/allocationPreview';
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AllocationJobPanel } from '../AllocationJobPanel';
 import { allocationJobRecoveryKey } from '../allocationJobRecovery';
 
@@ -132,13 +133,13 @@ describe('focus while a read is in flight', () => {
     const pendingRead = deferred<Awaited<ReturnType<typeof getAllocationJobOutcome>>>();
     vi.mocked(getAllocationJobOutcome).mockReturnValueOnce(pendingRead.promise);
     const target = check();
+    await waitFor(() => expect(check()).toBeEnabled());
 
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
 
     await act(async () => pendingRead.reject(new Error('Offline')));

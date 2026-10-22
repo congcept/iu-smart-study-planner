@@ -7,6 +7,7 @@ import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCo
 import { ownerId, referenceId } from '@/test/fixtures/curriculumReference';
 import { savedPlanId, savedSemesterId } from '@/test/fixtures/savedStudyPlanCourses';
 import { referenceReviewFixture } from '@/test/fixtures/savedSemesterReferenceReview';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SavedSemesterReferenceReview } from '../SavedSemesterReferenceReview';
 
 vi.mock('@/lib/savedStudyPlanReferenceReviewApi', () => ({
@@ -217,12 +218,14 @@ describe('saved semester explicit reference review', () => {
     render(<SavedSemesterReferenceReview {...props} />);
     choose();
     const target = screen.getByRole('button', { name: 'Review reference slot' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Review reference slot' })).toBeEnabled(),
+    );
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(referenceReviewFixture()));
     await waitFor(() => expect(target).toBeEnabled());

@@ -9,6 +9,7 @@ import {
   emptyAllocationPreview,
 } from '@/test/fixtures/allocationPreview';
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AllocationPreviewPanel } from '../AllocationPreviewPanel';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -48,13 +49,13 @@ describe('focus while a read is in flight', () => {
     const pendingRead = deferred<Awaited<ReturnType<typeof getAllocationPreview>>>();
     vi.mocked(getAllocationPreview).mockReturnValueOnce(pendingRead.promise);
     const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
 
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
 
     await act(async () => pendingRead.resolve(allocationPreview()));

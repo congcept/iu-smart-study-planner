@@ -10,6 +10,7 @@ import {
   SavedStudyPlanSemestersSessionChangedError,
 } from '@/lib/savedStudyPlanSemestersApi';
 import { ownerId, referenceId } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SavedStudyPlanSemestersPanel } from '../SavedStudyPlanSemestersPanel';
 
 vi.mock('@/lib/savedStudyPlanSemestersApi', async (original) => ({
@@ -281,12 +282,14 @@ describe('saved plan semester references', () => {
     const pendingRead = deferred<OwnStudyPlanSemestersDTO>();
     read.mockReturnValueOnce(pendingRead.promise);
     const target = screen.getByRole('button', { name: 'Reload saved semesters' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload saved semesters' })).toBeEnabled(),
+    );
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(page()));
     await waitFor(() => expect(target).toBeEnabled());

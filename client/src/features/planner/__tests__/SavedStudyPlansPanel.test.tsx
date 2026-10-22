@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OwnStudyPlanMetadataDTO, OwnStudyPlansDTO } from '@iu-study-planner/shared';
 import { listSavedStudyPlans, SavedStudyPlansSessionChangedError } from '@/lib/savedStudyPlansApi';
 import { ownerId, referenceId } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SavedStudyPlansPanel } from '../SavedStudyPlansPanel';
 
 vi.mock('@/lib/savedStudyPlansApi', async (original) => ({
@@ -313,12 +314,14 @@ describe('saved study plan reference browser', () => {
     const pendingRead = deferred<OwnStudyPlansDTO>();
     read.mockReturnValueOnce(pendingRead.promise);
     const target = screen.getByRole('button', { name: 'Reload saved plans' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload saved plans' })).toBeEnabled(),
+    );
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
     await act(async () => pendingRead.resolve(page()));
     await waitFor(() => expect(target).toBeEnabled());

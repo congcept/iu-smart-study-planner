@@ -10,6 +10,7 @@ import { createAllocationRun, getAllocationRun, listAllocationRuns } from '@/lib
 import { allocationHistory, allocationRun } from '@/test/fixtures/allocationRun';
 import { allocationScope } from '@/test/fixtures/allocationPreview';
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AllocationRunHistoryPanel } from '../AllocationRunHistoryPanel';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -63,13 +64,13 @@ describe('focus while a read is in flight', () => {
     const pendingRead = deferred<Awaited<ReturnType<typeof listAllocationRuns>>>();
     vi.mocked(listAllocationRuns).mockReturnValueOnce(pendingRead.promise);
     const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
 
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
 
     await act(async () => pendingRead.resolve(allocationHistory()));

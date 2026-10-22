@@ -13,6 +13,7 @@ import {
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
 import { semesterAllocationScope } from '@/test/fixtures/semesterAllocationPreview';
 import { semesterAllocationRun } from '@/test/fixtures/semesterAllocationRun';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SemesterAllocationRunCapturePanel } from '../SemesterAllocationRunCapturePanel';
 import { semesterAllocationRunRecoveryKey } from '../semesterAllocationRunRecovery';
 
@@ -96,13 +97,13 @@ describe('focus while a read is in flight', () => {
     const pendingRead = deferred<Awaited<ReturnType<typeof getSemesterAllocationRun>>>();
     vi.mocked(getSemesterAllocationRun).mockReturnValueOnce(pendingRead.promise);
     const target = recovery();
+    await waitFor(() => expect(recovery()).toBeEnabled());
 
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
 
     await act(async () => pendingRead.reject(new Error('Offline')));

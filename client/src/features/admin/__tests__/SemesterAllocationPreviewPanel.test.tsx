@@ -11,6 +11,7 @@ import {
   semesterAllocationScope,
   zeroCapacitySemesterAllocationPreview,
 } from '@/test/fixtures/semesterAllocationPreview';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SemesterAllocationPreviewPanel } from '../SemesterAllocationPreviewPanel';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -50,13 +51,13 @@ describe('focus while a read is in flight', () => {
     const pendingRead = deferred<Awaited<ReturnType<typeof getSemesterAllocationPreview>>>();
     vi.mocked(getSemesterAllocationPreview).mockReturnValueOnce(pendingRead.promise);
     const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
 
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
 
     await act(async () => pendingRead.resolve(semesterAllocationPreview()));

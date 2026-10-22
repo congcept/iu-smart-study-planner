@@ -12,6 +12,7 @@ import {
   getSemesterAllocationJob,
   getSemesterAllocationJobOutcome,
 } from '@/lib/semesterAllocationJobsApi';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SemesterAllocationJobPanel } from '../SemesterAllocationJobPanel';
 import {
   readSemesterAllocationJobJournal,
@@ -159,13 +160,13 @@ describe('focus while a read is in flight', () => {
     const pendingRead = deferred<Awaited<ReturnType<typeof getSemesterAllocationJobOutcome>>>();
     vi.mocked(getSemesterAllocationJobOutcome).mockReturnValueOnce(pendingRead.promise);
     const target = check();
+    await waitFor(() => expect(check()).toBeEnabled());
 
     target.focus();
-    act(() => {
-      fireEvent.click(target);
-      target.blur();
-    });
+    fireEvent.click(target);
     await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
 
     await act(async () => pendingRead.reject(new Error('Offline')));
