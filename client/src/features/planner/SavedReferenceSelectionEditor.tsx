@@ -10,6 +10,7 @@ import {
   type OwnStudyPlanReferenceSelectionReceiptDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import {
   StoredReferenceSelectionDraftSchema,
@@ -71,6 +72,13 @@ function EditorBody(props: Props) {
   const [receipt, setReceipt] = useState<OwnStudyPlanReferenceSelectionReceiptDTO | null>(null);
   const [opened, setOpened] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The editor's own read disables the control that started it, so the focus
+  // has to come back to it once the read settles.
+  const rememberFocus = useFocusAfterDisable(
+    phase === 'loading' || phase === 'saving',
+    () => headingRef.current,
+  );
   const [state, setState] = useState<OwnStudyPlanReferenceSelectionStateDTO | null>(null);
   const [message, setMessage] = useState('');
   const [draft, setDraft] = useState<Draft>({ year: '', semester: '', courseIds: [] });
@@ -462,7 +470,9 @@ function EditorBody(props: Props) {
       aria-label="Edit saved course selection"
       className="mt-6 border-t border-gray-200 pt-5"
     >
-      <h4 className="font-semibold text-gray-900">Edit saved course selection</h4>
+      <h4 ref={headingRef} tabIndex={-1} className="font-semibold text-gray-900">
+        Edit saved course selection
+      </h4>
       <p className="mt-2 max-w-prose text-sm text-gray-700">
         Save a course selection for a chosen year within the degree and semester. The server checks
         current placements, numeric GPA and mandatory prerequisites recorded as completed. Saved
@@ -505,7 +515,10 @@ function EditorBody(props: Props) {
               variant="secondary"
               className="min-h-11"
               disabled={phase === 'loading' || phase === 'saving'}
-              onClick={() => void read()}
+              onClick={() => {
+                rememberFocus();
+                void read();
+              }}
             >
               Reload selection for editing
             </Button>

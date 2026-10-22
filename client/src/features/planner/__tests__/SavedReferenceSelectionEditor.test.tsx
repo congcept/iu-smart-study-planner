@@ -9,9 +9,11 @@ import {
 } from '@/lib/savedStudyPlanReferenceSelectionApi';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import { referenceSelectionDraftKey } from '@/lib/savedReferenceSelectionDraft';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { proposedSelectionPreview } from '@/test/fixtures/proposedReferenceSelection';
 import { referenceId, ownerId } from '@/test/fixtures/curriculumReference';
 import { savedCourseId, savedPlanId, savedSemesterId } from '@/test/fixtures/savedStudyPlanCourses';
+import type { OwnStudyPlanReferenceSelectionStateDTO } from '@iu-study-planner/shared';
 import {
   referenceSelectionBody,
   referenceSelectionState,
@@ -767,6 +769,25 @@ describe('saved course display order', () => {
     expect(listedCourses()).toEqual(['CS101 — Reference course', 'CS102 — Second course']);
     expect(screen.getByText(/does not change academic chronology/)).toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it('returns focus to the reload control after the selection is read again', async () => {
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    const pending = deferred<OwnStudyPlanReferenceSelectionStateDTO>();
+    read.mockReturnValueOnce(pending.promise);
+    const reload = screen.getByRole('button', { name: 'Reload selection for editing' });
+    reload.focus();
+    fireEvent.click(reload);
+    await waitFor(() => expect(reload).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pending.resolve(referenceSelectionState()));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload selection for editing' })).toBeEnabled(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(reload));
   });
 
   it('names the list controls so their visible text is part of the name', async () => {
