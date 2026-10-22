@@ -10,7 +10,9 @@ let authenticationGeneration = 0;
  */
 export function isAuthRequest(url: string | undefined): boolean {
   if (!url) return false;
-  return /\/auth\/(login|register|logout|me|demo)/.test(url);
+  // Anchored: a path that merely contains an auth segment is not one of the
+  // requests that owns its own error copy.
+  return /^\/auth\/(login|register|logout|me|demo)(?:[/?#]|$)/.test(url);
 }
 
 /**

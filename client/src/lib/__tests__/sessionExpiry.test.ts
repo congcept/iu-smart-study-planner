@@ -84,8 +84,11 @@ describe('the session generation', () => {
   it('answers the same way twice for the same request', () => {
     const config = {};
     bindRequestAuthentication(config);
-    expect(isRequestAuthenticationCurrent(config)).toBe(true);
-    expect(isRequestAuthenticationCurrent(config)).toBe(true);
+    beginAuthenticationGeneration();
+    // The request belongs to an earlier session, and reading it twice must not
+    // change the answer.
+    expect(isRequestAuthenticationCurrent(config)).toBe(false);
+    expect(isRequestAuthenticationCurrent(config)).toBe(false);
   });
 
   it('does not treat a request from an earlier session as current', () => {

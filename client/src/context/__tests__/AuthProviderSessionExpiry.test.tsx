@@ -65,6 +65,7 @@ function createBackend() {
   let loginCalls = 0;
   let gradesCalls = 0;
   let sessionChecks = 0;
+  let renameNextLogin = false;
 
   const adapter = async (config: InternalAxiosRequestConfig) => {
     const url = config.url ?? '';
@@ -81,7 +82,13 @@ function createBackend() {
       const account = accounts.get(body.email);
       if (!account) refused(config);
       signedIn = account;
-      return succeeded(config, { success: true, data: { user: account } });
+      // A sign-in can report a new id, so a test can see that the sign-in was
+      // applied and not merely refused.
+      const signedInAccount = renameNextLogin
+        ? { ...account, id: `${account.id}-signed-in-again` }
+        : account;
+      renameNextLogin = false;
+      return succeeded(config, { success: true, data: { user: signedInAccount } });
     }
     if (url === '/auth/logout') {
       signedIn = null;
@@ -111,6 +118,9 @@ function createBackend() {
       return loginGate;
     },
     loginCalls: () => loginCalls,
+    renameNextLogin() {
+      renameNextLogin = true;
+    },
     gradesCalls: () => gradesCalls,
     sessionChecks: () => sessionChecks,
   };
@@ -218,23 +228,28 @@ describe('a refused protected read during session changes', () => {
     await waitFor(() => expect(backend.gradesCalls()).toBe(1));
 
     // The same account signs in again without signing out first.
+    backend.renameNextLogin();
     const login = backend.holdLogin();
     const loginCalls = backend.loginCalls();
     fireEvent.click(screen.getByRole('button', { name: 'sign in alice' }));
     await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
 
+    let outcome: unknown;
     await act(async () => {
       released.open();
-      await refusedRead;
+      outcome = await refusedRead;
     });
 
     // The refusal belongs to the session that the sign-in already replaced.
     expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
 
     await act(async () => {
       login.open();
     });
-    await screen.findByText(`authenticated:${alice.id}`);
+    // The sign-in that was running is applied when it finishes.
+    await screen.findByText(`authenticated:${alice.id}-signed-in-again`);
   });
 
   it('lets the sign-in in progress finish when the read was sent before it', async () => {
@@ -250,17 +265,77 @@ describe('a refused protected read during session changes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'sign in bob' }));
     await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
 
+    let outcome: unknown;
+    await act(async () => {
+      released.open();
+      outcome = await refusedRead;
+    });
+
+    expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
+
+    await act(async () => {
+      login.open();
+    });
+    await screen.findByText(`authenticated:${bob.id}`);
+  });
+
+  it('keeps the sign-in that was in flight when a read is refused in that window', async () => {
+    const backend = await start();
+    await signIn('sign in alice', alice.id);
+
+    const login = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in bob' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+
+    // A read that goes out while the sign-in is still running.
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+
     await act(async () => {
       released.open();
       await refusedRead;
     });
 
+    // The refusal belongs to the cookie that the sign-in is replacing, so it
+    // must not throw the sign-in away.
     expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
 
     await act(async () => {
       login.open();
     });
     await screen.findByText(`authenticated:${bob.id}`);
+  });
+
+  it('ignores a refusal that answers after the sign-in replaced the cookie', async () => {
+    const backend = await start();
+    await signIn('sign in alice', alice.id);
+
+    // The same account signs in again, so the account identity does not change
+    // and only the cookie does.
+    const login = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in alice' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+
+    await act(async () => {
+      login.open();
+    });
+    await screen.findByText(`authenticated:${alice.id}`);
+
+    await act(async () => {
+      released.open();
+      await refusedRead;
+    });
+
+    expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
   });
 
   it('still ends the current session when its own protected read is refused', async () => {
@@ -307,12 +382,15 @@ describe('a refused protected read during session changes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'check session' }));
     await waitFor(() => expect(backend.sessionChecks()).toBeGreaterThan(checks));
 
+    let outcome: unknown;
     await act(async () => {
       released.open();
-      await refusedRead;
+      outcome = await refusedRead;
     });
 
     expect(screen.getByTestId('session')).toHaveTextContent('unauthenticated:guest');
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
   });
 
   it('stays signed out when a read sent before the sign-out is refused', async () => {
