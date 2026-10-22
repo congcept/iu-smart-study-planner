@@ -669,4 +669,53 @@ describe('fresh role checks and stale context isolation', () => {
     expect(enqueueAllocationJob).not.toHaveBeenCalled();
     expect(executeAllocationJob).not.toHaveBeenCalled();
   });
+
+  it('moves focus to the panel heading when the older page replaces the list', async () => {
+    vi.mocked(listAllocationJobs).mockResolvedValue(firstPage());
+    mount();
+    await ready();
+    const pendingRead = deferred<AllocationJobHistoryDTO>();
+    vi.mocked(listAllocationJobs).mockReturnValueOnce(pendingRead.promise);
+    const target = older();
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(page([job(20)])));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Simulation request history' }),
+      ),
+    );
+  });
+
+  it('puts focus on the failure message when the retry control is replaced', async () => {
+    vi.mocked(listAllocationJobs).mockRejectedValueOnce(new Error('offline'));
+    mount();
+    const retry = await screen.findByRole('button', { name: 'Retry history page' });
+    vi.mocked(listAllocationJobs).mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('puts focus on the failure message when the outcome read fails', async () => {
+    mount();
+    await ready();
+    const pendingOutcome = deferred<AllocationJobOutcomeDTO>();
+    vi.mocked(getAllocationJobOutcome).mockReturnValueOnce(pendingOutcome.promise);
+    const target = choose();
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingOutcome.reject(new Error('offline')));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toBe(target);
+  });
 });

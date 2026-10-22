@@ -481,4 +481,37 @@ describe('selected simulation capture', () => {
     await ready();
     expect(detail()).not.toBeInTheDocument();
   });
+
+  it('moves focus to the panel heading when the older page replaces the list', async () => {
+    const first = allocationHistory(allocationScope, 20, true);
+    vi.mocked(listAllocationRuns).mockResolvedValue(first);
+    mount();
+    await ready();
+    const pendingRead = deferred<AllocationRunHistoryDTO>();
+    vi.mocked(listAllocationRuns).mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Load older captures' });
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(olderPage(first.runs[19])));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Simulation run history' }),
+      ),
+    );
+  });
+
+  it('puts focus on the failure message when the retry control is replaced', async () => {
+    vi.mocked(listAllocationRuns).mockRejectedValueOnce(new Error('offline'));
+    mount();
+    const retry = await screen.findByRole('button', { name: 'Retry history page' });
+    vi.mocked(listAllocationRuns).mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+  });
 });

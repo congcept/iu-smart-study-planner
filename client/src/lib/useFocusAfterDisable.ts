@@ -46,7 +46,10 @@ export function useFocusAfterDisable(
 
   useEffect(() => {
     const onFocusIn = (event: FocusEvent) => {
-      if (event.target instanceof HTMLElement) lastFocused.current = event.target;
+      // The body is where the focus lands when a control is disabled or
+      // removed. It never says where the user was.
+      if (event.target instanceof HTMLElement && event.target !== document.body)
+        lastFocused.current = event.target;
     };
     document.addEventListener('focusin', onFocusIn);
     return () => document.removeEventListener('focusin', onFocusIn);

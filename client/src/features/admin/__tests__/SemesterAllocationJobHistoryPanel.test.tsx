@@ -680,4 +680,38 @@ describe('read-only semester request history', () => {
     await ready();
     expect(listSemesterAllocationJobs).toHaveBeenCalledTimes(1);
   });
+
+  it('moves focus to the panel heading when the older page replaces the list', async () => {
+    vi.mocked(listSemesterAllocationJobs).mockResolvedValue(page(5, true));
+    mount();
+    await ready();
+    const pendingRead = deferred<SemesterAllocationJobHistoryDTO>();
+    vi.mocked(listSemesterAllocationJobs).mockReturnValueOnce(pendingRead.promise);
+    const target = older();
+    target.focus();
+    fireEvent.click(target);
+    // The panel clears the page while the read runs, so the control is gone.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Load older semester requests' })).toBeNull(),
+    );
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(page(0, false, 5, job(4).id)));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Semester request history' }),
+      ),
+    );
+  });
+
+  it('puts focus on the failure message when the retry control is replaced', async () => {
+    vi.mocked(listSemesterAllocationJobs).mockRejectedValueOnce(new Error('offline'));
+    mount();
+    const retry = await screen.findByRole('button', { name: 'Retry semester history page' });
+    vi.mocked(listSemesterAllocationJobs).mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+  });
 });

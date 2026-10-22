@@ -56,7 +56,14 @@ function HistoryPanel({ userId, scope }: Props) {
   const [page, setPage] = useState<SemesterAllocationJobHistoryDTO | null>(null);
   const [selected, setSelected] = useState<Selected | null>(null);
   const [pending, setPending] = useState<'page' | 'detail' | null>('page');
-  const rememberFocus = useFocusAfterDisable(pending !== null);
+  const failureRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The list and the retry controls are replaced while a read runs, so the focus
+  // has to go to whatever the panel shows instead.
+  const rememberFocus = useFocusAfterDisable(
+    pending !== null,
+    () => failureRef.current ?? headingRef.current,
+  );
   const [failure, setFailure] = useState<{ kind: 'page' | 'detail'; message: string } | null>(null);
   const intent = generation.current;
   const requestedScope = useCallback(
@@ -255,7 +262,9 @@ function HistoryPanel({ userId, scope }: Props) {
       className="min-w-0 space-y-4 border-t border-gray-200 pt-6"
     >
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">Semester request history</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+          Semester request history
+        </h3>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Browse up to five requests for {semester} {year}, newest queued first. History reflects
           its last check. Check a request for its latest outcome.
@@ -280,16 +289,21 @@ function HistoryPanel({ userId, scope }: Props) {
         </p>
       )}
       {failure && (
-        <div className="space-y-2">
+        <div
+          ref={failureRef}
+          tabIndex={-1}
+          className="space-y-2 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <ErrorBanner className="max-w-prose text-sm text-red-700">{failure.message}</ErrorBanner>
           {failure.kind === 'page' && lastPageRequest.current && (
             <Button
               variant="secondary"
               className="min-h-11"
               disabled={pending !== null}
-              onClick={() =>
-                lastPageRequest.current && void readPage(lastPageRequest.current, intent)
-              }
+              onClick={() => {
+                rememberFocus();
+                if (lastPageRequest.current) void readPage(lastPageRequest.current, intent);
+              }}
             >
               Retry semester history page
             </Button>
@@ -299,9 +313,10 @@ function HistoryPanel({ userId, scope }: Props) {
               variant="secondary"
               className="min-h-11"
               disabled={pending !== null}
-              onClick={() =>
-                selectedRequest.current && void readSelected(selectedRequest.current, intent)
-              }
+              onClick={() => {
+                rememberFocus();
+                if (selectedRequest.current) void readSelected(selectedRequest.current, intent);
+              }}
             >
               Retry selected semester outcome
             </Button>
@@ -351,7 +366,10 @@ function HistoryPanel({ userId, scope }: Props) {
                     aria-label={`Check semester request outcome ${entry.job.id}`}
                     aria-pressed={selected?.job.id === entry.job.id}
                     disabled={pending !== null}
-                    onClick={() => void readSelected(entry, intent)}
+                    onClick={() => {
+                      rememberFocus();
+                      void readSelected(entry, intent);
+                    }}
                   >
                     Check request outcome
                   </Button>
@@ -364,15 +382,16 @@ function HistoryPanel({ userId, scope }: Props) {
               variant="secondary"
               className="min-h-11"
               disabled={pending !== null}
-              onClick={() =>
+              onClick={() => {
+                rememberFocus();
                 void readPage(
                   {
                     input: { ...requestedScope(), after: page.nextAfter ?? undefined },
                     boundary: page.requests.at(-1)?.job,
                   },
                   intent,
-                )
-              }
+                );
+              }}
             >
               Load older semester requests
             </Button>
