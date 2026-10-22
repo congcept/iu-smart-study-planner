@@ -15,6 +15,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // running, and a sign-in must not undo a session check that is still running.
   const refreshVersion = useRef(0);
   const authInFlight = useRef(0);
+  const mounted = useRef(false);
   const expiryPending = useRef(false);
   const currentUserId = useRef<string | null>(null);
 
@@ -58,11 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // requests it started belong to the session it started them in. The next
     // refresh is what re-establishes the session; this is not a safety net for
     // detecting an expiry.
+    mounted.current = false;
     refreshVersion.current++;
     beginAuthenticationGeneration();
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     // Remove the obsolete bearer-token cache; cookies are the only session source.
     try {
       localStorage.removeItem('auth_token');
@@ -98,20 +101,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authInFlight.current++;
       try {
         const result = await operation();
-        // The cookie is new now, whichever attempt reached the server last:
+        // A provider that is gone must not answer for the session any more.
+        if (!mounted.current) return;
+        // The cookie is new now, whichever attempt the server answered last:
         // every request that was sent before it describes the cookie it
         // replaced, and a session check that is still running answers for that
         // cookie too.
         beginAuthenticationGeneration();
         refreshVersion.current++;
         expiryPending.current = false;
-        // The last sign-in that reached the server is the session in use, so it
-        // is the one the app shows.
+        // The last sign-in the server answered is the session in use: the
+        // cookie jar follows the order the responses arrived in.
         apply(result);
       } finally {
         // Every attempt counts down once, whether it won, lost or failed.
         authInFlight.current--;
-        if (authInFlight.current === 0 && expiryPending.current) {
+        if (mounted.current && authInFlight.current === 0 && expiryPending.current) {
           // No sign-in is running any more and none of them replaced the cookie
           // the refusal belonged to, so the refusal is applied now.
           expiryPending.current = false;

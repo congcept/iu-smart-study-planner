@@ -66,6 +66,8 @@ function createBackend() {
   let sessionChecks = 0;
   let renameNextLogin = false;
   let sessionGate: Gate | null = null;
+  let sessionGateMode: 'refuse' | 'old-account' = 'refuse';
+  let sessionGateAccount: AuthUserDTO | null = null;
   const loginGates: Gate[] = [];
 
   const adapter = async (config: InternalAxiosRequestConfig) => {
@@ -77,7 +79,8 @@ function createBackend() {
         // A held check answers with the cookie that is going away.
         await pendingSession.promise;
         sessionGate = null;
-        refused(config);
+        if (sessionGateMode === 'refuse') refused(config);
+        return succeeded(config, { success: true, data: { user: sessionGateAccount } });
       }
       if (!signedIn) refused(config);
       return succeeded(config, { success: true, data: { user: signedIn } });
@@ -126,8 +129,10 @@ function createBackend() {
       loginGates.push(held);
       return held;
     },
-    holdSession() {
+    holdSession(mode: 'refuse' | 'old-account' = 'refuse') {
       sessionGate = gate();
+      sessionGateMode = mode;
+      sessionGateAccount = signedIn;
       return sessionGate;
     },
     loginCalls: () => loginCalls,
@@ -381,6 +386,43 @@ describe('a refused protected read during session changes', () => {
     });
     await waitFor(() =>
       expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`),
+    );
+  });
+
+  it('discards a session check that answers with the account it replaced', async () => {
+    const backend = await start();
+    await signIn('sign in alice', alice.id);
+
+    // Two sign-ins: the second one fails, the first one reaches the server and
+    // replaces the cookie.
+    const first = backend.holdLogin();
+    const second = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in bob' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+    fireEvent.click(screen.getByRole('button', { name: 'sign in unknown' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls + 1));
+
+    // A session check that starts before the sign-ins and answers with the
+    // account they replace.
+    const check = backend.holdSession('old-account');
+    const checks = backend.sessionChecks();
+    fireEvent.click(screen.getByRole('button', { name: 'check session' }));
+    await waitFor(() => expect(backend.sessionChecks()).toBeGreaterThan(checks));
+
+    await act(async () => {
+      second.open();
+    });
+    await act(async () => {
+      first.open();
+    });
+    await screen.findByText(`authenticated:${bob.id}`);
+
+    await act(async () => {
+      check.open();
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${bob.id}`),
     );
   });
 
