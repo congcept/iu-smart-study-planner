@@ -121,6 +121,18 @@ afterEach(() => {
 });
 
 describe('archived browser selection review', () => {
+  it('does not claim a disclosure state or an unrendered target for the collapsed action', async () => {
+    await signIn();
+    show();
+
+    const reviewButton = screen.getByRole('button', { name: 'Review selections' });
+    expect(reviewButton).not.toHaveAttribute('aria-expanded');
+    const controlledId = reviewButton.getAttribute('aria-controls');
+    if (controlledId !== null) {
+      expect(document.getElementById(controlledId)).toBeInTheDocument();
+    }
+  });
+
   it('requires an explicit review and import click after hydration, then saves the full snapshot', async () => {
     await signIn();
     importProgress.mockResolvedValueOnce(merged);

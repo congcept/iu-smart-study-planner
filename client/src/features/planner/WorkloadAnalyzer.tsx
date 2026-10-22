@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Course, WorkloadAnalysis } from '@/types';
 import { analyzeWorkload } from '@/lib/api';
-import { categoryLabels, formatCredits } from '@/lib/utils';
-import { Badge, Button, Card } from '@components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
+import { categoryLabels, formatCount, formatCredits } from '@/lib/utils';
+import { Button, Card, StatusPill } from '@components/ui';
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
 
 interface WorkloadAnalyzerProps {
@@ -81,6 +82,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
   const isCurrentState = (value: { key: string; request: number } | null) =>
     value?.key === selectionKey && value.request === requestId.current;
   const isAnalyzing = isCurrentState(analyzing);
+  const rememberFocus = useFocusAfterDisable(isAnalyzing);
   const hasError = isCurrentState(failure);
   const analysis = isCurrentState(result) && !isAnalyzing ? result!.data : null;
   const totalCredits = selectedCourses.reduce((sum, course) => sum + course.credits, 0);
@@ -93,6 +95,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
       : null;
 
   const handleAnalyze = async () => {
+    rememberFocus();
     if (
       selectedCourses.length === 0 ||
       activeRequest.current !== null ||
@@ -129,7 +132,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
       title="Workload estimate"
       subtitle={
         selectedCourses.length > 0
-          ? `${selectedCourses.length} selected courses · ${formatCredits(totalCredits)}`
+          ? `${formatCount(selectedCourses.length, 'selected course', 'selected courses')} · ${formatCredits(totalCredits)}`
           : 'Review a selected set of courses'
       }
     >
@@ -142,6 +145,7 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Button
               size="sm"
+              className="min-h-11"
               onClick={() => void handleAnalyze()}
               isLoading={isAnalyzing}
               disabled={isAnalyzing}
@@ -149,31 +153,41 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
               {isAnalyzing ? 'Calculating…' : hasError ? 'Retry analysis' : 'Calculate estimate'}
             </Button>
             {onClear && (
-              <Button variant="ghost" size="sm" onClick={onClear}>
+              <Button variant="ghost" size="sm" className="min-h-11" onClick={onClear}>
                 Clear selection
               </Button>
             )}
           </div>
-          <ul className="max-h-56 divide-y divide-gray-200 overflow-y-auto border-y border-gray-200">
-            {selectedCourses.map((course) => (
-              <li
-                key={course.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 py-3"
-              >
-                <div className="min-w-0">
-                  <strong className="text-gray-900">{course.code}</strong>
-                  <span className="ml-2 text-gray-700">{course.name}</span>
-                  <p className="text-sm text-gray-700">{categoryLabels[course.category]}</p>
-                  {hasDifficultyEstimate(course) ? (
-                    <CourseRatingBadge course={course} />
-                  ) : (
-                    <p className="text-xs text-gray-700">Difficulty estimate unavailable</p>
-                  )}
-                </div>
-                <span className="text-sm text-gray-700">{formatCredits(course.credits)}</span>
-              </li>
-            ))}
-          </ul>
+          <p className="mb-2 text-sm text-gray-700">
+            Use the arrow keys to scroll the selected courses list.
+          </p>
+          <div
+            role="region"
+            aria-label="Selected courses"
+            tabIndex={0}
+            className="max-h-56 overflow-y-auto border-y border-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          >
+            <ul className="divide-y divide-gray-200">
+              {selectedCourses.map((course) => (
+                <li
+                  key={course.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 py-3"
+                >
+                  <div className="min-w-0">
+                    <strong className="text-gray-900">{course.code}</strong>
+                    <span className="ml-2 text-gray-700">{course.name}</span>
+                    <p className="text-sm text-gray-700">{categoryLabels[course.category]}</p>
+                    {hasDifficultyEstimate(course) ? (
+                      <CourseRatingBadge course={course} />
+                    ) : (
+                      <p className="text-xs text-gray-700">Difficulty estimate unavailable</p>
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700">{formatCredits(course.credits)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <p className="mt-4 max-w-2xl text-sm text-gray-700">
             This estimate combines credits with rating-based difficulty estimates. It does not
@@ -207,13 +221,15 @@ export const WorkloadAnalyzer: React.FC<WorkloadAnalyzerProps> = ({ selectedCour
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div>
                   <h4 className="font-semibold text-gray-900">Estimated workload</h4>
-                  <p className="mt-1 text-sm text-gray-700">
+                  <p role="status" className="mt-1 text-sm text-gray-700">
                     Server estimate: {analysis.totalCredits} credits · Heuristic score{' '}
                     {analysis.workloadScore.toFixed(1)} · Average rating difficulty{' '}
                     {analysis.averageDifficulty.toFixed(1)}
                   </p>
                 </div>
-                <Badge variant="default">{bandLabels[analysis.riskLevel]}</Badge>
+                <StatusPill status={analysis.riskLevel}>
+                  {bandLabels[analysis.riskLevel]}
+                </StatusPill>
               </div>
 
               {analysis.recommendations.length > 0 ? (

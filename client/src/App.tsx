@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
 import { Button, LoadingSpinner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { useAuth } from '@/context/AuthContext';
 import { AuthProvider } from '@/context/AuthProvider';
 import { AuthGuard } from '@/features/auth/AuthGuard';
@@ -17,16 +18,39 @@ import { PlannerDashboard } from './features/planner/PlannerDashboard';
 import { AdminGuard } from './features/admin/AdminGuard';
 import { AdminResourceDashboard } from './features/admin/AdminResourceDashboard';
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Demo curriculum',
+  '/curriculum': 'My curriculum',
+  '/grades': 'Grades',
+  '/ratings': 'Ratings',
+  '/planner': 'Planner',
+  '/admin': 'Simulation resources',
+  '/login': 'Sign in',
+  '/register': 'Create account',
+};
+
 function AppShell() {
   const { user, status, sessionError, refresh, logout } = useAuth();
   const [isLoggingOut, setLoggingOut] = useState(false);
+  const rememberSignOutFocus = useFocusAfterDisable(isLoggingOut, () => logoutErrorRef.current);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingApi, setIsCheckingApi] = useState(false);
   const [apiStatus, setApiStatus] = useState<'connected' | 'error'>('connected');
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement | null>(null);
+  const logoutErrorRef = useRef<HTMLParagraphElement | null>(null);
+  const isFirstRoute = useRef(true);
+  const connectionWasLost = useRef(false);
+  const sessionCheckFailed = useRef(false);
 
-  const initializeApp = useCallback(async () => {
+  const initializeApp = useCallback(async (initial = false) => {
+    // Only the first boot may swap the whole app for the loading screen. A
+    // connectivity re-check from the banner runs while the user is working,
+    // so tearing the page down would discard whatever they had typed.
+    if (initial) setIsLoading(true);
+    else setIsCheckingApi(true);
     try {
-      setIsLoading(true);
       try {
         await healthCheck();
         setApiStatus('connected');
@@ -36,13 +60,63 @@ function AppShell() {
     } catch {
       setApiStatus('error');
     } finally {
-      setIsLoading(false);
+      if (initial) setIsLoading(false);
+      else setIsCheckingApi(false);
     }
   }, []);
 
   useEffect(() => {
-    initializeApp();
+    void initializeApp(true);
   }, [initializeApp]);
+
+  useEffect(() => {
+    if (sessionError) {
+      sessionCheckFailed.current = true;
+      return;
+    }
+    // The session is only back once the account is confirmed again. Until then
+    // the app shows its loading screen and there is no page to focus.
+    if (!sessionCheckFailed.current || status !== 'authenticated') return;
+    sessionCheckFailed.current = false;
+    // The retry that offered to check the session again is gone with the
+    // message, so the focus it held goes back to the page.
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [sessionError, status]);
+
+  useEffect(() => {
+    if (apiStatus === 'error') {
+      connectionWasLost.current = true;
+      return;
+    }
+    if (!connectionWasLost.current) return;
+    connectionWasLost.current = false;
+    // The banner that offered the retry is gone, and it held the focus. Put it
+    // back on the page the user was reading instead of on nothing.
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [apiStatus]);
+
+  useEffect(() => {
+    const page = PAGE_TITLES[location.pathname];
+    document.title = page ? `${page} · IU Smart Study Planner` : 'IU Smart Study Planner';
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (isFirstRoute.current) {
+      isFirstRoute.current = false;
+      return;
+    }
+    const main = mainRef.current;
+    if (!main) return;
+    // A route may deliberately focus something inside the page, such as a new
+    // result heading. Keep that focus instead of overriding it here.
+    const active = document.activeElement;
+    if (active && active !== document.body && main.contains(active)) return;
+    main.focus();
+  }, [location.pathname]);
 
   if (isLoading || status === 'loading') {
     return (
@@ -69,6 +143,12 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <a
+        href="#main-content"
+        className="fixed left-4 top-4 z-50 inline-flex min-h-11 -translate-y-24 items-center rounded bg-white px-4 text-sm font-medium text-primary-700 underline shadow focus:translate-y-0 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+      >
+        Skip to main content
+      </a>
       <header className="bg-white shadow-sm border-b px-6 py-4 flex flex-wrap items-center gap-4">
         <GraduationCap size={28} className="text-primary-600" />
         <h1 className="font-bold text-lg text-gray-900">IU Smart Study Planner</h1>
@@ -114,11 +194,20 @@ function AppShell() {
               <span className="rounded-full bg-primary-50 px-2 py-1 text-primary-700">
                 {user.role === 'ADMIN' ? 'School admin' : 'Student'}
               </span>
-              <Button size="sm" variant="secondary" isLoading={isLoggingOut} onClick={signOut}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="min-h-11"
+                isLoading={isLoggingOut}
+                onClick={() => {
+                  rememberSignOutFocus();
+                  void signOut();
+                }}
+              >
                 Sign out
               </Button>
             </>
-          ) : (
+          ) : sessionError ? null : (
             <>
               <NavLink
                 to="/"
@@ -142,15 +231,34 @@ function AppShell() {
           )}
         </nav>
         {apiStatus === 'error' && (
-          <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full ml-auto">
-            Cannot connect to the planner. Reload the page to try again.
-          </span>
+          <div className="ml-auto flex flex-wrap items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-sm text-red-700">
+            <span role="alert">Cannot connect to the planner.</span>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="min-h-11"
+              disabled={isCheckingApi}
+              onClick={() => void initializeApp()}
+            >
+              {isCheckingApi ? 'Checking…' : 'Try again'}
+            </Button>
+          </div>
         )}
       </header>
 
-      <main className="flex-1 p-6 overflow-hidden w-full max-w-full">
+      <main
+        id="main-content"
+        ref={mainRef}
+        tabIndex={-1}
+        className="flex-1 p-6 overflow-hidden w-full max-w-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-700"
+      >
         {logoutError && (
-          <p role="alert" className="mb-4 text-sm text-red-700">
+          <p
+            ref={logoutErrorRef}
+            tabIndex={-1}
+            role="alert"
+            className="mb-4 rounded-lg text-sm text-red-700 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+          >
             {logoutError}
           </p>
         )}

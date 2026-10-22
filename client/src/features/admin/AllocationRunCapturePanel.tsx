@@ -6,8 +6,7 @@ import {
   type AllocationRunV1DTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
+import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import { createAllocationRun, getAllocationRun } from '@/lib/allocationRunsApi';
 import {
   AllocationRunCaptureRequestSchema,
@@ -16,9 +15,9 @@ import {
   writeAllocationRunJournal,
   type AllocationRunJournal,
 } from './allocationRunRecovery';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
-class AdminSessionChanged extends Error {}
 const percent = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 });
 
 export function AllocationRunCapturePanel({ userId, scope }: Props) {
@@ -32,6 +31,8 @@ function CapturePanel({ userId, scope }: Props) {
   const generation = useRef(0);
   const busy = useRef(false);
   const journalRef = useRef<AllocationRunJournal | null>(null);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [journal, setJournal] = useState<AllocationRunJournal | null>(null);
   const [run, setRun] = useState<AllocationRunV1DTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,11 +42,7 @@ function CapturePanel({ userId, scope }: Props) {
     () => ResourceScopeSchema.parse({ curriculumId, semester, year }),
     [curriculumId, semester, year],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const checkedRun = useCallback(
     (input: unknown, id?: string) => {
       const result = AllocationRunV1Schema.parse(input);
@@ -83,39 +80,44 @@ function CapturePanel({ userId, scope }: Props) {
     }
   }, []);
 
-  const recover = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    const token = ++generation.current;
-    setLoading(true);
-    setBlocked(false);
-    setError('');
-    setRun(null);
-    try {
-      const saved = readAllocationRunJournal(userId, requestedScope());
-      journalRef.current = saved;
-      setJournal(saved);
-      if (saved?.runId) {
-        await verifySession();
-        if (token !== generation.current) return;
-        const result = checkedRun(
-          await getAllocationRun(saved.runId, requestedScope()),
-          saved.runId,
-        );
-        if (token !== generation.current) return;
-        await verifySession();
-        if (token !== generation.current) return;
-        setRun(result);
+  const recover = useCallback(
+    async (userTriggered = false) => {
+      if (busy.current) return;
+      busy.current = true;
+      const token = ++generation.current;
+      setLoading(true);
+      setBlocked(false);
+      setError('');
+      setRun(null);
+      focusDetail.current = false;
+      try {
+        const saved = readAllocationRunJournal(userId, requestedScope());
+        journalRef.current = saved;
+        setJournal(saved);
+        if (saved?.runId) {
+          await verifySession();
+          if (token !== generation.current) return;
+          const result = checkedRun(
+            await getAllocationRun(saved.runId, requestedScope()),
+            saved.runId,
+          );
+          if (token !== generation.current) return;
+          await verifySession();
+          if (token !== generation.current) return;
+          focusDetail.current = userTriggered;
+          setRun(result);
+        }
+      } catch (failure) {
+        if (token === generation.current) reportFailure(failure, true);
+      } finally {
+        if (token === generation.current) {
+          busy.current = false;
+          setLoading(false);
+        }
       }
-    } catch (failure) {
-      if (token === generation.current) reportFailure(failure, true);
-    } finally {
-      if (token === generation.current) {
-        busy.current = false;
-        setLoading(false);
-      }
-    }
-  }, [checkedRun, reportFailure, requestedScope, userId, verifySession]);
+    },
+    [checkedRun, reportFailure, requestedScope, userId, verifySession],
+  );
   useEffect(() => {
     const active = generation;
     const pending = busy;
@@ -133,6 +135,7 @@ function CapturePanel({ userId, scope }: Props) {
     setLoading(true);
     setError('');
     setRun(null);
+    focusDetail.current = false;
     try {
       await verifySession();
       if (token !== generation.current) return;
@@ -157,6 +160,7 @@ function CapturePanel({ userId, scope }: Props) {
       if (token !== generation.current) return;
       await verifySession();
       if (token !== generation.current) return;
+      focusDetail.current = true;
       setRun(result);
       try {
         const receipt = writeAllocationRunJournal({ ...saved, runId: result.id }, saved);
@@ -176,6 +180,13 @@ function CapturePanel({ userId, scope }: Props) {
       }
     }
   }, [blocked, checkedRun, reportFailure, requestedScope, userId, verifySession]);
+
+  useEffect(() => {
+    if (run && !loading && !error && focusDetail.current) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [run, loading, error]);
 
   const pendingCapture = journal !== null && journal.runId === undefined;
   const receiptNeedsRecovery = journal?.runId !== undefined && run === null;
@@ -197,7 +208,7 @@ function CapturePanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void (recoveryAction ? recover() : capture())}
+        onClick={() => void (recoveryAction ? recover(true) : capture())}
       >
         {recoveryAction
           ? 'Retry capture recovery'
@@ -212,11 +223,7 @@ function CapturePanel({ userId, scope }: Props) {
           Checking simulation capture…
         </p>
       )}
-      {error && (
-        <p role="alert" className="max-w-prose text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <ErrorBanner className="max-w-prose text-sm text-red-700">{error}</ErrorBanner>}
       {!loading && pendingCapture && !run && (
         <p className="max-w-prose text-sm text-gray-600">
           An earlier capture is unconfirmed in this tab. Retry explicitly to recover it with the
@@ -225,44 +232,43 @@ function CapturePanel({ userId, scope }: Props) {
       )}
       {run && result && (
         <div className="space-y-4">
-          <h4 className="font-semibold text-gray-900">Last capture in this tab</h4>
+          <h4 ref={detailHeading} tabIndex={-1} className="font-semibold text-gray-900">
+            Last capture in this tab
+          </h4>
           <p role="status" className="max-w-prose text-sm text-gray-700">
             Aggregate snapshot saved. {result.curriculum.name} · {result.scope.semester}{' '}
             {result.scope.year}. This is a historical capture; current settings and cohort changes
             do not update it.
           </p>
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-            {[
+          <MetricList
+            layout="grid"
+            items={[
               ['Students in captured cohort', result.cohortStudentCount],
               ['Assigned in simulation', result.assignedStudentCount],
               ['No eligible choices', result.noChoicesStudentCount],
               ['Unresolved without resource settings', result.resourceUnknownStudentCount],
               ['Unassigned after capacity is exhausted', result.capacityExhaustedStudentCount],
               ['Unresolved numeric GPA path', result.unresolvedGpaStudentCount],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="flex items-baseline justify-between gap-4 border-b border-gray-200 pb-2"
-              >
-                <dt className="text-gray-700">{label}</dt>
-                <dd className="font-semibold tabular-nums text-gray-900">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <dl className="space-y-2 text-sm text-gray-700">
-            <div>
-              <dt className="font-medium">Capture completed</dt>
-              <dd>
-                <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">Stored on server</dt>
-              <dd>
-                <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>
-              </dd>
-            </div>
-          </dl>
+            ].map(([label, value]) => ({ key: String(label), label, value }))}
+          />
+          <MetricList
+            items={[
+              {
+                key: 'captured',
+                label: 'Capture completed',
+                value: (
+                  <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
+                ),
+              },
+              {
+                key: 'stored',
+                label: 'Stored on server',
+                value: (
+                  <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>
+                ),
+              },
+            ]}
+          />
           <p className="max-w-prose text-sm text-gray-600">
             {result.resources
               ? `Captured resource revision ${result.resources.resourceRevision}. ${result.usedSections} of ${result.resources.sharedSectionCeiling} shared classroom/staff sections opened.`

@@ -9,7 +9,8 @@ import {
   type SemesterAllocationJobDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
+import { Button, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   SemesterJobSessionChangedError,
   enqueueSemesterAllocationJob,
@@ -54,9 +55,13 @@ function JobPanel({ userId, scope }: Props) {
   const busy = useRef(false);
   const journalRef = useRef<SemesterAllocationJobJournal | null>(null);
   const priorOutcome = useRef<SemesterAllocationJobOutcomeDTO | undefined>();
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [journal, setJournal] = useState<SemesterAllocationJobJournal | null>(null);
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
+  const [activeOperation, setActiveOperation] = useState<'queue' | 'read' | 'execute' | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
   const rendered = useRef({ confirmed, blocked });
@@ -69,10 +74,12 @@ function JobPanel({ userId, scope }: Props) {
     if (!mounted.current || !busy.current || generation.current !== token)
       throw new StaleOperation();
   }, []);
-  const begin = useCallback(() => {
+  const begin = useCallback((operation: 'queue' | 'read' | 'execute') => {
     if (!mounted.current || busy.current) return null;
     busy.current = true;
+    focusDetail.current = false;
     setLoading(true);
+    setActiveOperation(operation);
     setConfirmed(null);
     setError('');
     return ++generation.current;
@@ -81,6 +88,7 @@ function JobPanel({ userId, scope }: Props) {
     if (!mounted.current || generation.current !== token) return;
     busy.current = false;
     setLoading(false);
+    setActiveOperation(null);
   }, []);
   const checkedReceipt = useCallback(
     (input: unknown, expected?: SemesterAllocationJobDTO) => {
@@ -171,33 +179,37 @@ function JobPanel({ userId, scope }: Props) {
     },
     [active, checkedOutcome, checkedReceipt, requestedScope, userId],
   );
-  const recover = useCallback(async () => {
-    const token = begin();
-    if (token === null) return;
-    setBlocked(false);
-    try {
-      const previous = journalRef.current;
-      const saved = readSemesterAllocationJobJournal(userId, requestedScope());
-      if (
-        previous &&
-        (saved === null ||
-          JSON.stringify(saved.request) !== JSON.stringify(previous.request) ||
-          (previous.job !== null && JSON.stringify(saved.job) !== JSON.stringify(previous.job)))
-      )
-        throw new SemesterAllocationJobRecoveryError();
-      journalRef.current = saved;
-      setJournal(saved);
-      if (saved?.job) {
-        const result = await readConfirmed(saved, token);
-        active(token);
-        setConfirmed(result);
+  const recover = useCallback(
+    async (userTriggered = false) => {
+      const token = begin('read');
+      if (token === null) return;
+      setBlocked(false);
+      try {
+        const previous = journalRef.current;
+        const saved = readSemesterAllocationJobJournal(userId, requestedScope());
+        if (
+          previous &&
+          (saved === null ||
+            JSON.stringify(saved.request) !== JSON.stringify(previous.request) ||
+            (previous.job !== null && JSON.stringify(saved.job) !== JSON.stringify(previous.job)))
+        )
+          throw new SemesterAllocationJobRecoveryError();
+        journalRef.current = saved;
+        setJournal(saved);
+        if (saved?.job) {
+          const result = await readConfirmed(saved, token);
+          active(token);
+          focusDetail.current = userTriggered;
+          setConfirmed(result);
+        }
+      } catch (failure) {
+        if (mounted.current && generation.current === token) failed(failure, 'read');
+      } finally {
+        finish(token);
       }
-    } catch (failure) {
-      if (mounted.current && generation.current === token) failed(failure, 'read');
-    } finally {
-      finish(token);
-    }
-  }, [active, begin, failed, finish, readConfirmed, requestedScope, userId]);
+    },
+    [active, begin, failed, finish, readConfirmed, requestedScope, userId],
+  );
   useEffect(() => {
     const activeGeneration = generation;
     const activeMounted = mounted;
@@ -220,7 +232,7 @@ function JobPanel({ userId, scope }: Props) {
         confirmed?.outcome.status !== 'FAILED')
     )
       return;
-    const token = begin();
+    const token = begin('queue');
     if (token === null) return;
     try {
       const previous = journalRef.current;
@@ -265,6 +277,7 @@ function JobPanel({ userId, scope }: Props) {
       setJournal(saved);
       const result = await readConfirmed(saved, token);
       active(token);
+      focusDetail.current = true;
       setConfirmed(result);
     } catch (failure) {
       if (mounted.current && generation.current === token) failed(failure, 'queue');
@@ -290,7 +303,7 @@ function JobPanel({ userId, scope }: Props) {
     const expected = journalRef.current;
     if (!expected?.job || JSON.stringify(expected.job) !== JSON.stringify(confirmed.job)) return;
     const selection = confirmed;
-    const token = begin();
+    const token = begin('execute');
     if (token === null) return;
     try {
       const reply = await executeSemesterAllocationJob(
@@ -310,6 +323,7 @@ function JobPanel({ userId, scope }: Props) {
       journalRef.current = saved;
       setJournal(saved);
       priorOutcome.current = outcome;
+      focusDetail.current = true;
       setConfirmed({ job: selection.job, outcome, processed: result.processed });
     } catch (failure) {
       if (mounted.current && generation.current === token) failed(failure, 'execute');
@@ -317,6 +331,13 @@ function JobPanel({ userId, scope }: Props) {
       finish(token);
     }
   }, [active, begin, blocked, checkedOutcome, confirmed, failed, finish, requestedScope, userId]);
+
+  useEffect(() => {
+    if (confirmed && !loading && !error && focusDetail.current) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [confirmed, loading, error]);
 
   const uncertain = journal !== null && journal.job === null;
   const terminal = confirmed !== null && confirmed.outcome.status !== 'PENDING';
@@ -338,6 +359,7 @@ function JobPanel({ userId, scope }: Props) {
           variant="secondary"
           className="min-h-11"
           disabled={loading || queueBlocked}
+          isLoading={loading && activeOperation === 'queue'}
           onClick={() => void queue()}
         >
           {uncertain
@@ -351,15 +373,25 @@ function JobPanel({ userId, scope }: Props) {
             variant="secondary"
             className="min-h-11"
             disabled={loading}
-            onClick={() => void recover()}
+            isLoading={loading && activeOperation === 'read'}
+            onClick={() => {
+              rememberFocus();
+              void recover(true);
+            }}
           >
             {blocked || (!confirmed && journal?.job)
               ? 'Retry semester request recovery'
               : 'Check semester request outcome'}
           </Button>
         )}
-        {confirmed?.outcome.status === 'PENDING' && (
-          <Button className="min-h-11" disabled={loading || blocked} onClick={() => void execute()}>
+        {(confirmed?.outcome.status === 'PENDING' ||
+          (loading && activeOperation === 'execute')) && (
+          <Button
+            className="min-h-11"
+            disabled={loading || blocked}
+            isLoading={loading && activeOperation === 'execute'}
+            onClick={() => void execute()}
+          >
             Execute selected semester request
           </Button>
         )}
@@ -369,11 +401,7 @@ function JobPanel({ userId, scope }: Props) {
           Checking semester request…
         </p>
       )}
-      {error && (
-        <p role="alert" className="max-w-prose text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <ErrorBanner className="max-w-prose text-sm text-red-700">{error}</ErrorBanner>}
       {!loading && uncertain && (
         <p className="max-w-prose text-sm text-gray-600">
           This tab has an unconfirmed semester enqueue request. Retry explicitly with its original
@@ -382,29 +410,41 @@ function JobPanel({ userId, scope }: Props) {
       )}
       {confirmed && (
         <div className="space-y-4">
-          <dl className="space-y-2 text-sm text-gray-700">
-            <div>
-              <dt className="font-medium">Selected semester request</dt>
-              <dd className="break-words [overflow-wrap:anywhere]">{confirmed.job.id}</dd>
-            </div>
-            <div>
-              <dt className="font-medium">Scenario</dt>
-              <dd>
-                {confirmed.job.scope.semester} {confirmed.job.scope.year} · curriculum{' '}
-                <span className="break-words [overflow-wrap:anywhere]">
-                  {confirmed.job.scope.curriculumId}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">Queued</dt>
-              <dd>
-                <time dateTime={confirmed.job.queuedAt}>
-                  {new Date(confirmed.job.queuedAt).toLocaleString()}
-                </time>
-              </dd>
-            </div>
-          </dl>
+          <h4 ref={detailHeading} tabIndex={-1} className="font-semibold text-gray-900">
+            Selected semester request outcome
+          </h4>
+          <StatusPill status={confirmed.outcome.status} />
+          <MetricList
+            items={[
+              {
+                key: 'request',
+                label: 'Selected semester request',
+                value: confirmed.job.id,
+                valueClassName: 'break-words [overflow-wrap:anywhere]',
+              },
+              {
+                key: 'scenario',
+                label: 'Scenario',
+                value: (
+                  <>
+                    {confirmed.job.scope.semester} {confirmed.job.scope.year} · curriculum{' '}
+                    <span className="break-words [overflow-wrap:anywhere]">
+                      {confirmed.job.scope.curriculumId}
+                    </span>
+                  </>
+                ),
+              },
+              {
+                key: 'queued',
+                label: 'Queued',
+                value: (
+                  <time dateTime={confirmed.job.queuedAt}>
+                    {new Date(confirmed.job.queuedAt).toLocaleString()}
+                  </time>
+                ),
+              },
+            ]}
+          />
           <p role="status" className="max-w-prose text-sm text-gray-700">
             {confirmed.outcome.status === 'PENDING'
               ? 'No terminal outcome is committed. Another execution may be in progress. Checking the outcome never starts work.'

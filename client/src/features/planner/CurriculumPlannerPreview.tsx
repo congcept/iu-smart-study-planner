@@ -3,6 +3,7 @@ import type {
   SemesterPreviewUnscheduledReason,
 } from '@iu-study-planner/shared';
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
+import { formatCount } from '@/lib/utils';
 
 const reasonLabels: Record<SemesterPreviewUnscheduledReason, string> = {
   UNPLACED: 'No valid reference semester placement is recorded for this course.',
@@ -46,9 +47,10 @@ export function CurriculumPlannerPreview({ preview }: { preview: CurriculumSemes
       <div>
         <h4 className="font-semibold text-gray-900">Saved planned courses</h4>
         <p className="mt-2 text-sm text-gray-700 tabular-nums">
-          {preview.stats.selectedCourseCount} selected courses · {preview.stats.selectedCredits}{' '}
-          selected credits. {preview.stats.scheduledCourseCount} scheduled courses ·{' '}
-          {preview.stats.scheduledCredits} scheduled credits.
+          {formatCount(preview.stats.selectedCourseCount, 'selected course', 'selected courses')} ·{' '}
+          {formatCount(preview.stats.selectedCredits, 'selected credit', 'selected credits')}.{' '}
+          {formatCount(preview.stats.scheduledCourseCount, 'scheduled course', 'scheduled courses')}{' '}
+          · {formatCount(preview.stats.scheduledCredits, 'scheduled credit', 'scheduled credits')}.
         </p>
         {preview.courses.length === 0 ? (
           <p className="mt-2 text-sm text-gray-700">

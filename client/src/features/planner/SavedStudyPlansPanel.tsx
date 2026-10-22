@@ -5,7 +5,8 @@ import {
   type OwnStudyPlanMetadataDTO,
   type OwnStudyPlansDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorBanner, PaginationFooter } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import {
   isOlderSavedStudyPlan,
   listSavedStudyPlans,
@@ -26,6 +27,21 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<Request>({});
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusOnReturn = useRef(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const rememberFocus = useFocusAfterDisable(
+    state.status === 'loading',
+    () => errorRef.current ?? heading.current,
+  );
+  const isSelected = state.status === 'selected';
+
+  useEffect(() => {
+    if (!isSelected && focusOnReturn.current) {
+      heading.current?.focus();
+      focusOnReturn.current = false;
+    }
+  }, [isSelected]);
 
   const read = useCallback(
     async (input: Request) => {
@@ -99,6 +115,7 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
   }, [read, invalidate]);
 
   const returnToList = useCallback(() => {
+    focusOnReturn.current = true;
     void read({});
   }, [read]);
 
@@ -116,13 +133,12 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
 
   const pending = state.status === 'loading';
   return (
-    <section
-      aria-label="Your saved study plans"
-      className="rounded-xl border border-gray-200 bg-white p-5"
-    >
+    <Card as="section" variant="panel" aria-label="Your saved study plans">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Your saved study plans</h3>
+          <h3 ref={heading} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+            Your saved study plans
+          </h3>
           <p className="mt-2 max-w-prose text-sm text-gray-700">
             Saved references from your account, newest first. Their courses and semesters have not
             been verified against your current curriculum, prerequisites, GPA or a timetable. A
@@ -134,7 +150,10 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
           variant="secondary"
           className="min-h-11"
           disabled={pending}
-          onClick={() => void read({})}
+          onClick={() => {
+            rememberFocus();
+            void read({});
+          }}
         >
           Reload saved plans
         </Button>
@@ -145,20 +164,27 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
         </p>
       )}
       {state.status === 'error' && (
-        <div className="mt-4">
-          <p role="alert" className="text-sm text-red-700">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-4 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
+          <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Sign in to this account and reload saved plans.'
               : state.cursor
                 ? 'This saved-plan page is no longer available. Reload saved plans to return to the latest references.'
                 : 'Could not confirm your saved study plans. Retry this read or reload the latest references.'}
-          </p>
+          </ErrorBanner>
           {!state.account && !state.cursor && (
             <Button
               type="button"
               variant="secondary"
               className="mt-3 min-h-11"
-              onClick={() => void read(lastRequest.current)}
+              onClick={() => {
+                rememberFocus();
+                void read(lastRequest.current);
+              }}
             >
               Retry saved plans
             </Button>
@@ -168,11 +194,11 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
       {state.status === 'ready' && (
         <div className="mt-4 space-y-4">
           {state.page.plans.length === 0 ? (
-            <p className="text-sm text-gray-700">
+            <EmptyState>
               {state.page.after
                 ? 'No older saved study plans are available.'
                 : 'No saved study plans for your account yet.'}
-            </p>
+            </EmptyState>
           ) : (
             <ul className="divide-y divide-gray-200">
               {state.page.plans.map((plan, index) => (
@@ -219,35 +245,39 @@ function SavedStudyPlansBody({ ownerId }: { ownerId: string }) {
               ))}
             </ul>
           )}
-          {state.page.nextAfter && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              onClick={() =>
-                void read({
-                  after: state.page.nextAfter!,
-                  boundary: state.page.plans.at(-1),
-                  curriculumId: state.page.scope.curriculumId,
-                })
-              }
-            >
-              Older saved plans
-            </Button>
-          )}
+          <PaginationFooter
+            next={
+              state.page.nextAfter
+                ? {
+                    label: 'Older saved plans',
+                    onClick: () => {
+                      rememberFocus();
+                      void read({
+                        after: state.page.nextAfter!,
+                        boundary: state.page.plans.at(-1),
+                        curriculumId: state.page.scope.curriculumId,
+                      });
+                    },
+                  }
+                : undefined
+            }
+          />
           {state.page.after && (
             <Button
               type="button"
               variant="secondary"
               className="min-h-11"
-              onClick={() => void read({})}
+              onClick={() => {
+                rememberFocus();
+                void read({});
+              }}
             >
               Latest saved plans
             </Button>
           )}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -260,15 +290,12 @@ export function SavedStudyPlansPanel({
 }) {
   if (blocked)
     return (
-      <section
-        aria-label="Your saved study plans"
-        className="rounded-xl border border-gray-200 bg-white p-5"
-      >
+      <Card as="section" variant="panel" aria-label="Your saved study plans">
         <h3 className="text-lg font-semibold text-gray-900">Your saved study plans</h3>
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <ErrorBanner className="mt-3 text-sm text-red-700">
           Sign in as this account to read your saved study plans.
-        </p>
-      </section>
+        </ErrorBanner>
+      </Card>
     );
   return <SavedStudyPlansBody key={ownerId.toLowerCase()} ownerId={ownerId.toLowerCase()} />;
 }

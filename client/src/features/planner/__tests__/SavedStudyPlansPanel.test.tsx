@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OwnStudyPlanMetadataDTO, OwnStudyPlansDTO } from '@iu-study-planner/shared';
 import { listSavedStudyPlans, SavedStudyPlansSessionChangedError } from '@/lib/savedStudyPlansApi';
 import { ownerId, referenceId } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
+import { resetFocusActivations } from '@/lib/useFocusAfterDisable';
 import { SavedStudyPlansPanel } from '../SavedStudyPlansPanel';
 
 vi.mock('@/lib/savedStudyPlansApi', async (original) => ({
@@ -62,11 +64,33 @@ function deferred<T>() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  // Each case starts from the state of a freshly opened page.
+  resetFocusActivations();
   read.mockResolvedValue(page());
 });
 afterEach(cleanup);
 
 describe('saved study plan reference browser', () => {
+  it('does not steal focus on initial load or background refresh', async () => {
+    render(
+      <>
+        <button>Outside planner</button>
+        <SavedStudyPlansPanel ownerId={ownerId} />
+      </>,
+    );
+    const outside = screen.getByRole('button', { name: 'Outside planner' });
+    outside.focus();
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    expect(outside).toHaveFocus();
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    expect(outside).toHaveFocus();
+  });
+  it('does not take the focus when its first read finishes', async () => {
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    expect(document.activeElement).toBe(document.body);
+  });
   it('opens only the selected plan and requires a fresh list read when returning', async () => {
     const pending = deferred<OwnStudyPlansDTO>();
     read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
@@ -77,12 +101,14 @@ describe('saved study plan reference browser', () => {
     expect(screen.getByTestId('selected-curriculum')).toHaveTextContent('unassigned');
     expect(screen.queryByRole('heading', { name: 'Reference 1' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to saved plans' }));
+    expect(screen.getByRole('heading', { name: 'Your saved study plans' })).toHaveFocus();
     expect(screen.queryByTestId('selected-plan')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Reference 1' })).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Loading your saved study plans');
     expect(read).toHaveBeenCalledTimes(2);
     await act(async () => pending.resolve(page([metadata(2)])));
     expect(await screen.findByRole('heading', { name: 'Reference 2' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your saved study plans' })).toHaveFocus();
   });
   it('drops selected details on focus and pins a new selection to the freshly confirmed scope', async () => {
     const pending = deferred<OwnStudyPlansDTO>();
@@ -288,5 +314,39 @@ describe('saved study plan reference browser', () => {
       {},
       { boundary: undefined, expectedCurriculumId: undefined, signal: expect.any(AbortSignal) },
     );
+  });
+
+  it('returns focus to Reload saved plans when the read finishes', async () => {
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    await screen.findByRole('heading', { name: 'Reference 1' });
+    const pendingRead = deferred<OwnStudyPlansDTO>();
+    read.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved plans' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload saved plans' })).toBeEnabled(),
+    );
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(page()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+
+  it('puts focus on the failure message when a retry button is replaced', async () => {
+    read.mockRejectedValueOnce(new Error('offline'));
+    render(<SavedStudyPlansPanel ownerId={ownerId} />);
+    const retry = await screen.findByRole('button', { name: 'Retry saved plans' });
+    read.mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    act(() => {
+      fireEvent.click(retry);
+      retry.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent('Could not confirm your saved study plans');
   });
 });

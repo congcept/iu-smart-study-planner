@@ -15,6 +15,7 @@ import {
 } from '@/lib/allocationJobsApi';
 import { allocationScope } from '@/test/fixtures/allocationPreview';
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AllocationJobHistoryPanel } from '../AllocationJobHistoryPanel';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -97,7 +98,44 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof listAllocationJobs>>>();
+    vi.mocked(listAllocationJobs).mockReturnValueOnce(pendingRead.promise);
+    const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
+
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(page()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+});
+
 describe('bounded read-only simulation request history', () => {
+  it('keeps focus on initial history and announces a user selected outcome heading', async () => {
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(choose());
+    const heading = await screen.findByRole('heading', { name: 'Selected request outcome' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('loads newest history with fresh admin checks and never writes requests or journals', async () => {
     mount();
     await ready();
@@ -630,5 +668,54 @@ describe('fresh role checks and stale context isolation', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('SECRET');
     expect(enqueueAllocationJob).not.toHaveBeenCalled();
     expect(executeAllocationJob).not.toHaveBeenCalled();
+  });
+
+  it('moves focus to the panel heading when the older page replaces the list', async () => {
+    vi.mocked(listAllocationJobs).mockResolvedValue(firstPage());
+    mount();
+    await ready();
+    const pendingRead = deferred<AllocationJobHistoryDTO>();
+    vi.mocked(listAllocationJobs).mockReturnValueOnce(pendingRead.promise);
+    const target = older();
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(page([job(20)])));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Simulation request history' }),
+      ),
+    );
+  });
+
+  it('puts focus on the failure message when the retry control is replaced', async () => {
+    vi.mocked(listAllocationJobs).mockRejectedValueOnce(new Error('offline'));
+    mount();
+    const retry = await screen.findByRole('button', { name: 'Retry history page' });
+    vi.mocked(listAllocationJobs).mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('puts focus on the failure message when the outcome read fails', async () => {
+    mount();
+    await ready();
+    const pendingOutcome = deferred<AllocationJobOutcomeDTO>();
+    vi.mocked(getAllocationJobOutcome).mockReturnValueOnce(pendingOutcome.promise);
+    const target = choose();
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingOutcome.reject(new Error('offline')));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toBe(target);
   });
 });

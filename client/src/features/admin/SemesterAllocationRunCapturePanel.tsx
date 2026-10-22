@@ -6,8 +6,8 @@ import {
   type ResourceScopeDTO,
   type SemesterAllocationRunV1DTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
+import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import {
   createSemesterAllocationRun,
   getSemesterAllocationRun,
@@ -20,9 +20,9 @@ import {
   writeSemesterAllocationRunJournal,
   type SemesterAllocationRunJournal,
 } from './semesterAllocationRunRecovery';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
-class AdminSessionChanged extends Error {}
 class StaleRequest extends Error {}
 
 export function SemesterAllocationRunCapturePanel({ userId, scope }: Props) {
@@ -36,20 +36,19 @@ function CapturePanel({ userId, scope }: Props) {
   const generation = useRef(0);
   const busy = useRef(false);
   const journalRef = useRef<SemesterAllocationRunJournal | null>(null);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [journal, setJournal] = useState<SemesterAllocationRunJournal | null>(null);
   const [run, setRun] = useState<SemesterAllocationRunV1DTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
   const requestedScope = useCallback(
     () => SemesterAllocationScopeV1Schema.parse({ curriculumId, semester, year }),
     [curriculumId, semester, year],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const underSession = useCallback(
     async (operation: () => Promise<unknown>, token: number) => {
       await verifySession();
@@ -106,40 +105,45 @@ function CapturePanel({ userId, scope }: Props) {
       );
     }
   }, []);
-  const recover = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    const token = ++generation.current;
-    setLoading(true);
-    setBlocked(false);
-    setError('');
-    setRun(null);
-    try {
-      const saved = readSemesterAllocationRunJournal(userId, requestedScope());
-      journalRef.current = saved;
-      setJournal(saved);
-      if (saved?.runId) {
-        const savedRunId = saved.runId;
-        const received = await underSession(
-          () => getSemesterAllocationRun(savedRunId, requestedScope()),
-          token,
-        );
-        if (token !== generation.current) return;
-        const result = checkedRun(received, savedRunId);
-        const confirmed = confirmSemesterAllocationRunJournal(saved, userId, requestedScope());
-        journalRef.current = confirmed;
-        setJournal(confirmed);
-        setRun(result);
+  const recover = useCallback(
+    async (userTriggered = false) => {
+      if (busy.current) return;
+      busy.current = true;
+      const token = ++generation.current;
+      setLoading(true);
+      setBlocked(false);
+      setError('');
+      setRun(null);
+      focusDetail.current = false;
+      try {
+        const saved = readSemesterAllocationRunJournal(userId, requestedScope());
+        journalRef.current = saved;
+        setJournal(saved);
+        if (saved?.runId) {
+          const savedRunId = saved.runId;
+          const received = await underSession(
+            () => getSemesterAllocationRun(savedRunId, requestedScope()),
+            token,
+          );
+          if (token !== generation.current) return;
+          const result = checkedRun(received, savedRunId);
+          const confirmed = confirmSemesterAllocationRunJournal(saved, userId, requestedScope());
+          journalRef.current = confirmed;
+          setJournal(confirmed);
+          focusDetail.current = userTriggered;
+          setRun(result);
+        }
+      } catch (failure) {
+        if (token === generation.current) reportFailure(failure, true);
+      } finally {
+        if (token === generation.current) {
+          busy.current = false;
+          setLoading(false);
+        }
       }
-    } catch (failure) {
-      if (token === generation.current) reportFailure(failure, true);
-    } finally {
-      if (token === generation.current) {
-        busy.current = false;
-        setLoading(false);
-      }
-    }
-  }, [checkedRun, reportFailure, requestedScope, underSession, userId]);
+    },
+    [checkedRun, reportFailure, requestedScope, underSession, userId],
+  );
   useEffect(() => {
     const active = generation;
     const pending = busy;
@@ -157,6 +161,7 @@ function CapturePanel({ userId, scope }: Props) {
     setLoading(true);
     setError('');
     setRun(null);
+    focusDetail.current = false;
     let reading = false;
     try {
       const previous = journalRef.current;
@@ -196,6 +201,7 @@ function CapturePanel({ userId, scope }: Props) {
       const result = checkedRun(received);
       const saved = sent.journal;
       if (saved === null) throw new SemesterAllocationRunRecoveryError();
+      focusDetail.current = true;
       setRun(result);
       try {
         const receipt = writeSemesterAllocationRunJournal({ ...saved, runId: result.id }, saved);
@@ -216,6 +222,13 @@ function CapturePanel({ userId, scope }: Props) {
       }
     }
   }, [blocked, checkedRun, reportFailure, requestedScope, underSession, userId]);
+
+  useEffect(() => {
+    if (run && !loading && !error && focusDetail.current) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [run, loading, error]);
 
   const pendingCapture = journal !== null && journal.runId === undefined;
   const receiptNeedsRecovery = journal?.runId !== undefined && run === null;
@@ -239,7 +252,10 @@ function CapturePanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void (recoveryAction ? recover() : capture())}
+        onClick={() => {
+          rememberFocus();
+          void (recoveryAction ? recover(true) : capture());
+        }}
       >
         {recoveryAction
           ? 'Retry semester capture recovery'
@@ -254,11 +270,7 @@ function CapturePanel({ userId, scope }: Props) {
           Checking semester capture…
         </p>
       )}
-      {error && (
-        <p role="alert" className="max-w-prose text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <ErrorBanner className="max-w-prose text-sm text-red-700">{error}</ErrorBanner>}
       {!loading && pendingCapture && !run && (
         <p className="max-w-prose text-sm text-gray-600">
           An earlier semester capture is unconfirmed in this tab. Retry explicitly with the original
@@ -267,14 +279,17 @@ function CapturePanel({ userId, scope }: Props) {
       )}
       {run && result && (
         <div className="space-y-4">
-          <h4 className="font-semibold text-gray-900">Last semester capture in this tab</h4>
+          <h4 ref={detailHeading} tabIndex={-1} className="font-semibold text-gray-900">
+            Last semester capture in this tab
+          </h4>
           <p role="status" className="max-w-prose text-sm text-gray-700">
             Semester snapshot and private simulation assignments saved. {result.curriculum.name} ·{' '}
             {result.scope.semester} {result.scope.year}. This is a historical capture; changes to
             the current cohort, course metadata or settings do not update it.
           </p>
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-            {[
+          <MetricList
+            layout="grid"
+            items={[
               ['Students in captured cohort', result.studentCount],
               ['Students with assignments', result.assignedStudentCount],
               ['Course assignments', result.assignedCourseCount],
@@ -287,30 +302,26 @@ function CapturePanel({ userId, scope }: Props) {
               ['Choices exceed remaining credit budget', result.stopReasonCounts.CREDIT_LIMIT],
               ['Resource settings missing', result.stopReasonCounts.RESOURCE_UNKNOWN],
               ['Shared capacity exhausted', result.stopReasonCounts.CAPACITY_EXHAUSTED],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="flex items-baseline justify-between gap-4 border-b border-gray-200 pb-2"
-              >
-                <dt className="text-gray-700">{label}</dt>
-                <dd className="font-semibold tabular-nums text-gray-900">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <dl className="space-y-2 text-sm text-gray-700">
-            <div>
-              <dt className="font-medium">Capture completed</dt>
-              <dd>
-                <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">Stored on server</dt>
-              <dd>
-                <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>
-              </dd>
-            </div>
-          </dl>
+            ].map(([label, value]) => ({ key: String(label), label, value }))}
+          />
+          <MetricList
+            items={[
+              {
+                key: 'captured',
+                label: 'Capture completed',
+                value: (
+                  <time dateTime={run.capturedAt}>{new Date(run.capturedAt).toLocaleString()}</time>
+                ),
+              },
+              {
+                key: 'stored',
+                label: 'Stored on server',
+                value: (
+                  <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString()}</time>
+                ),
+              },
+            ]}
+          />
           <p className="max-w-prose text-sm text-gray-600">
             {result.envelope.envelope
               ? `Captured resource revision ${result.envelope.resourceRevision}. ${result.usedSections} of ${result.envelope.envelope.sharedSectionCeiling} shared classroom/staff sections opened across all rounds.`

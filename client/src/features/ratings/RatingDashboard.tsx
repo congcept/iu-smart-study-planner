@@ -10,6 +10,7 @@ import {
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import { getRatingCourseChoices, getScopedOwnRatings, rateCourse } from '@/lib/ratingsApi';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
 
 const PendingVote = RateCourseSchema.extend({
@@ -52,6 +53,13 @@ function RatingSession({ userId }: { userId: string }) {
   const [loadError, setLoadError] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'saving' | 'retry' | 'blocked'>(
     journal.error ? 'blocked' : journal.vote ? 'retry' : 'idle',
+  );
+  const errorRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const rememberFocus = useFocusAfterDisable(phase === 'saving');
+  const rememberReloadFocus = useFocusAfterDisable(
+    loading,
+    () => errorRef.current ?? headingRef.current,
   );
   const [message, setMessage] = useState(
     journal.error
@@ -216,8 +224,17 @@ function RatingSession({ userId }: { userId: string }) {
     }
   };
   const save = async (event: FormEvent) => {
+    rememberFocus();
     event.preventDefault();
-    if (busy.current || loading || loadError || phase === 'blocked' || !scope.current) return;
+    if (busy.current) return;
+    if (loadError) {
+      setMessage('Cannot save because your completed courses could not be loaded. Reload first.');
+      return;
+    }
+    if (phase === 'blocked' || !scope.current) {
+      setMessage('Cannot save because your account and curriculum scope are not confirmed.');
+      return;
+    }
     const parsed = PendingVote.safeParse(
       pending.current ?? {
         courseId,
@@ -238,6 +255,18 @@ function RatingSession({ userId }: { userId: string }) {
       return;
     }
     if (!courses.some((course) => course.id === payload.courseId)) {
+      if (!pending.current) {
+        // Nothing was sent for this selection, so there is no request to recover.
+        // Clearing it keeps the form editable; blocking every control here would
+        // leave the user with no reload or recovery action to get out.
+        setCourseId('');
+        setRating('');
+        setPhase('idle');
+        setMessage(
+          'That course is no longer marked completed, so it cannot be rated. Choose another completed course.',
+        );
+        return;
+      }
       setPhase('blocked');
       setMessage(
         'This course is no longer completed. Check the saved rating or reload your courses.',
@@ -330,13 +359,15 @@ function RatingSession({ userId }: { userId: string }) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
-        <h2 className="text-2xl font-bold text-gray-900">Course ratings</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900">
+          Course ratings
+        </h2>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Rate the difficulty of a course you have completed: 1 means very easy and 5 means very
           difficult. Each account has one vote per course; saving again replaces it.
         </p>
       </header>
-      {message && (
+      {message && !loading && (
         <p
           role={phase === 'retry' || phase === 'blocked' ? 'alert' : 'status'}
           className="text-sm text-gray-700"
@@ -344,7 +375,7 @@ function RatingSession({ userId }: { userId: string }) {
           {message}
         </p>
       )}
-      {(pending.current || invalidJournal.current) && phase !== 'saving' && (
+      {(pending.current || invalidJournal.current) && phase !== 'saving' && !loading && (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
             The rating may already be saved. Clearing the pending retry only removes this tab’s
@@ -377,20 +408,31 @@ function RatingSession({ userId }: { userId: string }) {
           Loading your completed courses and ratings…
         </p>
       ) : loadError ? (
-        <div>
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <p role="alert" className="text-red-700">
             Could not load your courses and saved ratings. Check your connection and reload.
           </p>
           <Button
             className="mt-3 min-h-11"
             disabled={phase === 'saving'}
-            onClick={() => void load()}
+            onClick={() => {
+              rememberReloadFocus();
+              void load();
+            }}
           >
             Reload courses
           </Button>
         </div>
       ) : courses.length === 0 && !pending.current ? (
-        <p className="text-gray-600">Complete a course in My curriculum before rating it.</p>
+        <p className="text-gray-600">
+          {scope.current?.curriculumId
+            ? 'Ratings need a course recorded as completed elsewhere. Your assigned curriculum is read-only.'
+            : 'Complete a course in My curriculum before rating it.'}
+        </p>
       ) : (
         <section
           aria-label="Rate a completed course"
@@ -425,7 +467,7 @@ function RatingSession({ userId }: { userId: string }) {
               </select>
             </label>
             {selected && (
-              <div className="mt-3" aria-label="Selected course rating">
+              <div role="group" className="mt-3" aria-label="Selected course rating">
                 <CourseRatingBadge course={selected} />
                 <p className="mt-2 text-sm text-gray-700">
                   {yourRating === undefined
@@ -466,7 +508,7 @@ function RatingSession({ userId }: { userId: string }) {
                 type="submit"
                 className="min-h-11"
                 isLoading={phase === 'saving'}
-                disabled={phase === 'blocked' || loading || loadError || !scope.current}
+                disabled={phase === 'saving'}
               >
                 {pending.current ? 'Retry same rating' : 'Save rating'}
               </Button>
@@ -475,7 +517,10 @@ function RatingSession({ userId }: { userId: string }) {
                   type="button"
                   variant="secondary"
                   className="min-h-11"
-                  onClick={() => void load()}
+                  onClick={() => {
+                    rememberReloadFocus();
+                    void load();
+                  }}
                 >
                   Reload courses
                 </Button>

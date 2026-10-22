@@ -169,33 +169,99 @@ describe('server GPA policy in the curriculum map', () => {
     expect(getStudentGrades).toHaveBeenCalledTimes(1);
   });
 
-  it('withholds course editing and manual controls while the account GPA is loading', async () => {
+  it('never claims a save is still in progress once it has failed', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+    await screen.findByText('MA001IU');
+
+    act(() =>
+      useAppStore.setState({
+        progressError: 'The save could not be confirmed.',
+        pendingCompletionIds: new Set(['MA001IU']),
+      }),
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The save could not be confirmed.');
+    expect(alert).toHaveTextContent('Review it before trying the change again.');
+    // A failed save must not also be announced as still running.
+    expect(screen.queryByText(/Saving progress/)).toBeNull();
+    expect(screen.queryByText(/Checking saved progress/)).toBeNull();
+  });
+
+  it('announces a save in progress only while it is genuinely running', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+    await screen.findByText('MA001IU');
+
+    act(() => useAppStore.setState({ pendingCompletionIds: new Set(['MA001IU']) }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Saving progress');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('states the course target behind the percentage instead of an unexplained number', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+
+    expect(await screen.findByRole('heading', { name: 'Course progress' })).toBeVisible();
+    // One name for one number, and the 41/43 target is finally stated.
+    expect(screen.queryByRole('heading', { name: 'Degree progress' })).toBeNull();
+    expect(screen.getByText(/41-course target for the thesis GPA path/)).toBeVisible();
+    expect(screen.queryByText(/Course progress for the selected GPA path/)).toBeNull();
+  });
+
+  it('labels the finish estimate with the course load it actually uses', async () => {
+    signIn('alice');
+    vi.mocked(getStudentGrades).mockResolvedValue(grades('THESIS', 80));
+    render(<CurriculumProgressMap userId="alice" />);
+
+    expect(await screen.findByText(/Estimated finish at \d+ cr\/semester/)).toBeVisible();
+    // The coupling to the load control is stated rather than hidden.
+    expect(screen.getByText(/changing that control moves the finish term/)).toBeVisible();
+    expect(screen.queryByText(/prerequisites and course availability may change it/)).toBeNull();
+  });
+
+  it('keeps the curriculum visible but read-only while the account GPA is loading', async () => {
     signIn('alice');
     const pending = deferred<StudentGradesDTO>();
     vi.mocked(getStudentGrades).mockReturnValue(pending.promise);
     render(<CurriculumProgressMap userId="alice" />);
     expect(await screen.findByRole('status')).toHaveTextContent('Loading your GPA path');
-    expect(screen.queryByText('MA001IU')).toBeNull();
-    expect(screen.queryByText('IT058IU')).toBeNull();
+    // The map stays on screen so a slow or failing grades call never hides it.
+    await screen.findByText('MA001IU');
+    expect(card('MA001IU')).toBeDisabled();
+    // Neither branch of the fork may be asserted, so nothing is filtered out.
+    expect(screen.getByText('IT058IU')).toBeVisible();
+    expect(screen.getByText('IT059IU')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'GPA > 70' })).toBeNull();
+    // Path-dependent claims are withheld rather than guessed.
+    expect(screen.queryByRole('progressbar', { name: 'Course progress' })).toBeNull();
     expect(saveCourseProgress).not.toHaveBeenCalled();
     await act(async () => pending.resolve(grades('THESIS', 80)));
-    await screen.findByText('MA001IU');
+    await screen.findByText('Thesis path');
+    expect(card('MA001IU')).not.toBeDisabled();
     expect(screen.getByText('IT058IU')).toBeVisible();
+    expect(screen.queryByText('IT059IU')).toBeNull();
+    expect(screen.getByRole('progressbar', { name: 'Course progress' })).toBeInTheDocument();
   });
 
-  it('requires successful GPA reload after failure before showing editable cards', async () => {
+  it('requires a successful GPA reload after failure before allowing edits', async () => {
     signIn('alice');
     vi.mocked(getStudentGrades)
       .mockRejectedValueOnce(new Error('Offline'))
       .mockResolvedValueOnce(grades('ALTERNATIVE', 65));
     render(<CurriculumProgressMap userId="alice" />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your GPA path');
-    expect(screen.queryByText('MA001IU')).toBeNull();
+    await screen.findByText('MA001IU');
+    expect(card('MA001IU')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'GPA <= 70' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Reload GPA path' }));
     await screen.findByText('Alternative path');
-    expect(screen.getByText('MA001IU')).toBeVisible();
+    expect(card('MA001IU')).not.toBeDisabled();
     expect(screen.getByText('IT059IU')).toBeVisible();
     expect(screen.queryByText('IT058IU')).toBeNull();
     expect(getStudentGrades).toHaveBeenCalledTimes(2);

@@ -19,15 +19,26 @@ export function GradeEntry(props: Props) {
 }
 
 function GradeEntrySession({ userId, onSaved }: Props) {
-  const [journal] = useState(() => {
+  const [journal] = useState<{
+    pending: AppendGradeAttemptDTO | null;
+    problem: 'storage' | 'unreadable' | null;
+  }>(() => {
+    let raw: string | null;
     try {
-      const raw = sessionStorage.getItem(requestKey(userId));
-      const pending = raw ? AppendGradeAttemptSchema.parse(JSON.parse(raw)) : null;
-      if (pending?.expectedScope && pending.expectedScope.userId !== userId.toLowerCase())
-        throw new Error('Wrong pending grade owner');
-      return { pending, error: false };
+      raw = sessionStorage.getItem(requestKey(userId));
     } catch {
-      return { pending: null, error: true };
+      // Reading is impossible, so nothing about the stored bytes is known.
+      return { pending: null, problem: 'storage' };
+    }
+    if (!raw) return { pending: null, problem: null };
+    try {
+      const pending = AppendGradeAttemptSchema.parse(JSON.parse(raw));
+      if (pending.expectedScope && pending.expectedScope.userId !== userId.toLowerCase())
+        throw new Error('Wrong pending grade owner');
+      return { pending, problem: null };
+    } catch {
+      // Storage works; the bytes in it are unusable and can only be cleared.
+      return { pending: null, problem: 'unreadable' };
     }
   });
   const pending = useRef<AppendGradeAttemptDTO | null>(journal.pending);
@@ -35,13 +46,20 @@ function GradeEntrySession({ userId, onSaved }: Props) {
   const catalogGeneration = useRef(0);
   const busy = useRef(false);
   const scoreInput = useRef<HTMLInputElement>(null);
+  const courseSelect = useRef<HTMLSelectElement>(null);
+  const yearInput = useRef<HTMLInputElement>(null);
+  const pendingFocus = useRef<'course' | 'score' | 'year' | null>(null);
+  const [invalidField, setInvalidField] = useState<'course' | 'score' | 'year' | null>(null);
+  const [focusAttempt, setFocusAttempt] = useState(0);
   const [phase, setPhase] = useState<Phase>(
-    journal.error ? 'blocked' : journal.pending ? 'checking' : 'idle',
+    journal.problem ? 'blocked' : journal.pending ? 'checking' : 'idle',
   );
   const [message, setMessage] = useState(
-    journal.error
+    journal.problem === 'storage'
       ? 'Browser recovery data is unavailable. Restore access to this tab’s storage before recording another score.'
-      : '',
+      : journal.problem === 'unreadable'
+        ? 'Browser recovery data in this tab can’t be read, so this form is locked. Any score the server already accepted still appears in Grade history. Clear the unreadable data to record another score.'
+        : '',
   );
   const [courseId, setCourseId] = useState(journal.pending?.courseId ?? '');
   const [score, setScore] = useState(journal.pending ? String(journal.pending.score) : '');
@@ -215,29 +233,102 @@ function GradeEntrySession({ userId, onSaved }: Props) {
     }
   };
 
+  // A blocked pending request otherwise leaves the tab permanently unable to
+  // record another score. Discarding it clears only this tab's retry; any score
+  // the server already stored is untouched.
+  const discardPending = () => {
+    if (busy.current) return;
+    try {
+      sessionStorage.removeItem(requestKey(userId));
+      pending.current = null;
+      busy.current = false;
+      setPhase('idle');
+      setCourseId('');
+      setScore('');
+      setSemester('');
+      setYear('');
+      setMessage(
+        'This tab’s pending attempt was discarded. Any score already saved on the server is unchanged.',
+      );
+    } catch {
+      setPhase('blocked');
+      setMessage(
+        'Could not discard this tab’s pending attempt. Restore storage access and reload.',
+      );
+    }
+  };
+
+  const clearUnreadableJournal = () => {
+    if (busy.current) return;
+    try {
+      sessionStorage.removeItem(requestKey(userId));
+      setPhase('idle');
+      setMessage(
+        'This tab’s unreadable recovery data was cleared. Any score already saved on the server is unchanged.',
+      );
+    } catch {
+      setMessage(
+        'Could not clear this tab’s unreadable recovery data. Close this tab and open Grades in a new one.',
+      );
+    }
+  };
+
+  const reject = (field: 'course' | 'score' | 'year', text: string) => {
+    setMessage(text);
+    setInvalidField(field);
+    pendingFocus.current = field;
+    setFocusAttempt((attempt) => attempt + 1);
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (phase !== 'idle' || busy.current || catalogStatus !== 'ready') return;
     if (!courses.some(({ id }) => id === courseId)) {
-      setMessage('Choose a course from your current grade-entry choices before saving a score.');
+      reject(
+        'course',
+        'Choose a course from your current grade-entry choices before saving a score.',
+      );
       return;
     }
+    const scoreNumber = score.trim() === '' ? Number.NaN : Number(score);
     const parsed = AppendGradeAttemptSchema.safeParse({
       courseId,
       requestId: crypto.randomUUID(),
       expectedScope: { userId, curriculumId },
-      score: score.trim() === '' ? Number.NaN : Number(score),
+      score: scoreNumber,
       ...(semester ? { semester } : {}),
       ...(year.trim() ? { year: Number(year) } : {}),
     });
     if (!parsed.success || !courses.some((course) => course.id === parsed.data.courseId)) {
-      setMessage(
+      const yearNumber = year.trim() ? Number(year) : null;
+      const field: 'course' | 'score' | 'year' = !courses.some((course) => course.id === courseId)
+        ? 'course'
+        : !Number.isFinite(scoreNumber) || scoreNumber < 0 || scoreNumber > 100
+          ? 'score'
+          : yearNumber !== null &&
+              (!Number.isInteger(yearNumber) || yearNumber < 2000 || yearNumber > 2100)
+            ? 'year'
+            : 'course';
+      reject(
+        field,
         'Choose a course, enter a score from 0 to 100, and use a whole year from 2000 to 2100 if supplied.',
       );
       return;
     }
+    setInvalidField(null);
     void send(parsed.data);
   };
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    const field =
+      pendingFocus.current === 'course'
+        ? courseSelect.current
+        : pendingFocus.current === 'score'
+          ? scoreInput.current
+          : yearInput.current;
+    pendingFocus.current = null;
+    field?.focus();
+  }, [focusAttempt]);
   useEffect(() => {
     if (
       phase === 'idle' &&
@@ -291,8 +382,14 @@ function GradeEntrySession({ userId, onSaved }: Props) {
           <label className="min-w-0 text-sm font-medium text-gray-700">
             Course
             <select
+              ref={courseSelect}
               value={courseId}
-              onChange={(event) => setCourseId(event.target.value)}
+              aria-invalid={invalidField === 'course' ? true : undefined}
+              aria-describedby={invalidField === 'course' ? 'grade-entry-message' : undefined}
+              onChange={(event) => {
+                setCourseId(event.target.value);
+                if (invalidField === 'course') setInvalidField(null);
+              }}
               className={fieldClass}
             >
               <option value="">Choose a course</option>
@@ -316,7 +413,12 @@ function GradeEntrySession({ userId, onSaved }: Props) {
               max="100"
               step="any"
               value={score}
-              onChange={(event) => setScore(event.target.value)}
+              aria-invalid={invalidField === 'score' ? true : undefined}
+              aria-describedby={invalidField === 'score' ? 'grade-entry-message' : undefined}
+              onChange={(event) => {
+                setScore(event.target.value);
+                if (invalidField === 'score') setInvalidField(null);
+              }}
               className={fieldClass}
             />
           </label>
@@ -336,19 +438,26 @@ function GradeEntrySession({ userId, onSaved }: Props) {
           <label className="text-sm font-medium text-gray-700">
             Year (optional)
             <input
+              ref={yearInput}
               type="number"
               inputMode="numeric"
               min="2000"
               max="2100"
               step="1"
               value={year}
-              onChange={(event) => setYear(event.target.value)}
+              aria-invalid={invalidField === 'year' ? true : undefined}
+              aria-describedby={invalidField === 'year' ? 'grade-entry-message' : undefined}
+              onChange={(event) => {
+                setYear(event.target.value);
+                if (invalidField === 'year') setInvalidField(null);
+              }}
               className={fieldClass}
             />
           </label>
         </fieldset>
         {message && (
           <p
+            id="grade-entry-message"
             role={
               phase === 'blocked' ||
               phase === 'retry' ||
@@ -388,6 +497,21 @@ function GradeEntrySession({ userId, onSaved }: Props) {
               }
             >
               Reload saved grades
+            </Button>
+          )}
+          {phase === 'blocked' && pending.current && (
+            <Button type="button" variant="ghost" className="min-h-11" onClick={discardPending}>
+              Discard this pending attempt
+            </Button>
+          )}
+          {phase === 'blocked' && journal.problem === 'unreadable' && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11"
+              onClick={clearUnreadableJournal}
+            >
+              Clear unreadable recovery data
             </Button>
           )}
         </div>

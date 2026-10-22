@@ -9,9 +9,11 @@ import {
 } from '@/lib/savedStudyPlanReferenceSelectionApi';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import { referenceSelectionDraftKey } from '@/lib/savedReferenceSelectionDraft';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { proposedSelectionPreview } from '@/test/fixtures/proposedReferenceSelection';
 import { referenceId, ownerId } from '@/test/fixtures/curriculumReference';
 import { savedCourseId, savedPlanId, savedSemesterId } from '@/test/fixtures/savedStudyPlanCourses';
+import type { OwnStudyPlanReferenceSelectionStateDTO } from '@iu-study-planner/shared';
 import {
   referenceSelectionBody,
   referenceSelectionState,
@@ -363,6 +365,12 @@ describe('saved reference selection editing', () => {
       screen.getByText(/No curriculum is assigned. Course selection editing is unavailable/),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save course selection' })).toBeDisabled();
+    // The courses were never checked against anything, so the editor must not
+    // ask for a removal that the disabled controls cannot carry out.
+    expect(
+      screen.queryByText(/Not available in current curriculum choices/),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText(/was not checked against current choices/)[0]).toBeInTheDocument();
   });
   it('requires explicit removal of a saved course outside current choices', async () => {
     const value = referenceSelectionState();
@@ -528,6 +536,7 @@ describe('unsent draft recovery', () => {
     expect(screen.getByText(/cannot be restored onto the newer version/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Restore unsent draft' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(sessionStorage.getItem(draftKey)).toBeNull();
     expect(sessionStorage.getItem(otherKey)).toBe('separate draft');
     expect(screen.getByLabelText('Selection academic year')).toBeEnabled();
@@ -570,6 +579,7 @@ describe('unsent draft recovery', () => {
     expect(screen.queryByRole('button', { name: 'Restore unsent draft' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Selection academic year')).toHaveValue(null);
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(sessionStorage.getItem(draftKey)).toBeNull();
     expect(screen.getByLabelText('Selection academic year')).toBeEnabled();
   });
@@ -579,6 +589,7 @@ describe('unsent draft recovery', () => {
     await open();
     sessionStorage.setItem(draftKey, JSON.stringify(storedDraft()));
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(screen.getByText(/stored draft changed/)).toBeInTheDocument();
     expect(sessionStorage.getItem(draftKey)).not.toBeNull();
     expect(screen.getByLabelText('Selection academic year')).toBeDisabled();
@@ -651,6 +662,7 @@ describe('unsent draft recovery', () => {
     render(<SavedReferenceSelectionEditor {...props} />);
     await open();
     fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this draft' }));
     expect(screen.getByText(/could not be discarded/)).toBeInTheDocument();
     expect(sessionStorage.getItem(draftKey)).not.toBeNull();
     expect(screen.getByLabelText('Selection academic year')).toBeDisabled();
@@ -689,12 +701,38 @@ describe('unsent draft recovery', () => {
     render(<SavedReferenceSelectionEditor {...props} />);
     await open();
     const restore = screen.getByRole('button', { name: 'Restore unsent draft' });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    const confirmDiscard = screen.getByRole('button', { name: 'Discard this draft' });
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+      fireEvent.click(confirmDiscard);
       fireEvent.click(restore);
     });
     expect(read).toHaveBeenCalledTimes(1);
     expect(sessionStorage.getItem(draftKey)).toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('requires confirmation before discarding an unsent draft', async () => {
+    sessionStorage.setItem(draftKey, JSON.stringify(storedDraft()));
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    expect(
+      screen.getByRole('group', { name: 'Confirm discarding the unsent draft' }),
+    ).toBeInTheDocument();
+    expect(sessionStorage.getItem(draftKey)).not.toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('keeps the unsent draft when the discard confirmation is dismissed with Escape', async () => {
+    sessionStorage.setItem(draftKey, JSON.stringify(storedDraft()));
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard unsent draft' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(
+      screen.queryByRole('group', { name: 'Confirm discarding the unsent draft' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Discard unsent draft' })).toBeInTheDocument();
+    expect(sessionStorage.getItem(draftKey)).not.toBeNull();
     expect(save).not.toHaveBeenCalled();
   });
 });
@@ -716,21 +754,52 @@ describe('saved course display order', () => {
   it('disables boundaries and moves both directions without losing or duplicating courses', async () => {
     render(<SavedReferenceSelectionEditor {...props} />);
     await open();
-    expect(screen.getByRole('button', { name: 'Move selected course 1 up' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move selected course 1 down' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move up selected course 1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move down selected course 1' })).toBeDisabled();
     addSecondCourse();
-    expect(screen.getByRole('button', { name: 'Move selected course 1 up' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move selected course 2 down' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move selected course 1 down' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Move selected course 2 up' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Move selected course 1 down' }));
+    expect(screen.getByRole('button', { name: 'Move up selected course 1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move down selected course 2' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move down selected course 1' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Move up selected course 2' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move down selected course 1' }));
     expect(retainedOrder()).toEqual([extraSelectionCourseId, savedCourseId]);
     expect(listedCourses()).toEqual(['CS102 — Second course', 'CS101 — Reference course']);
-    fireEvent.click(screen.getByRole('button', { name: 'Move selected course 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move up selected course 2' }));
     expect(retainedOrder()).toEqual([savedCourseId, extraSelectionCourseId]);
     expect(listedCourses()).toEqual(['CS101 — Reference course', 'CS102 — Second course']);
     expect(screen.getByText(/does not change academic chronology/)).toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it('returns focus to the reload control after the selection is read again', async () => {
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    const pending = deferred<OwnStudyPlanReferenceSelectionStateDTO>();
+    read.mockReturnValueOnce(pending.promise);
+    const reload = screen.getByRole('button', { name: 'Reload selection for editing' });
+    reload.focus();
+    fireEvent.click(reload);
+    await waitFor(() => expect(reload).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pending.resolve(referenceSelectionState()));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload selection for editing' })).toBeEnabled(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(reload));
+  });
+
+  it('names the list controls so their visible text is part of the name', async () => {
+    render(<SavedReferenceSelectionEditor {...props} />);
+    await open();
+    const controls = screen.getAllByRole('button', { name: /selected course/ });
+    expect(controls.length).toBeGreaterThan(0);
+    for (const control of controls) {
+      const visible = (control.textContent ?? '').trim();
+      const name = control.getAttribute('aria-label') ?? '';
+      expect(name.startsWith(visible)).toBe(true);
+    }
   });
 
   it('erases checked evidence after reordering without automatically checking or saving', async () => {
@@ -743,7 +812,7 @@ describe('saved course display order', () => {
     addSecondCourse();
     fireEvent.click(screen.getByRole('button', { name: 'Check proposed courses' }));
     await screen.findByText(/0 of 2 proposed courses have blockers/);
-    fireEvent.click(screen.getByRole('button', { name: 'Move selected course 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move up selected course 2' }));
     expect(screen.queryByText(/proposed courses have blockers/)).not.toBeInTheDocument();
     expect(previewReferenceSelection).toHaveBeenCalledTimes(1);
     expect(save).not.toHaveBeenCalled();
@@ -760,12 +829,12 @@ describe('saved course display order', () => {
     await open();
     slot();
     addSecondCourse();
-    fireEvent.click(screen.getByRole('button', { name: 'Move selected course 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move up selected course 2' }));
     view.unmount();
     render(<SavedReferenceSelectionEditor {...props} />);
     await open();
     expect(listedCourses()).toEqual(['CS101 — Reference course']);
-    expect(screen.getByRole('button', { name: 'Move selected course 1 down' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move down selected course 1' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Restore unsent draft' }));
     await screen.findByText(/Unsent draft restored after checking/);
     expect(listedCourses()).toEqual(['CS102 — Second course', 'CS101 — Reference course']);
@@ -780,16 +849,16 @@ describe('saved course display order', () => {
     await open();
     slot();
     addSecondCourse();
-    fireEvent.click(screen.getByRole('button', { name: 'Move selected course 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move up selected course 2' }));
     submit();
     const submitted = save.mock.calls[0][1];
     expect(submitted.courseIds).toEqual([extraSelectionCourseId, savedCourseId]);
-    expect(screen.getByRole('button', { name: 'Move selected course 1 down' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move selected course 2 up' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Move selected course 1 down' }));
+    expect(screen.getByRole('button', { name: 'Move down selected course 1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move up selected course 2' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move down selected course 1' }));
     await act(async () => first.reject(new Error('lost reply')));
     await screen.findByText(/Could not confirm whether this selection was saved/);
-    expect(screen.getByRole('button', { name: 'Move selected course 1 down' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move down selected course 1' })).toBeDisabled();
     expect(JSON.parse(sessionStorage.getItem(key)!).body).toEqual(submitted);
     read.mockResolvedValue(referenceSelectionState(1));
     fireEvent.click(screen.getByRole('button', { name: 'Retry the same save' }));
@@ -810,14 +879,14 @@ describe('saved course display order', () => {
       target: { value: referenceId },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Add course' }));
-    const thirdUp = screen.getByRole('button', { name: 'Move selected course 3 up' });
-    const firstDown = screen.getByRole('button', { name: 'Move selected course 1 down' });
+    const thirdUp = screen.getByRole('button', { name: 'Move up selected course 3' });
+    const firstDown = screen.getByRole('button', { name: 'Move down selected course 1' });
     act(() => {
       fireEvent.click(firstDown);
       fireEvent.click(thirdUp);
     });
     expect(retainedOrder()).toEqual([extraSelectionCourseId, savedCourseId, referenceId]);
-    const staleUp = screen.getByRole('button', { name: 'Move selected course 2 up' });
+    const staleUp = screen.getByRole('button', { name: 'Move up selected course 2' });
     act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Remove selected course 1' }));
       fireEvent.click(staleUp);
@@ -834,11 +903,11 @@ describe('saved course display order', () => {
     const refresh = deferred<ReturnType<typeof referenceSelectionState>>();
     read.mockReturnValueOnce(refresh.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Reload selection for editing' }));
-    expect(screen.getByRole('button', { name: 'Move selected course 1 down' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move selected course 2 up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move down selected course 1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move up selected course 2' })).toBeDisabled();
     await act(async () => refresh.resolve(referenceSelectionState(0)));
     await screen.findByRole('button', { name: 'Restore unsent draft' });
-    expect(screen.getByRole('button', { name: 'Move selected course 1 down' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move down selected course 1' })).toBeDisabled();
     expect(retainedOrder()).toEqual([savedCourseId, extraSelectionCourseId]);
     expect(save).not.toHaveBeenCalled();
   });

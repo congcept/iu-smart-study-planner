@@ -1,16 +1,29 @@
 import '@testing-library/jest-dom/vitest';
+import { useEffect, useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { getStudentGrades } from '@/lib/gradesApi';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { GradeDashboard } from '../GradeDashboard';
 const entry = vi.hoisted(() => ({
   onSaved: undefined as undefined | ((saved: StudentGradesDTO) => void),
+  mounts: 0,
 }));
 vi.mock('../GradeEntry', () => ({
   GradeEntry: ({ onSaved }: { onSaved: (saved: StudentGradesDTO) => void }) => {
     entry.onSaved = onSaved;
-    return null;
+    const [score, setScore] = useState('');
+    useEffect(() => {
+      entry.mounts++;
+    }, []);
+    return (
+      <input
+        aria-label="Draft score"
+        value={score}
+        onChange={(event) => setScore(event.target.value)}
+      />
+    );
   },
 }));
 vi.mock('@/lib/gradesApi', () => ({ getStudentGrades: vi.fn() }));
@@ -221,6 +234,21 @@ describe('numeric grade dashboard', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading your grades');
     await act(async () => pending.resolve(empty));
   });
+  it('keeps an existing entry mounted during a grade reload', async () => {
+    const { rerender } = render(<GradeDashboard userId="one" />);
+    await screen.findByText('No scores yet');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft score' }), {
+      target: { value: '87' },
+    });
+    const before = entry.mounts;
+    const pending = deferred<StudentGradesDTO>();
+    getGrades.mockReturnValueOnce(pending.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    expect(screen.getByRole('textbox', { name: 'Draft score' })).toHaveValue('87');
+    expect(entry.mounts).toBe(before);
+    await act(async () => pending.resolve(empty));
+    rerender(<GradeDashboard userId="one" />);
+  });
   it('distinguishes no grades from a zero GPA and preserves legacy grade wording', async () => {
     render(<GradeDashboard userId="one" />);
     expect(await screen.findByText('No scores yet')).toBeInTheDocument();
@@ -264,6 +292,30 @@ describe('numeric grade dashboard', () => {
     expect(await screen.findByText('90.00')).toBeInTheDocument();
     expect(getGrades).toHaveBeenCalledTimes(2);
   });
+  it('keeps the loaded grades visible and reports a failed reload', async () => {
+    getGrades.mockResolvedValueOnce(scored).mockRejectedValueOnce(new Error('offline'));
+    render(<GradeDashboard userId="one" />);
+    expect(await screen.findByText('90.00')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your grades');
+    expect(screen.getByText('90.00')).toBeInTheDocument();
+    expect(screen.getByText(/last successful load/)).toBeInTheDocument();
+  });
+  it('names an expired session when the reload is refused', async () => {
+    getGrades.mockResolvedValueOnce(scored).mockRejectedValueOnce(
+      Object.assign(new Error('Unauthorized'), {
+        isAxiosError: true,
+        response: { status: 401, data: { success: false, error: 'Unauthorized' } },
+      }),
+    );
+    render(<GradeDashboard userId="one" />);
+    expect(await screen.findByText('90.00')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your session expired. Sign out and sign in again.',
+    );
+    expect(screen.getByText('90.00')).toBeInTheDocument();
+  });
   it('ignores an old account response after account changes', async () => {
     const old = deferred<StudentGradesDTO>();
     getGrades.mockReturnValueOnce(old.promise).mockResolvedValueOnce(empty);
@@ -293,5 +345,41 @@ describe('numeric grade dashboard', () => {
     unmount();
     await act(async () => pending.resolve(scored));
     await waitFor(() => expect(screen.queryByText('90.00')).not.toBeInTheDocument());
+  });
+
+  it('returns focus to Reload grades when the reload finishes', async () => {
+    getGrades.mockResolvedValueOnce(scored);
+    render(<GradeDashboard userId="one" />);
+    expect(await screen.findByText('90.00')).toBeInTheDocument();
+    const pendingRead = deferred<StudentGradesDTO>();
+    getGrades.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload grades' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload grades' })).toBeEnabled(),
+    );
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(scored));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+
+  it('puts focus on the failure message when the failed-load button is replaced', async () => {
+    getGrades
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'));
+    render(<GradeDashboard userId="one" />);
+    const retry = await screen.findByRole('button', { name: 'Reload grades' });
+    retry.focus();
+    act(() => {
+      fireEvent.click(retry);
+      retry.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent('Could not load your grades');
   });
 });

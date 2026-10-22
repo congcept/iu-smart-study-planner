@@ -79,6 +79,23 @@ afterEach(() => {
 });
 
 describe('saved simulation capture panel', () => {
+  it('keeps focus on mount recovery and announces a capture requested by the user', async () => {
+    seed(allocationRun().id);
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await screen.findByRole('heading', { name: 'Last capture in this tab' });
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(screen.getByRole('button', { name: 'Capture another run' }));
+    const heading = await screen.findByRole('heading', { name: 'Last capture in this tab' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('starts without a capture request and explains saved settings versus unsaved edits', async () => {
     mount();
     await ready();

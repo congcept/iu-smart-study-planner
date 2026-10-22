@@ -6,9 +6,10 @@ import {
   type ResourceScopeDTO,
   type SemesterAllocationPreviewDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
+import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import { getSemesterAllocationPreview } from '@/lib/semesterAllocationApi';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = {
   userId: string;
@@ -16,7 +17,6 @@ type Props = {
   resourceRevision: number | null;
   courses?: ReadonlyArray<{ id: string; code: string; name: string }>;
 };
-class AdminSessionChanged extends Error {}
 
 export function SemesterAllocationPreviewPanel(props: Props) {
   const owner = props.userId.toLowerCase();
@@ -36,12 +36,9 @@ function SemesterReport({ userId, scope, resourceRevision, courses }: Props) {
   const busy = useRef(false);
   const [report, setReport] = useState<SemesterAllocationPreviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [error, setError] = useState('');
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const load = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
@@ -117,7 +114,10 @@ function SemesterReport({ userId, scope, resourceRevision, courses }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void load()}
+        onClick={() => {
+          rememberFocus();
+          void load();
+        }}
       >
         Reload semester preview
       </Button>
@@ -126,9 +126,7 @@ function SemesterReport({ userId, scope, resourceRevision, courses }: Props) {
           Loading semester preview…
         </p>
       ) : error ? (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
+        <ErrorBanner>{error}</ErrorBanner>
       ) : (
         report &&
         result &&
@@ -141,43 +139,34 @@ function SemesterReport({ userId, scope, resourceRevision, courses }: Props) {
               per student. The {semester.toLowerCase()} {year} scenario does not confirm official
               course offerings.
             </p>
-            <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-              {[
+            <MetricList
+              layout="grid"
+              items={[
                 ['Students with assignments', result.assignedStudentCount],
                 ['Course assignments', result.assignedCourseCount],
                 ['Total reference target credits', result.totalTargetCredits],
                 ['Assigned credits', result.totalAssignedCredits],
                 ['Credits left unassigned', result.totalRemainingCredits],
                 ['Simulated rounds', result.rounds],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-baseline justify-between gap-4 border-b border-gray-200 pb-2"
-                >
-                  <dt className="text-gray-700">{label}</dt>
-                  <dd className="font-semibold tabular-nums text-gray-900">{value}</dd>
-                </div>
-              ))}
-            </dl>
+              ].map(([label, value]) => ({ key: String(label), label, value }))}
+            />
             <div>
               <h4 className="font-medium text-gray-900">Why each student stopped</h4>
-              <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-                {[
-                  ['Reached reference target', result.stopReasonCounts.TARGET_REACHED],
-                  ['No remaining eligible choices', result.stopReasonCounts.NO_REMAINING_CHOICES],
-                  ['Choices exceed remaining credit budget', result.stopReasonCounts.CREDIT_LIMIT],
-                  ['Resource settings missing', result.stopReasonCounts.RESOURCE_UNKNOWN],
-                  ['Shared capacity exhausted', result.stopReasonCounts.CAPACITY_EXHAUSTED],
-                ].map(([label, value]) => (
-                  <div
-                    key={label}
-                    className="flex items-baseline justify-between gap-4 border-b border-gray-200 pb-2"
-                  >
-                    <dt className="text-gray-700">{label}</dt>
-                    <dd className="font-semibold tabular-nums text-gray-900">{value}</dd>
-                  </div>
-                ))}
-              </dl>
+              <div className="mt-3">
+                <MetricList
+                  layout="grid"
+                  items={[
+                    ['Reached reference target', result.stopReasonCounts.TARGET_REACHED],
+                    ['No remaining eligible choices', result.stopReasonCounts.NO_REMAINING_CHOICES],
+                    [
+                      'Choices exceed remaining credit budget',
+                      result.stopReasonCounts.CREDIT_LIMIT,
+                    ],
+                    ['Resource settings missing', result.stopReasonCounts.RESOURCE_UNKNOWN],
+                    ['Shared capacity exhausted', result.stopReasonCounts.CAPACITY_EXHAUSTED],
+                  ].map(([label, value]) => ({ key: String(label), label, value }))}
+                />
+              </div>
             </div>
             {result.studentCount === 0 && (
               <p className="text-sm text-gray-600">

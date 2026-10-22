@@ -10,6 +10,7 @@ import {
   SavedStudyPlanSemestersSessionChangedError,
 } from '@/lib/savedStudyPlanSemestersApi';
 import { ownerId, referenceId } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SavedStudyPlanSemestersPanel } from '../SavedStudyPlanSemestersPanel';
 
 vi.mock('@/lib/savedStudyPlanSemestersApi', async (original) => ({
@@ -89,6 +90,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('saved plan semester references', () => {
+  it('focuses the detail heading on entry but not on subsequent reads', async () => {
+    render(panel());
+    expect(screen.getByRole('heading', { name: 'Saved plan semester references' })).toHaveFocus();
+    await screen.findByRole('button', { name: /View courses for Spring 2026/ });
+    const backButton = screen.getByRole('button', { name: 'Back to saved plans' });
+    backButton.focus();
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByRole('button', { name: /View courses for Spring 2026/ });
+    expect(backButton).toHaveFocus();
+  });
   it('opens the selected semester and returns through a fresh metadata read', async () => {
     const pending = deferred<OwnStudyPlanSemestersDTO>();
     read.mockResolvedValueOnce(page()).mockReturnValueOnce(pending.promise);
@@ -98,10 +109,12 @@ describe('saved plan semester references', () => {
     expect(screen.getByTestId('selected-context')).toHaveTextContent('unassigned');
     expect(screen.queryByText('Stored credit total: 1 · not verified')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back to saved semesters' }));
+    expect(screen.getByRole('heading', { name: 'Saved plan semester references' })).toHaveFocus();
     expect(screen.queryByTestId('selected-semester')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Loading saved semester references');
     await act(async () => pending.resolve(page([semester(2)])));
     expect(await screen.findByText('Stored credit total: 2 · not verified')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Saved plan semester references' })).toHaveFocus();
   });
   it('rejects a batched old course-selection event after focus refresh begins', async () => {
     const pending = deferred<OwnStudyPlanSemestersDTO>();
@@ -262,4 +275,40 @@ describe('saved plan semester references', () => {
       expect(screen.getByRole('button', { name: 'Back to saved plans' })).toBeEnabled();
     },
   );
+
+  it('returns focus to Reload saved semesters when the read finishes', async () => {
+    render(panel());
+    await screen.findByRole('button', { name: /View courses for Spring 2026/ });
+    const pendingRead = deferred<OwnStudyPlanSemestersDTO>();
+    read.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved semesters' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload saved semesters' })).toBeEnabled(),
+    );
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(page()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+
+  it('puts focus on the failure message when a retry button is replaced', async () => {
+    read.mockRejectedValueOnce(new Error('offline'));
+    render(panel());
+    const retry = await screen.findByRole('button', { name: 'Retry saved semesters' });
+    read.mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    act(() => {
+      fireEvent.click(retry);
+      retry.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent(
+      'Could not confirm the saved semester references',
+    );
+  });
 });

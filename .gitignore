@@ -231,8 +231,22 @@ temp/
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # ============================================================================
+# THESIS DOCUMENTATION
+# ============================================================================
+documentation/
+
+# ============================================================================
 # PROJECT SPECIFIC
 # ============================================================================
+# Personal learning journal, roadmap and scratch work (never committed)
+.learning/
+
+# Local agent tooling configuration and installed skills
+.opencode/
+
+# Personal thesis formatting reference (local copy, not source)
+Thesis_Format_Guideline.docx
+
 # Keep these!
 !.github/
 !.vscode/extensions.json

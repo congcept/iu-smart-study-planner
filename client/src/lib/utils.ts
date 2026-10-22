@@ -52,6 +52,10 @@ export const formatCredits = (credits: number): string => {
   return `${credits} ${credits === 1 ? 'credit' : 'credits'}`;
 };
 
+export const formatCount = (count: number, singular: string, plural: string): string => {
+  return `${count} ${count === 1 ? singular : plural}`;
+};
+
 export const formatSemester = (semester: string, year: number): string => {
   return `${semesterLabels[semester] || semester} ${year}`;
 };

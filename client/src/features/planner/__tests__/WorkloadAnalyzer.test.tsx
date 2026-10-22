@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analyzeWorkload } from '@/lib/api';
 import type { ApiResponse, Course, WorkloadAnalysis } from '@/types';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { WorkloadAnalyzer } from '../WorkloadAnalyzer';
 
 vi.mock('@/lib/api', () => ({ analyzeWorkload: vi.fn() }));
@@ -46,10 +47,65 @@ function calculate() {
     screen.getByRole('button', { name: /^(Analyze|Calculate estimate|Retry analysis)$/i }),
   );
 }
+const riskBands = [
+  { riskLevel: 'LOW', label: 'Lower estimate', severity: 'bg-green-100' },
+  { riskLevel: 'MEDIUM', label: 'Moderate estimate', severity: 'bg-blue-100' },
+  { riskLevel: 'HIGH', label: 'Higher estimate', severity: 'bg-yellow-100' },
+  { riskLevel: 'CRITICAL', label: 'Highest estimate', severity: 'bg-red-100' },
+] as const satisfies ReadonlyArray<{
+  riskLevel: WorkloadAnalysis['riskLevel'];
+  label: string;
+  severity: string;
+}>;
 beforeEach(() => {
   vi.resetAllMocks();
 });
 afterEach(cleanup);
+
+describe('focus while analysis is in flight', () => {
+  it.each([false, true])(
+    'restores focus only when it is stranded (focus moved: %s)',
+    async (moveFocus) => {
+      const request = pending();
+      vi.mocked(analyzeWorkload).mockReturnValue(request.promise);
+      render(
+        <>
+          <WorkloadAnalyzer selectedCourses={[course('A')]} />
+          <a href="/elsewhere">Elsewhere</a>
+        </>,
+      );
+      const target = screen.getByRole('button', { name: 'Calculate estimate' });
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Calculate estimate' })).toBeEnabled(),
+      );
+      target.focus();
+      fireEvent.click(target);
+      await waitFor(() => expect(target).toBeDisabled());
+      dropFocusToBody();
+      expect(target).not.toHaveFocus();
+      expect(document.activeElement).toBe(document.body);
+      const elsewhere = screen.getByRole('link', { name: 'Elsewhere' });
+      if (moveFocus) elsewhere.focus();
+
+      await act(async () => request.resolve(response()));
+
+      expect(target).toBeEnabled();
+      expect(document.activeElement).toBe(moveFocus ? elsewhere : target);
+    },
+  );
+
+  it('announces the server estimate through the existing summary', async () => {
+    vi.mocked(analyzeWorkload).mockResolvedValue(response());
+    render(<WorkloadAnalyzer selectedCourses={[course('A')]} />);
+    calculate();
+
+    const summary = await screen.findByText(/^Server estimate:/);
+    expect(summary).toHaveAttribute('role', 'status');
+    expect(summary.tagName).toBe('P');
+    expect(summary).toHaveTextContent('Server estimate: 7 credits');
+    expect(screen.getAllByText(/Server estimate:/)).toEqual([summary]);
+  });
+});
 
 describe('selected-course workload analysis', () => {
   it('shows rating estimates and their actual counts instead of the seed difficulty', () => {
@@ -94,6 +150,13 @@ describe('selected-course workload analysis', () => {
       expect(screen.queryByText('Difficulty 2.5 / 5')).toBeNull();
     },
   );
+
+  it('counts a single selected course in the singular', () => {
+    render(<WorkloadAnalyzer selectedCourses={[course('A', { credits: 1 })]} />);
+
+    expect(screen.getByText('1 selected course · 1 credit')).toBeVisible();
+    expect(screen.queryByText(/1 selected courses/)).toBeNull();
+  });
 
   it('uses authoritative server numbers and includes physical training in the selected request', async () => {
     vi.mocked(analyzeWorkload).mockResolvedValue(response());
@@ -141,6 +204,45 @@ describe('selected-course workload analysis', () => {
     expect(screen.getByRole('region', { name: 'Workload result' })).toHaveTextContent('29.9');
     expect(screen.queryByText('11.1')).toBeNull();
     expect(analyzeWorkload).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(riskBands)(
+    'signals $riskLevel severity with a distinct colour and readable text',
+    async ({ riskLevel, label, severity }) => {
+      vi.mocked(analyzeWorkload).mockResolvedValue({
+        ...response(),
+        data: { ...response().data!, riskLevel },
+      });
+      render(<WorkloadAnalyzer selectedCourses={[course('A')]} />);
+      calculate();
+      const result = await screen.findByRole('region', { name: 'Workload result' });
+      const band = within(result).getByText(label);
+      expect(band).toBeVisible();
+      expect(band.className).toContain(severity);
+    },
+  );
+
+  it('never renders two risk bands with the same severity colour', async () => {
+    const mock = vi.mocked(analyzeWorkload);
+    for (const band of riskBands) {
+      mock.mockResolvedValueOnce({
+        ...response(),
+        data: { ...response().data!, riskLevel: band.riskLevel },
+      });
+    }
+    render(
+      <div>
+        {riskBands.map((band) => (
+          <WorkloadAnalyzer key={band.riskLevel} selectedCourses={[course(band.riskLevel)]} />
+        ))}
+      </div>,
+    );
+    for (const button of screen.getAllByRole('button', { name: 'Calculate estimate' }))
+      fireEvent.click(button);
+    for (const band of riskBands) await screen.findByText(band.label);
+    const colours = riskBands.map((band) => screen.getByText(band.label).className);
+    expect(new Set(colours).size).toBe(riskBands.length);
+    expect(analyzeWorkload).toHaveBeenCalledTimes(riskBands.length);
   });
 
   it('invalidates an A-to-B-to-A request even though the final course IDs match', async () => {
@@ -266,5 +368,14 @@ describe('selected-course workload analysis', () => {
     await act(async () => stale.resolve(response(11.1)));
     expect(screen.getByRole('region', { name: 'Workload result' })).toHaveTextContent('22.2');
     expect(screen.queryByText('11.1')).toBeNull();
+  });
+});
+
+describe('selected course list accessibility', () => {
+  it('exposes the scrollable course list as a named keyboard-focusable region with a hint', () => {
+    render(<WorkloadAnalyzer selectedCourses={[course('A')]} />);
+    const list = screen.getByRole('region', { name: 'Selected courses' });
+    expect(list).toHaveAttribute('tabindex', '0');
+    expect(screen.getByText(/Use the arrow keys to scroll/)).toBeInTheDocument();
   });
 });

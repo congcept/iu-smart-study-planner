@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OwnStudyPlanCoursesDTO } from '@iu-study-planner/shared';
 import {
@@ -19,6 +19,7 @@ import {
   previewReferenceSelection,
 } from '@/lib/savedStudyPlanReferenceSelectionApi';
 import { referenceSelectionState } from '@/test/fixtures/savedReferenceSelection';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SavedStudyPlanCoursesPanel } from '../SavedStudyPlanCoursesPanel';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 
@@ -60,6 +61,16 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('saved semester course references', () => {
+  it('focuses the detail heading on entry without stealing focus on refresh', async () => {
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    expect(screen.getByRole('heading', { name: 'Saved semester course references' })).toHaveFocus();
+    await screen.findByRole('button', { name: 'Edit saved course selection' });
+    const backButton = screen.getByRole('button', { name: 'Back to saved semesters' });
+    backButton.focus();
+    act(() => window.dispatchEvent(new Event('focus')));
+    await screen.findByRole('button', { name: 'Edit saved course selection' });
+    expect(backButton).toHaveFocus();
+  });
   it('hides parent course evidence when a proposed-course check loses its session', async () => {
     const current = referenceSelectionState(0);
     read.mockResolvedValue(current.snapshot);
@@ -325,5 +336,39 @@ describe('saved semester course references', () => {
     render(<SavedStudyPlanCoursesPanel {...props} />);
     await screen.findByRole('alert');
     expect(screen.queryByRole('button', { name: 'Retry saved courses' })).not.toBeInTheDocument();
+  });
+
+  it('returns focus to Reload saved courses when the read finishes', async () => {
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    await screen.findByRole('button', { name: 'Edit saved course selection' });
+    const pendingRead = deferred();
+    read.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved courses' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload saved courses' })).toBeEnabled(),
+    );
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(savedCourseFixture()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+
+  it('puts focus on the failure message when a retry button is replaced', async () => {
+    read.mockRejectedValueOnce(new Error('offline'));
+    render(<SavedStudyPlanCoursesPanel {...props} />);
+    const retry = await screen.findByRole('button', { name: 'Retry saved courses' });
+    read.mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    act(() => {
+      fireEvent.click(retry);
+      retry.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent('Could not confirm saved course references');
   });
 });

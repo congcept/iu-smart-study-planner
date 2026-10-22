@@ -6,6 +6,7 @@ import type { AuthUserDTO } from '@iu-study-planner/shared';
 import App from '@/App';
 import * as api from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 
 vi.mock('@/lib/api', () => ({
   healthCheck: vi.fn(),
@@ -119,6 +120,27 @@ describe('authentication screens and session routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Demo student' }));
     expect(await screen.findByText(student.name)).toBeInTheDocument();
   });
+  it('keeps a failed sign-in inside the form by focusing the error message', async () => {
+    vi.mocked(api.login).mockRejectedValue(httpError(401, 'Email or password is incorrect'));
+    render(<App />);
+    await screen.findByLabelText('Email');
+    fillCredentials();
+    submit('Sign in');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not sign in');
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+  });
+
+  it('focuses the demo failure message instead of dropping focus to the page', async () => {
+    vi.mocked(api.getDemoLoginStatus).mockResolvedValue({ enabled: true });
+    vi.mocked(api.demoLogin).mockRejectedValue(httpError(404, 'Demo login is unavailable'));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Demo student' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Demo sign-in is unavailable');
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+  });
+
   it('waits for session lookup before redirecting protected content to sign in', async () => {
     let rejectSession: (error: Error) => void = () => {};
     vi.mocked(api.getSession).mockReturnValue(
@@ -262,6 +284,19 @@ describe('authentication screens and session routing', () => {
     expect(screen.queryByText(student.name)).toBeNull();
   });
 
+  it('stops offering sign-in links while the session check cannot be answered', async () => {
+    vi.mocked(api.getSession).mockRejectedValue(new Error('Network unavailable'));
+    render(<App />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not check whether you are signed in',
+    );
+    // The panel replaces every route, so a header link to /login would change the
+    // URL and nothing else. Offering it there is worse than hiding it.
+    expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  });
+
   it('offers retry for a server failure instead of treating it as an expired session', async () => {
     vi.mocked(api.getSession)
       .mockRejectedValueOnce(new Error('Network unavailable'))
@@ -305,5 +340,54 @@ describe('authentication screens and session routing', () => {
     await waitFor(() => expect(screen.getByText(student.name)).toBeInTheDocument());
     expect(window.location.pathname).toBe('/curriculum');
     expect(useAppStore.getState().progressOwnerId).toBe(student.id);
+  });
+
+  it('moves focus back to the page when the session check recovers', async () => {
+    vi.mocked(api.getSession)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(student);
+    window.history.replaceState({}, '', '/curriculum');
+    render(<App />);
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull());
+    expect(document.activeElement).toBe(document.getElementById('main-content'));
+  });
+
+  it('moves focus back to the page when the connection banner recovers', async () => {
+    vi.mocked(api.healthCheck)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ success: true, data: { status: 'ok', timestamp: '' } });
+    render(<App />);
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull());
+    expect(document.activeElement).toBe(document.getElementById('main-content'));
+  });
+
+  it('returns focus to the sign-out control when signing out fails', async () => {
+    vi.mocked(api.getSession).mockResolvedValue(student);
+    let rejectLogout: (error: Error) => void = () => {};
+    vi.mocked(api.logout).mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        rejectLogout = reject;
+      }),
+    );
+    render(<App />);
+    await screen.findByText(student.name);
+    const signOut = screen.getByRole('button', { name: 'Sign out' });
+    await waitFor(() => expect(signOut).toBeEnabled());
+    signOut.focus();
+    fireEvent.click(signOut);
+    await waitFor(() => expect(signOut).toBeDisabled());
+    dropFocusToBody();
+    expect(signOut).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => rejectLogout(httpError(500, 'Could not sign out')));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out');
+    expect(signOut).toBeEnabled();
+    await waitFor(() => expect(document.activeElement).toBe(signOut));
   });
 });

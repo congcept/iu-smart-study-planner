@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError } from 'axios';
 import { previewReferenceSelection } from '@/lib/savedStudyPlanReferenceSelectionApi';
@@ -13,6 +13,7 @@ import {
   extraSelectionCourseId,
 } from '@/test/fixtures/savedReferenceSelection';
 import { referenceId } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { ProposedReferenceSelectionCheck } from '../ProposedReferenceSelectionCheck';
 
 vi.mock('@/lib/savedStudyPlanReferenceSelectionApi', () => ({
@@ -161,5 +162,24 @@ describe('proposed reference course diagnostics', () => {
     await act(async () => first.resolve(proposedSelectionPreview()));
     expect(screen.queryByText(/No blockers found/)).not.toBeInTheDocument();
     expect(props.onInvalidated).not.toHaveBeenCalled();
+  });
+
+  it('returns focus to the check control when the check finishes', async () => {
+    const pendingRead = deferred<Awaited<ReturnType<typeof previewReferenceSelection>>>();
+    preview.mockReturnValueOnce(pendingRead.promise);
+    render(<ProposedReferenceSelectionCheck {...props} />);
+    const target = screen.getByRole('button', { name: 'Check proposed courses' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Check proposed courses' })).toBeEnabled(),
+    );
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(await proposedSelectionPreview(props.input)));
+    await waitFor(() => expect(target).toBeEnabled());
+    expect(document.activeElement).toBe(target);
   });
 });

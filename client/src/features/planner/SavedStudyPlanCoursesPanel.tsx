@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { OwnStudyPlanCoursesSchema, type OwnStudyPlanCoursesDTO } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import {
   getSavedStudyPlanCourses,
   SavedStudyPlanCoursesSessionChangedError,
@@ -35,6 +36,17 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
   const generation = useRef(0);
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const rememberFocus = useFocusAfterDisable(
+    state.status === 'loading',
+    () => errorRef.current ?? heading.current,
+  );
+
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+
   const read = useCallback(async () => {
     if (!mounted.current) return;
     controller.current?.abort();
@@ -103,7 +115,9 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Saved semester course references</h3>
+          <h3 ref={heading} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+            Saved semester course references
+          </h3>
           <p className="mt-2 max-w-prose text-sm text-gray-700">
             Course names are current catalog labels, shown in stored list order. They do not
             establish the original curriculum, prerequisites, GPA eligibility or a valid timetable.
@@ -119,7 +133,10 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
             variant="secondary"
             className="min-h-11"
             disabled={state.status === 'loading'}
-            onClick={() => void read()}
+            onClick={() => {
+              rememberFocus();
+              void read();
+            }}
           >
             Reload saved courses
           </Button>
@@ -131,20 +148,27 @@ function SavedCourseBody({ ownerId, planId, semesterId, expectedCurriculumId, on
         </p>
       )}
       {state.status === 'error' && (
-        <div className="mt-4">
-          <p role="alert" className="text-sm text-red-700">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-4 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
+          <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Return to saved semesters after signing in.'
               : state.unavailable
                 ? 'This saved plan or semester is no longer available. Return to saved semesters and reload.'
                 : 'Could not confirm saved course references. Retry this read or reload.'}
-          </p>
+          </ErrorBanner>
           {!state.account && !state.unavailable && (
             <Button
               type="button"
               variant="secondary"
               className="mt-3 min-h-11"
-              onClick={() => void read()}
+              onClick={() => {
+                rememberFocus();
+                void read();
+              }}
             >
               Retry saved courses
             </Button>

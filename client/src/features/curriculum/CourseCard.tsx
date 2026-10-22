@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { Course } from '@/types';
 import { playLockedSound } from '@/lib/sounds';
 import { CourseRatingBadge } from './CourseRatingBadge';
@@ -9,9 +9,19 @@ interface CourseCardProps {
   isPlanned: boolean;
   isLocked: boolean;
   isRecommended: boolean;
-  disabled?: boolean;
+  /**
+   * Why editing is unavailable. A card that is paused for an unrelated reason
+   * must not present itself as busy, so the reason is explicit rather than a
+   * bare boolean.
+   */
+  disabledReason?: 'progress' | 'pending' | 'gpa-path';
   isHighlighted?: boolean;
-  isBlurred?: boolean;
+  /**
+   * De-emphasised while another card's prerequisite chain is being inspected.
+   * This is a background change, never a text opacity: these cards stay
+   * interactive, so their labels must keep their contrast.
+   */
+  isMuted?: boolean;
   onToggleComplete: (courseId: string) => void;
   onTogglePlanned: (courseId: string) => void;
   onCompleteToPlanned: (courseId: string) => void;
@@ -25,9 +35,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   isPlanned,
   isLocked,
   isRecommended,
-  disabled = false,
+  disabledReason,
   isHighlighted = false,
-  isBlurred = false,
+  isMuted = false,
   onToggleComplete,
   onTogglePlanned,
   onCompleteToPlanned,
@@ -35,6 +45,57 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onPrereqsLeave,
 }) => {
   const [showPrerequisites, setShowPrerequisites] = useState(false);
+  const interaction = useRef({ hovered: false, focused: false, highlighted: false });
+
+  const updatePrereqsHighlight = (source: 'hovered' | 'focused', active: boolean) => {
+    interaction.current[source] = active;
+    const highlighted = isLocked && (interaction.current.hovered || interaction.current.focused);
+    if (highlighted === interaction.current.highlighted) return;
+    interaction.current.highlighted = highlighted;
+    if (highlighted) {
+      onPrereqsHover?.(course.prerequisites.map((p) => p.prerequisiteId));
+    } else {
+      onPrereqsLeave?.();
+    }
+  };
+
+  const disabled = disabledReason !== undefined;
+  const completeButtonRef = useRef<HTMLButtonElement>(null);
+  const planButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusTarget = useRef<'complete' | 'plan' | null>(null);
+  // A save in flight disables every card's controls. Disabling the control the
+  // user just activated moves focus to <body>, which in a map of a hundred-odd
+  // cards costs them their place entirely. Remember which control had focus so
+  // it can be handed back once saving finishes.
+  const rememberFocus = useCallback((target: 'complete' | 'plan') => {
+    const ref = target === 'complete' ? completeButtonRef : planButtonRef;
+    restoreFocusTarget.current = document.activeElement === ref.current ? target : null;
+  }, []);
+
+  useEffect(() => {
+    if (disabled) return;
+    const target = restoreFocusTarget.current;
+    if (!target) return;
+    restoreFocusTarget.current = null;
+    // Only claim focus back when it is genuinely stranded, never steal it from
+    // somewhere the user has deliberately moved on to.
+    if (document.activeElement !== document.body) return;
+    (target === 'complete' ? completeButtonRef : planButtonRef).current?.focus({
+      preventScroll: true,
+    });
+  }, [disabled]);
+
+  const disabledNoteId = useId();
+  // Only a genuine in-flight save reads as busy. A card paused because progress
+  // or the GPA path is unresolved is simply unavailable.
+  const disabledNote =
+    disabledReason === 'pending'
+      ? 'Saving another course right now. Try again once the save finishes.'
+      : disabledReason === 'progress'
+        ? 'Editing is paused until your saved progress finishes loading.'
+        : disabledReason === 'gpa-path'
+          ? 'Editing is paused until your GPA path is confirmed.'
+          : undefined;
 
   const handleClick = useCallback(() => {
     if (disabled) return;
@@ -42,21 +103,27 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       playLockedSound();
       setShowPrerequisites((open) => !open);
     } else {
+      rememberFocus('complete');
       onToggleComplete(course.id);
     }
-  }, [course.id, disabled, isLocked, onToggleComplete]);
+  }, [course.id, disabled, isLocked, onToggleComplete, rememberFocus]);
+
+  const handlePlan = useCallback(() => {
+    if (disabled) return;
+    rememberFocus('plan');
+    if (isCompleted) {
+      onCompleteToPlanned(course.id);
+    } else {
+      onTogglePlanned(course.id);
+    }
+  }, [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned, rememberFocus]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      if (disabled) return;
-      if (isCompleted) {
-        onCompleteToPlanned(course.id);
-      } else {
-        onTogglePlanned(course.id);
-      }
+      handlePlan();
     },
-    [course.id, disabled, isCompleted, onTogglePlanned, onCompleteToPlanned],
+    [handlePlan],
   );
 
   let borderColor = 'border-gray-300';
@@ -79,39 +146,42 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   return (
     <div
       onContextMenu={handleContextMenu}
-      onMouseEnter={() => {
-        if (isLocked && onPrereqsHover) {
-          onPrereqsHover(course.prerequisites.map((p) => p.prerequisiteId));
-        }
+      onMouseEnter={() => updatePrereqsHighlight('hovered', true)}
+      onMouseLeave={() => updatePrereqsHighlight('hovered', false)}
+      onFocus={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        updatePrereqsHighlight('focused', true);
       }}
-      onMouseLeave={() => {
-        if (onPrereqsLeave) {
-          onPrereqsLeave();
-        }
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        updatePrereqsHighlight('focused', false);
       }}
       className={`
-        bg-white rounded-md border-2 px-2 py-1.5 transition-colors
+        rounded-md border-2 px-2 py-1.5 transition-colors
+        ${isMuted ? 'bg-gray-100' : 'bg-white'}
         ${isHighlighted ? 'ring-2 ring-violet-500' : ''}
-        ${isBlurred ? 'opacity-40' : ''}
         ${borderColor}
       `}
     >
       <button
         type="button"
+        ref={completeButtonRef}
         disabled={disabled}
         onClick={handleClick}
         onKeyDown={(event) => {
           if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
             event.preventDefault();
-            if (disabled || event.repeat) return;
-            if (isCompleted) onCompleteToPlanned(course.id);
-            else onTogglePlanned(course.id);
+            if (event.repeat) return;
+            handlePlan();
           }
         }}
-        aria-label={`${course.code} ${course.name}: ${isLocked ? 'Show prerequisites' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
+        aria-label={`${course.code} ${course.credits} cr ${course.name} ${status}${isLocked ? ' · prerequisites' : ''}: ${isLocked ? 'Show prerequisites' : isCompleted ? 'Mark incomplete' : 'Mark complete'}`}
         aria-pressed={isLocked ? undefined : isCompleted}
         aria-expanded={isLocked ? showPrerequisites : undefined}
-        className="min-h-11 w-full cursor-pointer rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 disabled:cursor-wait"
+        aria-describedby={disabledNote ? disabledNoteId : undefined}
+        className={`min-h-11 w-full cursor-pointer rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
+          disabledReason === 'pending' ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed'
+        }`}
       >
         <span className="flex items-center justify-between gap-1 text-[11px] leading-tight">
           <span className="flex min-w-0 items-center gap-1 font-semibold text-gray-700">
@@ -121,12 +191,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
             )}
             <span className="truncate">{course.code}</span>
-          </span>
+          </span>{' '}
           <span className="shrink-0 text-gray-600">{course.credits} cr</span>
-        </span>
+        </span>{' '}
         <span className="mt-0.5 block break-words text-xs font-medium leading-snug text-gray-900">
           {course.name}
-        </span>
+        </span>{' '}
         <span
           className={`mt-0.5 block text-[11px] font-semibold leading-tight ${
             isCompleted
@@ -143,7 +213,29 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         </span>
       </button>
 
-      <CourseRatingBadge course={course} compact />
+      <div className="flex items-center justify-between gap-1">
+        <CourseRatingBadge course={course} compact />
+        <button
+          type="button"
+          ref={planButtonRef}
+          disabled={disabled}
+          onClick={handlePlan}
+          aria-label={`${isPlanned ? 'Unplan ' : ''}${course.code} ${course.name}: ${isCompleted ? 'Move to plan' : isPlanned ? 'Remove from plan' : 'Add to plan'}`}
+          aria-pressed={isPlanned}
+          aria-describedby={disabledNote ? disabledNoteId : undefined}
+          className={`min-h-11 min-w-11 shrink-0 rounded px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
+            disabledReason === 'pending' ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed'
+          }`}
+        >
+          {isPlanned ? 'Unplan' : 'Plan'}
+        </button>
+      </div>
+
+      {disabledNote && (
+        <p id={disabledNoteId} className="mt-1 text-[11px] leading-tight text-gray-500">
+          {disabledNote}
+        </p>
+      )}
 
       {isLocked && showPrerequisites && (
         <div className="mt-1.5 border-t border-gray-200 pt-1.5 text-xs text-gray-700">

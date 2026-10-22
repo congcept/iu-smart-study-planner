@@ -11,7 +11,8 @@ import {
   type SemesterAllocationJobHistoryDTO,
   type SemesterAllocationJobOutcomeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
+import { Button, EmptyState, ErrorBanner, MetricList, StatusPill } from '@/components/ui';
 import {
   SemesterJobSessionChangedError,
   getSemesterAllocationJob,
@@ -55,6 +56,14 @@ function HistoryPanel({ userId, scope }: Props) {
   const [page, setPage] = useState<SemesterAllocationJobHistoryDTO | null>(null);
   const [selected, setSelected] = useState<Selected | null>(null);
   const [pending, setPending] = useState<'page' | 'detail' | null>('page');
+  const failureRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The list and the retry controls are replaced while a read runs, so the focus
+  // has to go to whatever the panel shows instead.
+  const rememberFocus = useFocusAfterDisable(
+    pending !== null,
+    () => failureRef.current ?? headingRef.current,
+  );
   const [failure, setFailure] = useState<{ kind: 'page' | 'detail'; message: string } | null>(null);
   const intent = generation.current;
   const requestedScope = useCallback(
@@ -253,7 +262,9 @@ function HistoryPanel({ userId, scope }: Props) {
       className="min-w-0 space-y-4 border-t border-gray-200 pt-6"
     >
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">Semester request history</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+          Semester request history
+        </h3>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Browse up to five requests for {semester} {year}, newest queued first. History reflects
           its last check. Check a request for its latest outcome.
@@ -263,7 +274,10 @@ function HistoryPanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={pending !== null}
-        onClick={() => void readPage({ input: requestedScope() }, intent)}
+        onClick={() => {
+          rememberFocus();
+          void readPage({ input: requestedScope() }, intent);
+        }}
       >
         Reload semester request history
       </Button>
@@ -275,18 +289,21 @@ function HistoryPanel({ userId, scope }: Props) {
         </p>
       )}
       {failure && (
-        <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {failure.message}
-          </p>
+        <div
+          ref={failureRef}
+          tabIndex={-1}
+          className="space-y-2 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{failure.message}</ErrorBanner>
           {failure.kind === 'page' && lastPageRequest.current && (
             <Button
               variant="secondary"
               className="min-h-11"
               disabled={pending !== null}
-              onClick={() =>
-                lastPageRequest.current && void readPage(lastPageRequest.current, intent)
-              }
+              onClick={() => {
+                rememberFocus();
+                if (lastPageRequest.current) void readPage(lastPageRequest.current, intent);
+              }}
             >
               Retry semester history page
             </Button>
@@ -296,9 +313,10 @@ function HistoryPanel({ userId, scope }: Props) {
               variant="secondary"
               className="min-h-11"
               disabled={pending !== null}
-              onClick={() =>
-                selectedRequest.current && void readSelected(selectedRequest.current, intent)
-              }
+              onClick={() => {
+                rememberFocus();
+                if (selectedRequest.current) void readSelected(selectedRequest.current, intent);
+              }}
             >
               Retry selected semester outcome
             </Button>
@@ -308,11 +326,11 @@ function HistoryPanel({ userId, scope }: Props) {
       {page && (
         <div className="space-y-3">
           {page.requests.length === 0 ? (
-            <p className="text-sm text-gray-700">
+            <EmptyState>
               {page.after === null
                 ? 'No semester requests have been queued for this scenario.'
                 : 'No older semester requests.'}
-            </p>
+            </EmptyState>
           ) : (
             <ul
               aria-label="Semester requests on this page"
@@ -340,6 +358,7 @@ function HistoryPanel({ userId, scope }: Props) {
                           ? 'Completed · student results saved'
                           : 'Failed · no result saved'}
                     </p>
+                    <StatusPill status={entry.outcome.status} />
                   </div>
                   <Button
                     variant="secondary"
@@ -347,7 +366,10 @@ function HistoryPanel({ userId, scope }: Props) {
                     aria-label={`Check semester request outcome ${entry.job.id}`}
                     aria-pressed={selected?.job.id === entry.job.id}
                     disabled={pending !== null}
-                    onClick={() => void readSelected(entry, intent)}
+                    onClick={() => {
+                      rememberFocus();
+                      void readSelected(entry, intent);
+                    }}
                   >
                     Check request outcome
                   </Button>
@@ -360,15 +382,16 @@ function HistoryPanel({ userId, scope }: Props) {
               variant="secondary"
               className="min-h-11"
               disabled={pending !== null}
-              onClick={() =>
+              onClick={() => {
+                rememberFocus();
                 void readPage(
                   {
                     input: { ...requestedScope(), after: page.nextAfter ?? undefined },
                     boundary: page.requests.at(-1)?.job,
                   },
                   intent,
-                )
-              }
+                );
+              }}
             >
               Load older semester requests
             </Button>
@@ -390,6 +413,7 @@ function HistoryPanel({ userId, scope }: Props) {
           >
             Selected semester request outcome
           </h4>
+          <StatusPill status={selected.outcome.status} />
           <p className="break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
             {selected.job.id}
           </p>
@@ -402,35 +426,44 @@ function HistoryPanel({ userId, scope }: Props) {
                   ? 'The original administrator was unavailable when execution was attempted. No result was saved.'
                   : 'The simulation preview could not be produced when execution was attempted. No result was saved.'}
           </p>
-          <dl className="space-y-2 text-sm text-gray-700">
-            <div>
-              <dt className="font-medium">Scenario</dt>
-              <dd>
-                {selected.job.scope.semester} {selected.job.scope.year} · curriculum{' '}
-                <span className="break-words [overflow-wrap:anywhere]">
-                  {selected.job.scope.curriculumId}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">Queued</dt>
-              <dd>
-                <time dateTime={selected.job.queuedAt}>
-                  {new Date(selected.job.queuedAt).toLocaleString()}
-                </time>
-              </dd>
-            </div>
-            {selected.outcome.completedAt && (
-              <div>
-                <dt className="font-medium">Completed</dt>
-                <dd>
-                  <time dateTime={selected.outcome.completedAt}>
-                    {new Date(selected.outcome.completedAt).toLocaleString()}
+          <MetricList
+            items={[
+              {
+                key: 'scenario',
+                label: 'Scenario',
+                value: (
+                  <>
+                    {selected.job.scope.semester} {selected.job.scope.year} · curriculum{' '}
+                    <span className="break-words [overflow-wrap:anywhere]">
+                      {selected.job.scope.curriculumId}
+                    </span>
+                  </>
+                ),
+              },
+              {
+                key: 'queued',
+                label: 'Queued',
+                value: (
+                  <time dateTime={selected.job.queuedAt}>
+                    {new Date(selected.job.queuedAt).toLocaleString()}
                   </time>
-                </dd>
-              </div>
-            )}
-          </dl>
+                ),
+              },
+              ...(selected.outcome.completedAt
+                ? [
+                    {
+                      key: 'completed',
+                      label: 'Completed',
+                      value: (
+                        <time dateTime={selected.outcome.completedAt}>
+                          {new Date(selected.outcome.completedAt).toLocaleString()}
+                        </time>
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+          />
           {selected.outcome.runId && (
             <p className="max-w-prose text-sm text-gray-700">
               Saved semester result{' '}

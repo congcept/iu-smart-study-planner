@@ -10,6 +10,7 @@ import { createAllocationRun, getAllocationRun, listAllocationRuns } from '@/lib
 import { allocationHistory, allocationRun } from '@/test/fixtures/allocationRun';
 import { allocationScope } from '@/test/fixtures/allocationPreview';
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AllocationRunHistoryPanel } from '../AllocationRunHistoryPanel';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -56,7 +57,44 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof listAllocationRuns>>>();
+    vi.mocked(listAllocationRuns).mockReturnValueOnce(pendingRead.promise);
+    const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
+
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(allocationHistory()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+});
+
 describe('simulation run history', () => {
+  it('keeps focus on initial history and announces a user selected capture heading', async () => {
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(viewCapture());
+    const heading = await screen.findByRole('heading', { name: 'Selected simulation capture' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('reads the first page with session checks and makes no capture or storage writes', async () => {
     const sessionWrites = vi.spyOn(Storage.prototype, 'setItem');
     const removes = vi.spyOn(Storage.prototype, 'removeItem');
@@ -442,5 +480,38 @@ describe('selected simulation capture', () => {
     expect(detail()).not.toBeInTheDocument();
     await ready();
     expect(detail()).not.toBeInTheDocument();
+  });
+
+  it('moves focus to the panel heading when the older page replaces the list', async () => {
+    const first = allocationHistory(allocationScope, 20, true);
+    vi.mocked(listAllocationRuns).mockResolvedValue(first);
+    mount();
+    await ready();
+    const pendingRead = deferred<AllocationRunHistoryDTO>();
+    vi.mocked(listAllocationRuns).mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Load older captures' });
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(olderPage(first.runs[19])));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Simulation run history' }),
+      ),
+    );
+  });
+
+  it('puts focus on the failure message when the retry control is replaced', async () => {
+    vi.mocked(listAllocationRuns).mockRejectedValueOnce(new Error('offline'));
+    mount();
+    const retry = await screen.findByRole('button', { name: 'Retry history page' });
+    vi.mocked(listAllocationRuns).mockRejectedValueOnce(new Error('offline'));
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1');
   });
 });

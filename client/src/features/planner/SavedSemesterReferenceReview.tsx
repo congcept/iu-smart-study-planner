@@ -4,7 +4,8 @@ import {
   OwnStudyPlanReferenceReviewSchema,
   type OwnStudyPlanReferenceReviewDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { reviewSavedStudyPlanSemester } from '@/lib/savedStudyPlanReferenceReviewApi';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 
@@ -41,6 +42,7 @@ function ReferenceReviewBody({
   const alive = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const busy = useRef(false);
+  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
   const invalidate = useCallback(() => {
     generation.current++;
     controller.current?.abort();
@@ -135,6 +137,7 @@ function ReferenceReviewBody({
         className="mt-4 flex flex-wrap items-end gap-3"
         onSubmit={(event) => {
           event.preventDefault();
+          rememberFocus();
           void review();
         }}
       >
@@ -185,9 +188,9 @@ function ReferenceReviewBody({
         </p>
       )}
       {state.status === 'error' && (
-        <p role="alert" className="mt-4 text-sm text-red-700">
+        <ErrorBanner className="mt-4 text-sm text-red-700">
           Could not confirm this review. Use Review reference slot to retry.
-        </p>
+        </ErrorBanner>
       )}
       {state.status === 'ready' && (
         <div className="mt-4 space-y-3 text-sm text-gray-700">

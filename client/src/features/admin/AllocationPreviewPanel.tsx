@@ -6,12 +6,12 @@ import {
   type AllocationPreviewDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
+import { Button, ErrorBanner, MetricList } from '@/components/ui';
 import { getAllocationPreview } from '@/lib/adminResourcesApi';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO; resourceRevision: number | null };
-class AdminSessionChanged extends Error {}
 const percent = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 });
 
 export function AllocationPreviewPanel({ userId, scope, resourceRevision }: Props) {
@@ -34,12 +34,9 @@ function AllocationReport({ userId, scope, resourceRevision }: Props) {
   const busy = useRef(false);
   const [report, setReport] = useState<AllocationPreviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const rememberFocus = useFocusAfterDisable(loading);
   const [error, setError] = useState('');
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const load = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
@@ -104,7 +101,10 @@ function AllocationReport({ userId, scope, resourceRevision }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={loading}
-        onClick={() => void load()}
+        onClick={() => {
+          rememberFocus();
+          void load();
+        }}
       >
         Reload allocation preview
       </Button>
@@ -113,9 +113,7 @@ function AllocationReport({ userId, scope, resourceRevision }: Props) {
           Loading allocation preview…
         </p>
       ) : error ? (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
+        <ErrorBanner>{error}</ErrorBanner>
       ) : (
         report &&
         source &&
@@ -128,22 +126,15 @@ function AllocationReport({ userId, scope, resourceRevision }: Props) {
               {source.demand.demandSelectionCount} course choices. The selected semester and year
               identify the scenario; official term offerings are unverified.
             </p>
-            <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-              {[
+            <MetricList
+              layout="grid"
+              items={[
                 ['Assigned in simulation', report.assignedStudentCount],
                 ['No eligible choices', report.noChoicesStudentCount],
                 ['Unresolved without resource settings', report.resourceUnknownStudentCount],
                 ['Unassigned after capacity is exhausted', report.capacityExhaustedStudentCount],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-baseline justify-between gap-4 border-b border-gray-200 pb-2"
-                >
-                  <dt className="text-gray-700">{label}</dt>
-                  <dd className="font-semibold tabular-nums text-gray-900">{value}</dd>
-                </div>
-              ))}
-            </dl>
+              ].map(([label, value]) => ({ key: String(label), label, value }))}
+            />
             {source.demand.cohortStudentCount === 0 && (
               <p className="text-sm text-gray-600">
                 No students are currently assigned to this curriculum.

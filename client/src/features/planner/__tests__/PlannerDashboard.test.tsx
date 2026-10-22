@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResponse, StudentProgressDTO } from '@iu-study-planner/shared';
 import { getCourses, getCurrentStudentProgress, getSession } from '@/lib/api';
 import type { Course } from '@/types';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { PlannerDashboard } from '../PlannerDashboard';
 
 vi.mock('../OwnSemesterAllocationHistoryPanel', () => ({
@@ -361,5 +362,25 @@ describe('server-backed planner dashboard', () => {
     await act(async () => pending.resolve(saved));
     expect(children.workload).not.toHaveBeenCalled();
     expect(children.recommendations).not.toHaveBeenCalled();
+  });
+
+  it('returns focus to Reload planner when the reload finishes', async () => {
+    render(dashboard());
+    expect(await screen.findByRole('region', { name: 'Workload child' })).toBeInTheDocument();
+    const pendingRead = deferred<StudentProgressDTO>();
+    progress.mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload planner' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload planner' })).toBeEnabled(),
+    );
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(saved));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
   });
 });

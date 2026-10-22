@@ -10,6 +10,7 @@ import {
   type OwnStudyPlanReferenceSelectionReceiptDTO,
 } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import {
   StoredReferenceSelectionDraftSchema,
@@ -71,6 +72,13 @@ function EditorBody(props: Props) {
   const [receipt, setReceipt] = useState<OwnStudyPlanReferenceSelectionReceiptDTO | null>(null);
   const [opened, setOpened] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The editor's own read disables the control that started it, so the focus
+  // has to come back to it once the read settles.
+  const rememberFocus = useFocusAfterDisable(
+    phase === 'loading' || phase === 'saving',
+    () => headingRef.current,
+  );
   const [state, setState] = useState<OwnStudyPlanReferenceSelectionStateDTO | null>(null);
   const [message, setMessage] = useState('');
   const [draft, setDraft] = useState<Draft>({ year: '', semester: '', courseIds: [] });
@@ -78,6 +86,7 @@ function EditorBody(props: Props) {
   const currentState = useRef(state);
   const [draftRecovery, setDraftRecovery] = useState<DraftRecovery>({ status: 'NONE' });
   const recoveryRef = useRef(draftRecovery);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [storageWarning, setStorageWarning] = useState('');
   const [choice, setChoice] = useState('');
   const choiceRef = useRef('');
@@ -124,7 +133,16 @@ function EditorBody(props: Props) {
   const installRecovery = useCallback((value: DraftRecovery) => {
     recoveryRef.current = value;
     setDraftRecovery(value);
+    setConfirmingDiscard(false);
   }, []);
+  useEffect(() => {
+    if (!confirmingDiscard) return;
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setConfirmingDiscard(false);
+    };
+    document.addEventListener('keydown', cancel);
+    return () => document.removeEventListener('keydown', cancel);
+  }, [confirmingDiscard]);
   const clearPromotedDraft = useCallback(
     (body: OwnStudyPlanReferenceSelectionBodyDTO) => {
       if (body.expectedScope.curriculumId !== expectedCurriculumId) return;
@@ -401,12 +419,60 @@ function EditorBody(props: Props) {
   const fieldClass =
     'mt-1 block min-h-11 w-full min-w-0 rounded border border-gray-300 bg-white p-2 disabled:bg-gray-100';
   const options = state?.editing.status === 'AVAILABLE' ? state.editing.courses : [];
+  const editingUnavailableReason =
+    state && state.editing.status !== 'AVAILABLE' ? state.editing.reason : null;
+  const discardDraftBlocked = () =>
+    !alive.current ||
+    busy.current ||
+    Boolean(pending.current) ||
+    Boolean(journal.error) ||
+    currentState.current !== state ||
+    currentDraft.current !== draft ||
+    recoveryRef.current !== draftRecovery;
+  const requestDraftDiscard = () => {
+    if (discardDraftBlocked()) return;
+    setConfirmingDiscard(true);
+  };
+  const discardDraft = () => {
+    if (discardDraftBlocked()) {
+      setConfirmingDiscard(false);
+      return;
+    }
+    const latest = loadReferenceSelectionDraft({
+      ownerId,
+      planId,
+      semesterId,
+      expectedCurriculumId,
+    });
+    if (
+      (draftRecovery.status === 'FOUND' &&
+        (latest.status !== 'FOUND' || latest.raw !== draftRecovery.raw)) ||
+      (draftRecovery.status === 'INVALID' && latest.status !== 'INVALID')
+    ) {
+      installRecovery(latest);
+      setMessage('The stored draft changed. Reload and review it before discarding.');
+      return;
+    }
+    try {
+      sessionStorage.removeItem(draftKey);
+      installRecovery({ status: 'NONE' });
+      setStorageWarning('');
+      setMessage('Unsent draft discarded. The latest saved courses are shown.');
+    } catch {
+      setStorageWarning(
+        'The unsent draft could not be discarded. It is still retained; restore storage access and try again.',
+      );
+    }
+    setConfirmingDiscard(false);
+  };
   return (
     <section
       aria-label="Edit saved course selection"
       className="mt-6 border-t border-gray-200 pt-5"
     >
-      <h4 className="font-semibold text-gray-900">Edit saved course selection</h4>
+      <h4 ref={headingRef} tabIndex={-1} className="font-semibold text-gray-900">
+        Edit saved course selection
+      </h4>
       <p className="mt-2 max-w-prose text-sm text-gray-700">
         Save a course selection for a chosen year within the degree and semester. The server checks
         current placements, numeric GPA and mandatory prerequisites recorded as completed. Saved
@@ -449,7 +515,10 @@ function EditorBody(props: Props) {
               variant="secondary"
               className="min-h-11"
               disabled={phase === 'loading' || phase === 'saving'}
-              onClick={() => void read()}
+              onClick={() => {
+                rememberFocus();
+                void read();
+              }}
             >
               Reload selection for editing
             </Button>
@@ -509,54 +578,47 @@ function EditorBody(props: Props) {
                       Restore unsent draft
                     </Button>
                   )}
-                {draftRecovery.status !== 'UNAVAILABLE' && (
+                {draftRecovery.status !== 'UNAVAILABLE' && !confirmingDiscard && (
                   <Button
                     type="button"
                     variant="secondary"
                     className="min-h-11"
                     disabled={phase !== 'ready'}
-                    onClick={() => {
-                      if (
-                        !alive.current ||
-                        busy.current ||
-                        pending.current ||
-                        journal.error ||
-                        currentState.current !== state ||
-                        currentDraft.current !== draft ||
-                        recoveryRef.current !== draftRecovery
-                      )
-                        return;
-                      const latest = loadReferenceSelectionDraft({
-                        ownerId,
-                        planId,
-                        semesterId,
-                        expectedCurriculumId,
-                      });
-                      if (
-                        (draftRecovery.status === 'FOUND' &&
-                          (latest.status !== 'FOUND' || latest.raw !== draftRecovery.raw)) ||
-                        (draftRecovery.status === 'INVALID' && latest.status !== 'INVALID')
-                      ) {
-                        installRecovery(latest);
-                        setMessage(
-                          'The stored draft changed. Reload and review it before discarding.',
-                        );
-                        return;
-                      }
-                      try {
-                        sessionStorage.removeItem(draftKey);
-                        installRecovery({ status: 'NONE' });
-                        setStorageWarning('');
-                        setMessage('Unsent draft discarded. The latest saved courses are shown.');
-                      } catch {
-                        setStorageWarning(
-                          'The unsent draft could not be discarded. It is still retained; restore storage access and try again.',
-                        );
-                      }
-                    }}
+                    onClick={requestDraftDiscard}
                   >
                     Discard unsent draft
                   </Button>
+                )}
+                {draftRecovery.status !== 'UNAVAILABLE' && confirmingDiscard && (
+                  <div
+                    role="group"
+                    aria-label="Confirm discarding the unsent draft"
+                    className="w-full rounded border border-red-200 bg-red-50 p-3"
+                  >
+                    <p className="text-sm text-gray-800">
+                      Discard this tab&rsquo;s unsent draft for this selection? The saved course
+                      selection on the server is not affected.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="danger"
+                        className="min-h-11"
+                        onClick={discardDraft}
+                      >
+                        Discard this draft
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-11"
+                        autoFocus
+                        onClick={() => setConfirmingDiscard(false)}
+                      >
+                        Keep draft
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -653,7 +715,11 @@ function EditorBody(props: Props) {
                             : `Saved reference ${index + 1}: catalog entry unavailable`}
                           {!option && (
                             <p className="mt-1 text-amber-800">
-                              Not available in current curriculum choices. Remove it before saving.
+                              {editingUnavailableReason === null
+                                ? 'Not available in current curriculum choices. Remove it before saving.'
+                                : editingUnavailableReason === 'NO_ASSIGNED_CURRICULUM'
+                                  ? 'No curriculum is assigned, so this course was not checked against current choices.'
+                                  : 'The saved course list could not be read, so this course was not checked against current choices.'}
                             </p>
                           )}
                         </div>
@@ -664,7 +730,7 @@ function EditorBody(props: Props) {
                             className="min-h-11"
                             disabled={index === 0}
                             onClick={() => moveCourse(index, -1)}
-                            aria-label={`Move selected course ${index + 1} up`}
+                            aria-label={`Move up selected course ${index + 1}`}
                           >
                             Move up
                           </Button>
@@ -674,7 +740,7 @@ function EditorBody(props: Props) {
                             className="min-h-11"
                             disabled={index === draft.courseIds.length - 1}
                             onClick={() => moveCourse(index, 1)}
-                            aria-label={`Move selected course ${index + 1} down`}
+                            aria-label={`Move down selected course ${index + 1}`}
                           >
                             Move down
                           </Button>

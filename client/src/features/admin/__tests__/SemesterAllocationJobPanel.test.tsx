@@ -12,6 +12,7 @@ import {
   getSemesterAllocationJob,
   getSemesterAllocationJobOutcome,
 } from '@/lib/semesterAllocationJobsApi';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SemesterAllocationJobPanel } from '../SemesterAllocationJobPanel';
 import {
   readSemesterAllocationJobJournal,
@@ -151,7 +152,49 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after a failed read finishes', async () => {
+    seed();
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getSemesterAllocationJobOutcome>>>();
+    vi.mocked(getSemesterAllocationJobOutcome).mockReturnValueOnce(pendingRead.promise);
+    const target = check();
+    await waitFor(() => expect(check()).toBeEnabled());
+
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.reject(new Error('Offline')));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+});
+
 describe('explicit semester simulation job panel', () => {
+  it('keeps focus during mount recovery and announces a user checked outcome', async () => {
+    seed();
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await screen.findByRole('heading', { name: 'Selected semester request outcome' });
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(check());
+    const heading = await screen.findByRole('heading', {
+      name: 'Selected semester request outcome',
+    });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('starts empty without network calls, journal writes, polling or capture lookup', async () => {
     mount();
     await ready();

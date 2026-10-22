@@ -158,6 +158,28 @@ describe('numeric grade entry', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
+  it('lets a blocked pending attempt be discarded so the tab is usable again', async () => {
+    storage.set(key, JSON.stringify(payload));
+    read.mockResolvedValue({ ...empty, scope: assignedChoices.scope });
+    await mount();
+    await screen.findByText(/Your curriculum changed. The pending attempt is kept for recovery/);
+
+    // Without a discard control this tab could never record another score.
+    expect(screen.getByRole('button', { name: 'Save score' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard this pending attempt' }));
+
+    await waitFor(() => expect(storage.has(key)).toBe(false));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'This tab’s pending attempt was discarded. Any score already saved on the server is unchanged.',
+    );
+    expect(screen.getByRole('button', { name: 'Save score' })).not.toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: 'Discard this pending attempt' }),
+    ).not.toBeInTheDocument();
+    // Discarding is local only; it must never post the stale attempt.
+    expect(append).not.toHaveBeenCalled();
+  });
+
   it('recovers a scoped lost response in a newer curriculum without posting again', async () => {
     append.mockImplementation(async (data) => {
       read.mockResolvedValue({ ...saved(data), scope: assignedChoices.scope });
@@ -431,6 +453,18 @@ describe('numeric grade entry', () => {
     expect(storage.get(key)).toBe('broken');
     expect(append).not.toHaveBeenCalled();
   });
+  it('lets the user clear recovery data that can never be retried', async () => {
+    storage.set(key, 'broken');
+    await mount();
+    // Storage is reachable here; only its contents are unusable, so the copy must
+    // not send the user off to restore access they already have.
+    expect(screen.getByRole('alert')).toHaveTextContent(/can’t be read/);
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/Restore access to this tab/);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear unreadable recovery data' }));
+    expect(storage.has(key)).toBe(false);
+    expect(screen.getByLabelText('Course')).not.toBeDisabled();
+    expect(append).not.toHaveBeenCalled();
+  });
   it('does not send when browser request persistence fails', async () => {
     await mount();
     vi.stubGlobal('sessionStorage', {
@@ -468,5 +502,28 @@ describe('numeric grade entry', () => {
     expect(screen.getByLabelText('Course')).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Reload courses' }));
     await waitFor(() => expect(screen.getByLabelText('Course')).toBeEnabled());
+  });
+  it('moves focus to the course choice it names when no course was chosen', async () => {
+    await mount();
+    submit();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveAttribute('id', 'grade-entry-message');
+    const course = screen.getByLabelText('Course');
+    expect(course).toHaveAttribute('aria-invalid', 'true');
+    expect(course).toHaveAttribute('aria-describedby', 'grade-entry-message');
+    await waitFor(() => expect(document.activeElement).toBe(course));
+    fireEvent.change(course, { target: { value: courseId } });
+    expect(course).not.toHaveAttribute('aria-invalid');
+    expect(course).not.toHaveAttribute('aria-describedby');
+  });
+  it('moves focus to the score field when the score is outside 0 to 100', async () => {
+    await mount();
+    fill('101');
+    submit();
+    const scoreField = screen.getByLabelText('Score out of 100');
+    expect(scoreField).toHaveAttribute('aria-invalid', 'true');
+    expect(scoreField).toHaveAttribute('aria-describedby', 'grade-entry-message');
+    await waitFor(() => expect(document.activeElement).toBe(scoreField));
+    expect(append).not.toHaveBeenCalled();
   });
 });

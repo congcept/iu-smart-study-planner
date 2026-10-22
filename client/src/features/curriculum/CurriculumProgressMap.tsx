@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { getCurriculum } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { useAppStore } from '@/lib/store';
 import { playRecommendationsSound } from '@/lib/sounds';
 import type { YearSemesterGroup, Course, IntensityMode } from '@/types';
@@ -38,25 +39,29 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [error, setError] = useState<string | null>(null);
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
   const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
+  const curriculumErrorRef = useRef<HTMLDivElement>(null);
+  const progressErrorRef = useRef<HTMLDivElement>(null);
+
+  const loadCurriculum = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getCurriculum();
+      if (response.success && response.data) {
+        setGroups(response.data);
+      } else {
+        setError('Could not load the curriculum. Try again in a moment.');
+      }
+    } catch {
+      setError('Could not connect to the planner. Check your connection, then try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchCurriculum = async () => {
-      try {
-        const response = await getCurriculum();
-        if (response.success && response.data) {
-          setGroups(response.data);
-        } else {
-          setError('Could not load the curriculum. Reload the page to try again.');
-        }
-      } catch {
-        setError('Could not connect to the planner. Check your connection, then reload the page.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCurriculum();
-  }, []);
+    void loadCurriculum();
+  }, [loadCurriculum]);
 
   const {
     toggleCourseComplete,
@@ -70,6 +75,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   } = useAppStore();
   const progressReady =
     !userId || (progressStatus === 'ready' && progressImportStatus !== 'importing');
+  // A retry replaces the message that offered it, so the focus has to go to
+  // the message that replaced it.
+  const rememberFocus = useFocusAfterDisable(
+    loading || progressStatus === 'loading',
+    () => curriculumErrorRef.current ?? progressErrorRef.current,
+  );
 
   useEffect(() => {
     if (userId) void loadProgress();
@@ -84,9 +95,26 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const [highlightedPrereqIds, setHighlightedPrereqIds] = useState<Set<string>>(new Set());
   const [hoveredLockedId, setHoveredLockedId] = useState<string | null>(null);
   const [activeElectiveGroup, setActiveElectiveGroup] = useState<string | null>(null);
+  const electivePanelRef = useRef<HTMLDivElement | null>(null);
+  const electiveTriggerRef = useRef<HTMLElement | null>(null);
+  const electivePanelId = useId();
+  const electivePanelHeadingId = `${electivePanelId}-heading`;
   const gpaPolicy = useGpaPath(userId);
   const y4s2GpaMode = gpaPolicy.mode;
   const gpaReady = gpaPolicy.status === 'ready';
+  // An unresolved GPA path must not hide the curriculum. It pauses editing and
+  // withholds the path-dependent claims (Y4S2 filtering, the 41/43 target).
+  const gpaPathUnresolved = !gpaReady;
+
+  // Every course card shares one reason, so the map and the elective sidebar can
+  // never disagree about why editing is paused.
+  const cardDisabledReason = !progressReady
+    ? 'progress'
+    : gpaPathUnresolved
+      ? 'gpa-path'
+      : pendingCompletionIds.size > 0
+        ? 'pending'
+        : undefined;
 
   const handlePrereqsHover = useCallback((courseId: string, prereqIds: string[]) => {
     setHighlightedPrereqIds(new Set(prereqIds));
@@ -190,9 +218,28 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     setHoveredLockedId(null);
   }, []);
 
-  const handleElectiveCardClick = useCallback((groupName: string | null) => {
-    setActiveElectiveGroup((prev) => (prev === groupName ? null : groupName));
-  }, []);
+  const handleElectiveCardClick = useCallback(
+    (groupName: string | null) => {
+      const next = activeElectiveGroup === groupName ? null : groupName;
+      const active = document.activeElement;
+      if (next !== null && active instanceof HTMLElement) electiveTriggerRef.current = active;
+      setActiveElectiveGroup(next);
+    },
+    [activeElectiveGroup],
+  );
+
+  // The panel is an overlay rendered after the whole canvas, so it sits dozens
+  // of tab stops away from the card that opened it. Move focus in on open and
+  // hand it back to that card when the panel closes.
+  useEffect(() => {
+    if (activeElectiveGroup) {
+      electivePanelRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const trigger = electiveTriggerRef.current;
+    electiveTriggerRef.current = null;
+    if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+  }, [activeElectiveGroup]);
 
   const semesterDisplays = useMemo((): SemesterDisplay[] => {
     return groups.map((group) => {
@@ -284,6 +331,9 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   }, [y4s2GpaMode, activeElectiveGroup, allElectiveGroups, groups]);
 
   const REQUIRED_CREDITS = 130;
+  // A soft nudge, not a cap: planning more than this is allowed, but worth
+  // pointing out because it sits above the default course load.
+  const PLANNED_CREDIT_SOFT_LIMIT = 24;
   const REQUIRED_YEARS = 4;
 
   const NON_CREDIT_COURSE_IDS = useMemo(() => new Set(['PT001IU', 'PT002IU']), []);
@@ -500,14 +550,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
   const handleZoomIn = useCallback(() => zoomAt(1.25), [zoomAt]);
   const handleZoomOut = useCallback(() => zoomAt(0.8), [zoomAt]);
-
-  if (!gpaReady) {
-    return (
-      <div className="mx-auto max-w-5xl p-4">
-        <GpaPathControls policy={gpaPolicy} />
-      </div>
-    );
-  }
+  // The zoom stops at 100% and 200%. Keeping the button that cannot move any
+  // further enabled means it looks available and swallows the click, so the
+  // limit is stated instead. It stays focusable (aria-disabled, not disabled)
+  // so a keyboard user does not lose their place in the zoom controls.
+  const atMinZoom = zoomMultiplier <= 1;
+  const atMaxZoom = zoomMultiplier >= 2;
 
   if (
     loading ||
@@ -520,21 +568,46 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     );
   if (error)
     return (
-      <div role="alert" className="p-8 text-center text-red-600">
-        {error}
+      <div
+        ref={curriculumErrorRef}
+        tabIndex={-1}
+        role="alert"
+        className="rounded-lg p-8 text-center focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+      >
+        <p className="text-red-700">{error}</p>
+        <button
+          type="button"
+          className="mt-3 min-h-11 rounded bg-primary-600 px-4 py-2 text-white"
+          onClick={() => {
+            rememberFocus();
+            void loadCurriculum();
+          }}
+        >
+          Try loading the curriculum again
+        </button>
       </div>
     );
 
   if (userId && progressStatus === 'error')
     return (
-      <div className="p-8 text-center">
+      <div
+        ref={progressErrorRef}
+        tabIndex={-1}
+        className="rounded-lg p-8 text-center focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+      >
         <p role="alert" className="mb-3 text-red-700">
           {progressError || 'Could not load your progress.'}
         </p>
         <p className="mb-3 text-sm text-gray-600">
           Editing is paused until your saved progress can be loaded.
         </p>
-        <button className="text-primary-700 underline" onClick={() => void loadProgress()}>
+        <button
+          className="min-h-11 text-primary-700 underline"
+          onClick={() => {
+            rememberFocus();
+            void loadProgress();
+          }}
+        >
           Reload saved progress
         </button>
       </div>
@@ -543,26 +616,37 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   return (
     <div className="space-y-5 overflow-hidden w-full max-w-full">
       {userId ? (
-        <p role="status" className="mb-3 text-sm text-gray-600">
-          {progressImportStatus === 'importing'
-            ? 'Importing earlier selections…'
-            : pendingCompletionIds.size
-              ? progressError
-                ? 'Checking saved progress…'
-                : 'Saving progress…'
-              : progressError
-                ? 'Showing your latest saved progress. Review it before trying the change again.'
+        progressError ? null : (
+          <p role="status" className="mb-3 text-sm text-gray-600">
+            {progressImportStatus === 'importing'
+              ? 'Importing earlier selections…'
+              : pendingCompletionIds.size
+                ? 'Saving progress…'
                 : 'Progress saved to your account'}
-        </p>
+          </p>
+        )
       ) : (
         <p className="text-sm text-gray-600">
           Demo selections stay in this browser and are not added to an account when you sign in.
         </p>
       )}
+      {gpaPathUnresolved && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <GpaPathControls policy={gpaPolicy} />
+          <p className="mt-2 text-sm text-gray-700">
+            Your Year 4 Semester 2 course list and remaining-course target depend on this path, so
+            course editing is paused and nothing is filtered out. Everything you have already
+            recorded stays visible and counted.
+          </p>
+        </div>
+      )}
       {progressError && (
-        <p role="alert" className="mb-3 text-sm text-red-700">
-          {progressError}
-        </p>
+        <div role="alert" className="mb-3 text-sm">
+          <p className="text-red-700">{progressError}</p>
+          <p className="mt-1 text-gray-700">
+            Showing your latest saved progress. Review it before trying the change again.
+          </p>
+        </div>
       )}
       {userId && <ArchivedProgressImport key={userId} userId={userId} courses={allCourses} />}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">
@@ -608,17 +692,22 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           </span>
           <span>
             <span className="font-semibold">Completed:</span>{' '}
-            <span className="font-bold text-green-600 tabular-nums">
+            <span className="font-bold text-green-700 tabular-nums">
               {completedCredits} / {REQUIRED_CREDITS} credits
             </span>
           </span>
           <span>
             <span className="font-semibold">Planned:</span>{' '}
             <span
-              className={`font-bold tabular-nums ${plannedCredits > 24 ? 'text-red-600' : 'text-blue-600'}`}
+              className={`font-bold tabular-nums ${plannedCredits > PLANNED_CREDIT_SOFT_LIMIT ? 'text-red-600' : 'text-blue-600'}`}
             >
-              {plannedCredits} / 24 credits
+              {plannedCredits} / {PLANNED_CREDIT_SOFT_LIMIT} credits
             </span>
+            {plannedCredits > PLANNED_CREDIT_SOFT_LIMIT && (
+              <span className="block text-xs text-gray-700">
+                Over the typical load. Reduce the plan to get back under.
+              </span>
+            )}
           </span>
         </div>
       </div>
@@ -702,18 +791,28 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           >
             {semesterDisplays.map(({ group, requiredCourses, electiveGroups }) => {
               const isY4S2 = group.year === 4 && group.semester === 2;
-              const visibleRequiredCourses = isY4S2
-                ? y4s2GpaMode === 'above'
-                  ? requiredCourses.filter((c) => c.code === 'IT058IU')
-                  : requiredCourses.filter((c) => c.code !== 'IT058IU')
-                : requiredCourses;
-              const visibleElectiveGroups = isY4S2 && y4s2GpaMode === 'above' ? [] : electiveGroups;
+              // While the path is unresolved, show every Y4S2 course unfiltered rather
+              // than silently defaulting to one branch of the fork.
+              const visibleRequiredCourses =
+                isY4S2 && gpaReady
+                  ? y4s2GpaMode === 'above'
+                    ? requiredCourses.filter((c) => c.code === 'IT058IU')
+                    : requiredCourses.filter((c) => c.code !== 'IT058IU')
+                  : requiredCourses;
+              const visibleElectiveGroups =
+                isY4S2 && gpaReady && y4s2GpaMode === 'above' ? [] : electiveGroups;
 
               return (
                 <div key={`${group.year}-${group.semester}`} className="w-48 shrink-0">
                   {group.year === 4 && group.semester === 2 && (
                     <div className="my-2 px-1">
-                      <GpaPathControls policy={gpaPolicy} />
+                      {gpaReady ? (
+                        <GpaPathControls policy={gpaPolicy} />
+                      ) : (
+                        <p className="text-[11px] font-semibold text-amber-800">
+                          GPA path unresolved — shown unfiltered and read-only.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -726,7 +825,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                       return (
                         <CourseCard
-                          disabled={!progressReady || pendingCompletionIds.size > 0}
+                          disabledReason={cardDisabledReason}
                           key={course.id}
                           course={course}
                           isCompleted={isCompleted}
@@ -734,7 +833,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                           isLocked={isLocked}
                           isRecommended={isRecommended}
                           isHighlighted={highlightedPrereqIds.has(course.id)}
-                          isBlurred={
+                          isMuted={
                             hoveredLockedId !== null &&
                             hoveredLockedId !== course.id &&
                             !highlightedPrereqIds.has(course.id)
@@ -762,22 +861,26 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                       const isActive = activeElectiveGroup === eg.name;
 
                       let statusIcon = null;
+                      let statusText = '';
                       let borderColor = 'border-gray-300';
                       let statusRing = '';
                       if (isComplete) {
+                        statusText = 'DONE';
                         statusIcon = (
-                          <span className="text-green-600 font-bold text-[11px]">DONE</span>
+                          <span className="text-green-700 font-bold text-[11px]">{statusText}</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-green-500';
                       } else if (hasPlanned) {
+                        statusText = 'PLANNED';
                         statusIcon = (
-                          <span className="text-blue-600 font-bold text-[11px]">PLANNED</span>
+                          <span className="text-blue-600 font-bold text-[11px]">{statusText}</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-blue-500';
                         if (!isActive) statusRing = 'ring-2 ring-blue-200';
                       } else if (hasRecommended) {
+                        statusText = 'NEXT';
                         statusIcon = (
-                          <span className="text-amber-600 font-bold text-[11px]">NEXT</span>
+                          <span className="text-amber-700 font-bold text-[11px]">{statusText}</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-amber-500';
                         if (!isActive) statusRing = 'ring-2 ring-amber-200';
@@ -787,7 +890,8 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                         <button
                           type="button"
                           aria-expanded={isActive}
-                          aria-label={`Open elective group ${getElectiveGroupLabel(eg.name)}: ${completedCount} of ${eg.selectCount} completed`}
+                          aria-controls={electivePanelId}
+                          aria-label={`Elective Group ${getElectiveGroupLabel(eg.name)}${statusText ? ` ${statusText}` : ''} ${completedCount}/${eg.selectCount} completed`}
                           key={`${eg.name}-summary`}
                           className={`w-full min-h-11 rounded-md border p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700 ${
                             isActive
@@ -801,12 +905,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                               <span className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
                               <span className="text-[11px] font-bold text-gray-700">
                                 Elective Group {getElectiveGroupLabel(eg.name)}
-                              </span>
+                              </span>{' '}
                             </div>
-                            {statusIcon}
+                            {statusIcon}{' '}
                           </div>
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-[11px] text-gray-500">
+                            <span className="text-[11px] text-gray-600">
                               {completedCount}/{eg.selectCount} completed
                             </span>
                             {!isActive && <ChevronRight size={12} className="text-gray-400" />}
@@ -823,10 +927,14 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
         <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-white rounded-lg shadow-md px-3 py-1.5 border border-gray-200 z-20 pointer-events-auto">
           <button
+            type="button"
             aria-label="Zoom out"
-            title="Zoom out"
+            title={atMinZoom ? 'Already at the smallest zoom' : 'Zoom out'}
+            aria-disabled={atMinZoom || undefined}
             onClick={handleZoomOut}
-            className="min-w-11 min-h-11 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+            className={`min-w-11 min-h-11 flex items-center justify-center rounded-md text-gray-600 font-bold text-lg leading-none ${
+              atMinZoom ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-100'
+            }`}
           >
             −
           </button>
@@ -834,10 +942,14 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
             {Math.round(zoomMultiplier * 100)}%
           </span>
           <button
+            type="button"
             aria-label="Zoom in"
-            title="Zoom in"
+            title={atMaxZoom ? 'Already at the largest zoom' : 'Zoom in'}
+            aria-disabled={atMaxZoom || undefined}
             onClick={handleZoomIn}
-            className="min-w-11 min-h-11 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 font-bold text-lg leading-none"
+            className={`min-w-11 min-h-11 flex items-center justify-center rounded-md text-gray-600 font-bold text-lg leading-none ${
+              atMaxZoom ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-100'
+            }`}
           >
             +
           </button>
@@ -852,6 +964,16 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         </div>
 
         <div
+          ref={electivePanelRef}
+          id={electivePanelId}
+          role="region"
+          aria-labelledby={activeElectiveGroup ? electivePanelHeadingId : undefined}
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            event.stopPropagation();
+            handleElectiveCardClick(null);
+          }}
           className="absolute right-0 top-0 z-30 h-full rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm transition-[width] duration-200 ease-in-out"
           style={{
             width: activeElectiveGroup ? 'min(20rem, 85vw)' : '0px',
@@ -883,7 +1005,10 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                   <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50 border-b border-gray-200 shrink-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xs font-semibold text-gray-800 whitespace-nowrap">
+                        <h3
+                          id={electivePanelHeadingId}
+                          className="text-xs font-semibold text-gray-800 whitespace-nowrap"
+                        >
                           Elective Group {getElectiveGroupLabel(activeGroup.name)}
                         </h3>
                         <span className="text-xs font-medium bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full tabular-nums">
@@ -908,7 +1033,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
 
                         return (
                           <CourseCard
-                            disabled={!progressReady || pendingCompletionIds.size > 0}
+                            disabledReason={cardDisabledReason}
                             key={`${activeGroup.name}-${course.id}`}
                             course={course}
                             isCompleted={isCompleted}
@@ -916,7 +1041,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                             isLocked={isLocked}
                             isRecommended={isRecommended}
                             isHighlighted={highlightedPrereqIds.has(course.id)}
-                            isBlurred={
+                            isMuted={
                               hoveredLockedId !== null &&
                               hoveredLockedId !== course.id &&
                               !highlightedPrereqIds.has(course.id)
@@ -946,12 +1071,18 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <div>
             <h2 id="degree-progress-title" className="text-lg font-semibold text-gray-900">
-              Degree progress
+              Course progress
             </h2>
-            <p className="mt-1 text-sm text-gray-700">Course progress for the selected GPA path</p>
+            <p className="mt-1 text-sm text-gray-700">
+              {gpaReady
+                ? `Counted against the ${y4s2GpaMode === 'above' ? 41 : 43}-course target for the ${
+                    y4s2GpaMode === 'above' ? 'thesis' : 'alternative'
+                  } GPA path.`
+                : 'Waiting for your GPA path to confirm the target.'}
+            </p>
           </div>
           <span className="text-2xl font-semibold text-primary-700 tabular-nums">
-            {degreeProgress}%
+            {gpaReady ? `${degreeProgress}%` : '—'}
           </span>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-y border-gray-200 py-3 sm:grid-cols-3">
@@ -963,26 +1094,38 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           </div>
           <div>
             <dt className="text-xs text-gray-600">Remaining courses</dt>
-            <dd className="text-lg font-semibold tabular-nums text-gray-900">{remainingCourses}</dd>
+            <dd className="text-lg font-semibold tabular-nums text-gray-900">
+              {gpaReady ? remainingCourses : '—'}
+            </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-600">Estimated finish</dt>
+            <dt className="text-xs text-gray-600">
+              Estimated finish at {creditsPerSemester} cr/semester
+            </dt>
             <dd className="text-sm font-semibold text-gray-900">{eta}</dd>
           </div>
         </dl>
-        <div
-          role="progressbar"
-          aria-label="Degree progress"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={degreeProgress}
-          className="mt-4 h-2 overflow-hidden rounded-full bg-gray-200"
-        >
-          <div className="h-full bg-primary-600" style={{ width: `${degreeProgress}%` }} />
-        </div>
+        {gpaReady ? (
+          <div
+            role="progressbar"
+            aria-label="Course progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={degreeProgress}
+            className="mt-4 h-2 overflow-hidden rounded-full bg-gray-200"
+          >
+            <div className="h-full bg-primary-600" style={{ width: `${degreeProgress}%` }} />
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-700">
+            The percentage and remaining-course target are not shown until your GPA path is
+            confirmed, because the target is 41 or 43 courses depending on it.
+          </p>
+        )}
         <p className="mt-3 text-sm text-gray-700">
-          The finish estimate uses remaining credits at {creditsPerSemester} credits per semester;
-          prerequisites and course availability may change it.
+          This is a credits-only estimate at the course load you chose above, so changing that
+          control moves the finish term. It ignores prerequisites, course availability and offering
+          schedules.
         </p>
       </section>
     </div>

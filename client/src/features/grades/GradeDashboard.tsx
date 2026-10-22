@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
 import type { StudentGradesDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeEntry } from './GradeEntry';
 import { ScoreDistribution } from './ScoreDistribution';
 
+const SESSION_EXPIRED_MESSAGE = 'Your session expired. Sign out and sign in again.';
+
 export function GradeDashboard({ userId }: { userId: string }) {
   const [result, setResult] = useState<{ ownerId: string; grades: StudentGradesDTO } | null>(null);
   const [loading, setLoading] = useState(true);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const rememberFocus = useFocusAfterDisable(loading, () => errorRef.current ?? headingRef.current);
   const [error, setError] = useState<{ ownerId: string; message: string } | null>(null);
   const generation = useRef(0);
   const load = useCallback(async () => {
@@ -18,11 +25,14 @@ export function GradeDashboard({ userId }: { userId: string }) {
       const grades = await getStudentGrades();
       if (grades.scope && grades.scope.userId !== userId) throw new Error('Wrong grade owner');
       if (request === generation.current) setResult({ ownerId: userId, grades });
-    } catch {
+    } catch (error) {
+      const sessionExpired = isAxiosError(error) && error.response?.status === 401;
       if (request === generation.current)
         setError({
           ownerId: userId,
-          message: 'Could not load your grades. Check your connection and try again.',
+          message: sessionExpired
+            ? SESSION_EXPIRED_MESSAGE
+            : 'Could not load your grades. Check your connection and try again.',
         });
     } finally {
       if (request === generation.current) setLoading(false);
@@ -54,28 +64,56 @@ export function GradeDashboard({ userId }: { userId: string }) {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header>
-        <h2 className="text-2xl font-bold text-gray-900">Grades</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900">
+          Grades
+        </h2>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Your highest recorded score for each course is weighted by its credits. Physical training
           is excluded from GPA.
         </p>
       </header>
-      {loading ? (
+      {loading && !grades ? (
         <p role="status" className="text-gray-600">
           Loading your grades…
         </p>
-      ) : currentError ? (
-        <div>
+      ) : currentError && !grades ? (
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           <p role="alert" className="text-red-700">
             {currentError}
           </p>
-          <Button className="mt-3 min-h-11" onClick={() => void load()}>
+          <Button
+            className="mt-3 min-h-11"
+            onClick={() => {
+              rememberFocus();
+              void load();
+            }}
+          >
             Reload grades
           </Button>
         </div>
       ) : (
         grades && (
           <>
+            {currentError ? (
+              <p role="alert" className="text-red-700">
+                {currentError} The grades below are from your last successful load.
+              </p>
+            ) : null}
+            <Button
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => {
+                rememberFocus();
+                void load();
+              }}
+              disabled={loading}
+            >
+              Reload grades
+            </Button>
             <section
               aria-label="Numeric GPA"
               className="rounded-xl border border-gray-200 bg-white p-5"

@@ -12,6 +12,7 @@ import {
 } from '@/lib/ownSemesterAllocationApi';
 import { ownerId } from '@/test/fixtures/curriculumReference';
 import { ownSemesterAllocationRun } from '@/test/fixtures/ownSemesterAllocationRun';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { OwnSemesterAllocationHistoryPanel } from '../OwnSemesterAllocationHistoryPanel';
 
 vi.mock('@/lib/api', () => ({ default: { post: vi.fn(), get: vi.fn() }, getSession: vi.fn() }));
@@ -554,5 +555,40 @@ describe('current-account saved semester simulations', () => {
     expect(selected()).toHaveTextContent('Resource information unavailable');
     expect(selected()).toHaveTextContent('No courses were assigned.');
     expect(selected()).not.toHaveTextContent('All eligible sections are full');
+  });
+
+  it('returns focus to Reload simulation history when the read finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<OwnSemesterAllocationHistoryDTO>();
+    vi.mocked(listOwnSemesterAllocationRuns).mockReturnValueOnce(pendingRead.promise);
+    const target = reload();
+    await waitFor(() => expect(reload()).toBeEnabled());
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => pendingRead.resolve(firstPage()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+
+  it('puts focus on the failure message when a retry button is replaced', async () => {
+    vi.mocked(listOwnSemesterAllocationRuns)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'));
+    mount();
+    const retry = await screen.findByRole('button', { name: 'Retry history read' });
+    retry.focus();
+    act(() => {
+      fireEvent.click(retry);
+      retry.blur();
+    });
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveTextContent(
+      'Could not confirm your saved simulation history',
+    );
   });
 });

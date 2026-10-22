@@ -187,12 +187,7 @@ export function ArchivedProgressImport({ userId, courses }: { userId: string; co
       </p>
       {!reviewOpen ? (
         <div ref={reviewButtonRef} className="mt-3 flex flex-wrap gap-2">
-          <Button
-            className="min-h-11"
-            aria-expanded={false}
-            aria-controls={reviewId}
-            onClick={() => setReviewOpen(true)}
-          >
+          <Button className="min-h-11" onClick={() => setReviewOpen(true)}>
             Review selections
           </Button>
           {!deferred && (

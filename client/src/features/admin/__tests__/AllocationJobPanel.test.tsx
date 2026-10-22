@@ -15,6 +15,7 @@ import {
 } from '@/lib/allocationJobsApi';
 import { allocationScope } from '@/test/fixtures/allocationPreview';
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AllocationJobPanel } from '../AllocationJobPanel';
 import { allocationJobRecoveryKey } from '../allocationJobRecovery';
 
@@ -124,7 +125,47 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after a failed read finishes', async () => {
+    seed(jobId);
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getAllocationJobOutcome>>>();
+    vi.mocked(getAllocationJobOutcome).mockReturnValueOnce(pendingRead.promise);
+    const target = check();
+    await waitFor(() => expect(check()).toBeEnabled());
+
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.reject(new Error('Offline')));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+});
+
 describe('explicit queued simulation panel', () => {
+  it('keeps focus during mount recovery and announces a user checked outcome', async () => {
+    seed(jobId);
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await screen.findByRole('heading', { name: 'Selected request outcome' });
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(check());
+    const heading = await screen.findByRole('heading', { name: 'Selected request outcome' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('mounts with no POST, no session check and honest one-course simulation limits', async () => {
     mount();
     await ready();
@@ -726,5 +767,42 @@ describe('durable tab recovery and compare-and-save protection', () => {
     expect(executeAllocationJob).not.toHaveBeenCalled();
     expect(readJournal()).toEqual(journal());
     expect(recovery()).toBeEnabled();
+  });
+});
+
+describe('allocation outcome presentation', () => {
+  it.each([
+    ['PENDING', 'bg-yellow-100'],
+    ['SUCCEEDED', 'bg-green-100'],
+    ['FAILED', 'bg-red-100'],
+  ] as const)('distinguishes %s with a visible status pill', async (status, colour) => {
+    vi.mocked(getAllocationJobOutcome).mockResolvedValue(outcome(status));
+    seed(jobId);
+    mount();
+    const pill = await screen.findByText(status);
+    expect(pill).toHaveClass(colour);
+  });
+
+  it('shows progress inside the admin button while queueing', async () => {
+    const request = deferred<AllocationJobDTO>();
+    vi.mocked(enqueueAllocationJob).mockReturnValueOnce(request.promise);
+    mount();
+    await ready();
+    const button = queue();
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    expect(button.querySelector('svg.animate-spin')).not.toBeNull();
+    await act(async () => request.resolve(receipt()));
+  });
+
+  it('keeps the execute button visible with progress during execution', async () => {
+    const request = deferred<{ processed: boolean; outcome: AllocationJobOutcomeDTO }>();
+    vi.mocked(executeAllocationJob).mockReturnValueOnce(request.promise);
+    await showPending();
+    fireEvent.click(execute());
+    const button = execute();
+    expect(button).toBeDisabled();
+    expect(button.querySelector('svg.animate-spin')).not.toBeNull();
+    await act(async () => request.resolve({ processed: true, outcome: outcome('SUCCEEDED') }));
   });
 });

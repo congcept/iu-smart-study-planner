@@ -8,13 +8,13 @@ import {
   type AllocationJobOutcomeDTO,
   type ResourceScopeDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
-import { getSession } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
+import { Button, EmptyState, ErrorBanner, PaginationFooter, StatusPill } from '@/components/ui';
 import { getAllocationJobOutcome, listAllocationJobs } from '@/lib/allocationJobsApi';
+import { AdminSessionChanged, useVerifyAdminSession } from './adminSession';
 
 type Props = { userId: string; scope: ResourceScopeDTO };
 type PageRequest = { after?: string; boundary?: AllocationJobOutcomeDTO };
-class AdminSessionChanged extends Error {}
 
 function sameTerminal(left: AllocationJobOutcomeDTO, right: AllocationJobOutcomeDTO) {
   return (
@@ -52,10 +52,21 @@ function HistoryPanel({ userId, scope }: Props) {
   const pageRequest = useRef<PageRequest>({});
   // Keep only this page's verified terminal observations, never accumulate history.
   const terminalObservations = useRef(new Map<string, AllocationJobOutcomeDTO>());
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const focusDetail = useRef(false);
   const [page, setPage] = useState<AllocationJobHistoryDTO | null>(null);
   const [selectedRow, setSelectedRow] = useState<AllocationJobOutcomeDTO | null>(null);
   const [detail, setDetail] = useState<AllocationJobOutcomeDTO | null>(null);
   const [pending, setPending] = useState<'page' | 'detail' | null>('page');
+  const pageErrorRef = useRef<HTMLDivElement>(null);
+  const detailErrorRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The list, the paging control and the retry controls are replaced while a
+  // read runs, so the focus has to go to whatever the panel shows instead.
+  const rememberFocus = useFocusAfterDisable(
+    pending !== null,
+    () => pageErrorRef.current ?? detailErrorRef.current ?? headingRef.current,
+  );
   const [pageError, setPageError] = useState('');
   const [detailError, setDetailError] = useState('');
   const requestedScope = useCallback(
@@ -73,11 +84,7 @@ function HistoryPanel({ userId, scope }: Props) {
     },
     [requestedScope],
   );
-  const verifySession = useCallback(async () => {
-    const account = await getSession();
-    if (!account || account.id.toLowerCase() !== userId || account.role !== 'ADMIN')
-      throw new AdminSessionChanged();
-  }, [userId]);
+  const verifySession = useVerifyAdminSession(userId);
   const failureMessage = useCallback((failure: unknown, readingPage: boolean) => {
     if (
       failure instanceof AdminSessionChanged ||
@@ -103,6 +110,7 @@ function HistoryPanel({ userId, scope }: Props) {
       setDetailError('');
       setSelectedRow(null);
       setDetail(null);
+      focusDetail.current = false;
       if (!request.after) setPage(null);
       try {
         await verifySession();
@@ -165,6 +173,7 @@ function HistoryPanel({ userId, scope }: Props) {
       setPending('detail');
       setSelectedRow(row);
       setDetail(null);
+      focusDetail.current = false;
       setDetailError('');
       try {
         await verifySession();
@@ -198,6 +207,7 @@ function HistoryPanel({ userId, scope }: Props) {
               }
             : current,
         );
+        focusDetail.current = true;
         setDetail(result);
       } catch (failure) {
         if (token === generation.current) setDetailError(failureMessage(failure, false));
@@ -211,13 +221,22 @@ function HistoryPanel({ userId, scope }: Props) {
     [failureMessage, matchesScope, requestedScope, verifySession],
   );
 
+  useEffect(() => {
+    if (detail && focusDetail.current && !detailError) {
+      focusDetail.current = false;
+      detailHeading.current?.focus();
+    }
+  }, [detail, detailError]);
+
   return (
     <section
       aria-label="Simulation request history"
       className="min-w-0 space-y-4 border-t border-gray-200 pt-6"
     >
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">Simulation request history</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+          Simulation request history
+        </h3>
         <p className="mt-2 max-w-prose text-sm text-gray-600">
           Browse queued requests for {semester} {year}, newest queued first. Each page shows up to
           twenty requests. Loading older requests replaces this page; reload to see newer requests
@@ -228,7 +247,10 @@ function HistoryPanel({ userId, scope }: Props) {
         variant="secondary"
         className="min-h-11"
         disabled={pending !== null}
-        onClick={() => void readPage()}
+        onClick={() => {
+          rememberFocus();
+          void readPage();
+        }}
       >
         Reload request history
       </Button>
@@ -238,15 +260,20 @@ function HistoryPanel({ userId, scope }: Props) {
         </p>
       )}
       {pageError && (
-        <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {pageError}
-          </p>
+        <div
+          ref={pageErrorRef}
+          tabIndex={-1}
+          className="space-y-2 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{pageError}</ErrorBanner>
           <Button
             variant="secondary"
             className="min-h-11"
             disabled={pending !== null}
-            onClick={() => void readPage(pageRequest.current)}
+            onClick={() => {
+              rememberFocus();
+              void readPage(pageRequest.current);
+            }}
           >
             Retry history page
           </Button>
@@ -258,9 +285,7 @@ function HistoryPanel({ userId, scope }: Props) {
             {page.jobs.length} {page.jobs.length === 1 ? 'request' : 'requests'} on this page.
           </p>
           {page.jobs.length === 0 ? (
-            <p className="text-sm text-gray-700">
-              No queued simulation requests for this scenario.
-            </p>
+            <EmptyState>No queued simulation requests for this scenario.</EmptyState>
           ) : (
             <ul
               aria-label="Queued requests"
@@ -278,6 +303,7 @@ function HistoryPanel({ userId, scope }: Props) {
                     </p>
                     <p className="break-all text-gray-600">{row.jobId}</p>
                     <p className="text-gray-700">{statusLabel(row.status)}</p>
+                    <StatusPill status={row.status} />
                   </div>
                   <Button
                     variant="secondary"
@@ -285,7 +311,10 @@ function HistoryPanel({ userId, scope }: Props) {
                     aria-label={`View request outcome ${row.jobId}, queued ${new Date(row.queuedAt).toLocaleString()}`}
                     aria-pressed={selectedRow?.jobId === row.jobId}
                     disabled={pending !== null}
-                    onClick={() => void readOutcome(row)}
+                    onClick={() => {
+                      rememberFocus();
+                      void readOutcome(row);
+                    }}
                   >
                     View request outcome
                   </Button>
@@ -293,21 +322,24 @@ function HistoryPanel({ userId, scope }: Props) {
               ))}
             </ul>
           )}
-          {page.nextAfter !== null && !pageError && (
-            <Button
-              variant="secondary"
-              className="min-h-11"
-              disabled={pending !== null}
-              onClick={() =>
-                void readPage({ after: page.nextAfter ?? undefined, boundary: page.jobs.at(-1) })
-              }
-            >
-              Load older requests
-            </Button>
-          )}
-          {page.jobs.length > 0 && page.nextAfter === null && (
-            <p className="text-sm text-gray-600">No older requests.</p>
-          )}
+          <PaginationFooter
+            next={
+              page.nextAfter !== null && !pageError
+                ? {
+                    label: 'Load older requests',
+                    disabled: pending !== null,
+                    onClick: () => {
+                      rememberFocus();
+                      void readPage({
+                        after: page.nextAfter ?? undefined,
+                        boundary: page.jobs.at(-1),
+                      });
+                    },
+                  }
+                : undefined
+            }
+            end={page.jobs.length > 0 && page.nextAfter === null ? 'No older requests.' : undefined}
+          />
         </div>
       )}
       {pending === 'detail' && (
@@ -316,21 +348,26 @@ function HistoryPanel({ userId, scope }: Props) {
         </p>
       )}
       {detailError && selectedRow && (
-        <div className="space-y-2">
-          <p role="alert" className="max-w-prose text-sm text-red-700">
-            {detailError}
-          </p>
+        <div
+          ref={detailErrorRef}
+          tabIndex={-1}
+          className="space-y-2 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
+          <ErrorBanner className="max-w-prose text-sm text-red-700">{detailError}</ErrorBanner>
           <Button
             variant="secondary"
             className="min-h-11"
             disabled={pending !== null}
-            onClick={() => void readOutcome(selectedRow)}
+            onClick={() => {
+              rememberFocus();
+              void readOutcome(selectedRow);
+            }}
           >
             Retry selected outcome
           </Button>
         </div>
       )}
-      {detail && <RequestOutcome outcome={detail} />}
+      {detail && <RequestOutcome outcome={detail} headingRef={detailHeading} />}
     </section>
   );
 }
@@ -343,13 +380,22 @@ function statusLabel(status: AllocationJobOutcomeDTO['status']) {
       : 'Failed · no capture saved';
 }
 
-function RequestOutcome({ outcome }: { outcome: AllocationJobOutcomeDTO }) {
+function RequestOutcome({
+  outcome,
+  headingRef,
+}: {
+  outcome: AllocationJobOutcomeDTO;
+  headingRef: React.Ref<HTMLHeadingElement>;
+}) {
   return (
     <section
       aria-label="Selected request outcome"
       className="min-w-0 space-y-3 border-t border-gray-200 pt-4"
     >
-      <h4 className="font-semibold text-gray-900">Selected request outcome</h4>
+      <h4 ref={headingRef} tabIndex={-1} className="font-semibold text-gray-900">
+        Selected request outcome
+      </h4>
+      <StatusPill status={outcome.status} />
       <p className="break-all text-sm text-gray-700">{outcome.jobId}</p>
       <p role="status" className="max-w-prose text-sm text-gray-700">
         {outcome.status === 'PENDING'

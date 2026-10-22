@@ -13,6 +13,7 @@ import {
 import { ownerId, referenceSession } from '@/test/fixtures/curriculumReference';
 import { semesterAllocationScope } from '@/test/fixtures/semesterAllocationPreview';
 import { semesterAllocationRun } from '@/test/fixtures/semesterAllocationRun';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { SemesterAllocationRunCapturePanel } from '../SemesterAllocationRunCapturePanel';
 import { semesterAllocationRunRecoveryKey } from '../semesterAllocationRunRecovery';
 
@@ -87,7 +88,50 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after a failed read finishes', async () => {
+    seed(semesterAllocationRun().id);
+    vi.mocked(getSemesterAllocationRun).mockRejectedValueOnce(new Error('Offline'));
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getSemesterAllocationRun>>>();
+    vi.mocked(getSemesterAllocationRun).mockReturnValueOnce(pendingRead.promise);
+    const target = recovery();
+    await waitFor(() => expect(recovery()).toBeEnabled());
+
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.reject(new Error('Offline')));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+});
+
 describe('saved semester simulation capture', () => {
+  it('keeps focus on mount recovery and announces a capture requested by the user', async () => {
+    seed(semesterAllocationRun().id);
+    const trigger = document.createElement('div');
+    trigger.tabIndex = -1;
+    document.body.append(trigger);
+    trigger.focus();
+    mount();
+    await screen.findByRole('heading', { name: 'Last semester capture in this tab' });
+    await ready();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(another());
+    const resultHeading = await screen.findByRole('heading', {
+      name: 'Last semester capture in this tab',
+    });
+    await waitFor(() => expect(resultHeading).toHaveFocus());
+    expect(resultHeading).toHaveAttribute('tabindex', '-1');
+    trigger.remove();
+  });
+
   it('mounts without automatically creating a run or writing browser data', async () => {
     mount();
     await ready();

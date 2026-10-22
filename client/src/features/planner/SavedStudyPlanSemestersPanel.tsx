@@ -5,7 +5,8 @@ import {
   type OwnStudyPlanSemesterMetadataDTO,
   type OwnStudyPlanSemestersDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner, PaginationFooter } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import {
   isOlderSavedStudyPlanSemester,
   listSavedStudyPlanSemesters,
@@ -34,6 +35,18 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<Request>({});
+  const heading = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const rememberFocus = useFocusAfterDisable(
+    state.status === 'loading',
+    () => errorRef.current ?? heading.current,
+  );
+  const isSelected = state.status === 'selected';
+
+  useEffect(() => {
+    if (!isSelected) heading.current?.focus();
+  }, [isSelected]);
+
   const read = useCallback(
     async (input: Request) => {
       if (!mounted.current) return;
@@ -128,7 +141,9 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Saved plan semester references</h3>
+          <h3 ref={heading} tabIndex={-1} className="text-lg font-semibold text-gray-900">
+            Saved plan semester references
+          </h3>
           <p className="mt-2 max-w-prose text-sm text-gray-700">
             These are stored semester labels and credit totals, newest saved first. This order is
             not an academic sequence. Credits have not been checked against current courses,
@@ -145,7 +160,10 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
             variant="secondary"
             className="min-h-11"
             disabled={pending}
-            onClick={() => void read({})}
+            onClick={() => {
+              rememberFocus();
+              void read({});
+            }}
           >
             Reload saved semesters
           </Button>
@@ -157,8 +175,12 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
         </p>
       )}
       {state.status === 'error' && (
-        <div className="mt-4">
-          <p role="alert" className="text-sm text-red-700">
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-4 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
+          <ErrorBanner>
             {state.account
               ? 'Your account or curriculum could not be confirmed. Return to saved plans and reload after signing in.'
               : state.unavailable
@@ -166,13 +188,16 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
                 : state.cursor
                   ? 'This saved semester page is no longer available. Reload saved semesters for the latest references.'
                   : 'Could not confirm the saved semester references. Retry this read or reload the latest references.'}
-          </p>
+          </ErrorBanner>
           {!state.account && !state.unavailable && !state.cursor && (
             <Button
               type="button"
               variant="secondary"
               className="mt-3 min-h-11"
-              onClick={() => void read(lastRequest.current)}
+              onClick={() => {
+                rememberFocus();
+                void read(lastRequest.current);
+              }}
             >
               Retry saved semesters
             </Button>
@@ -230,24 +255,31 @@ function SavedSemesterBody({ ownerId, planId, expectedCurriculumId, onBack }: Pr
               ))}
             </ul>
           )}
-          {state.page.nextAfter && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              onClick={() =>
-                void read({ after: state.page.nextAfter!, boundary: state.page.semesters.at(-1) })
-              }
-            >
-              Older saved semesters
-            </Button>
-          )}
+          <PaginationFooter
+            next={
+              state.page.nextAfter
+                ? {
+                    label: 'Older saved semesters',
+                    onClick: () => {
+                      rememberFocus();
+                      void read({
+                        after: state.page.nextAfter!,
+                        boundary: state.page.semesters.at(-1),
+                      });
+                    },
+                  }
+                : undefined
+            }
+          />
           {state.page.after && (
             <Button
               type="button"
               variant="secondary"
               className="min-h-11"
-              onClick={() => void read({})}
+              onClick={() => {
+                rememberFocus();
+                void read({});
+              }}
             >
               Latest saved semesters
             </Button>

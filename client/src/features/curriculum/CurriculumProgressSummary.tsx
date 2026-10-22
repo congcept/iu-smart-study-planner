@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ContextStudentProgressDTO } from '@iu-study-planner/shared';
 import { Button } from '@/components/ui';
 import { getContextStudentProgress } from '@/lib/curriculumApi';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 
 type Props = { userId: string; curriculumId: string };
 const statusLabel = (status: string) =>
@@ -26,7 +27,6 @@ function ProgressSession({ userId, curriculumId }: Props) {
     if (!mounted.current || busy.current) return;
     busy.current = true;
     const request = ++generation.current;
-    setData(null);
     setStatus('loading');
     try {
       const snapshot = await getContextStudentProgress(userId, curriculumId);
@@ -49,6 +49,11 @@ function ProgressSession({ userId, curriculumId }: Props) {
     generation.current++;
     busy.current = false;
   }, []);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  // The reload control disables itself while the progress is read, so the focus
+  // has to come back to it once the read settles.
+  const rememberFocus = useFocusAfterDisable(status === 'loading', () => errorRef.current);
   useEffect(() => {
     mounted.current = true;
     void load();
@@ -61,29 +66,52 @@ function ProgressSession({ userId, curriculumId }: Props) {
       className="rounded-xl border border-gray-200 bg-white p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 id="context-progress-title" className="text-lg font-semibold text-gray-900">
+        <h3
+          ref={headingRef}
+          tabIndex={-1}
+          id="context-progress-title"
+          className="text-lg font-semibold text-gray-900"
+        >
           Saved curriculum progress
         </h3>
         <Button
           variant="secondary"
           className="min-h-11"
           disabled={status === 'loading'}
-          onClick={() => void load()}
+          onClick={() => {
+            rememberFocus();
+            void load();
+          }}
         >
           Reload progress
         </Button>
       </div>
-      {status === 'loading' ? (
+      {status === 'loading' && !data ? (
         <p role="status" className="mt-3 text-sm text-gray-600">
           Loading saved curriculum progress…
         </p>
-      ) : status === 'error' ? (
-        <p role="alert" className="mt-3 text-sm text-red-700">
+      ) : status === 'error' && !data ? (
+        <p
+          ref={errorRef}
+          tabIndex={-1}
+          role="alert"
+          className="mt-3 text-sm text-red-700 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
           Could not confirm progress for this curriculum. Reload progress to try again.
         </p>
       ) : (
         data && (
           <>
+            {status === 'loading' && (
+              <p role="status" className="mt-3 text-sm text-gray-600">
+                Reloading saved curriculum progress…
+              </p>
+            )}
+            {status === 'error' && (
+              <p role="alert" className="mt-3 text-sm text-red-700">
+                Could not refresh progress. Showing the last confirmed snapshot.
+              </p>
+            )}
             <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-4">
               {[
                 ['Completed courses', data.progress.completedCourses],

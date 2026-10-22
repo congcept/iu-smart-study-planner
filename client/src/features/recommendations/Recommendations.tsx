@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Course, Recommendation } from '@/types';
 import { getRecommendations } from '@/lib/api';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { categoryLabels, formatCredits } from '@/lib/utils';
-import { Badge, Button, Card } from '@components/ui';
+import { Badge, Button, Card, ErrorBanner, LoadingSpinner } from '@components/ui';
 import { Check, Plus } from 'lucide-react';
 
 import { CourseRatingBadge } from '../curriculum/CourseRatingBadge';
@@ -93,6 +94,14 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
     result.epoch === ownerEpoch && result.status === 'ready' ? (result.data ?? null) : null;
   const isLoading = result.epoch !== ownerEpoch || result.status === 'loading';
   const hasError = result.epoch === ownerEpoch && result.status === 'error';
+  const refreshRef = useRef<HTMLButtonElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  // The card is replaced while a read runs, so the control that started it is
+  // gone by the time the read settles. Focus then goes to what replaced it.
+  const rememberFocus = useFocusAfterDisable(
+    isLoading,
+    () => errorRef.current ?? refreshRef.current,
+  );
 
   const fetchRecommendations = useCallback(async () => {
     const isOwner = () => mounted.current && owner.current.epoch === ownerEpoch;
@@ -127,10 +136,7 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
           role="status"
           className="flex items-center justify-center gap-3 py-12 text-sm text-gray-700"
         >
-          <div
-            aria-hidden="true"
-            className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600"
-          />
+          <LoadingSpinner variant="ring" />
           Loading suggestions…
         </div>
       </Card>
@@ -140,13 +146,25 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
   if (hasError || !recommendations) {
     return (
       <Card title="Course suggestions">
-        <div role="alert" className="space-y-3 py-4">
-          <p className="text-sm text-gray-700">
-            We couldn’t load course suggestions. Check your connection and try again.
-          </p>
-          <Button variant="secondary" onClick={() => void fetchRecommendations()}>
-            Retry loading
-          </Button>
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          className="rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary-700"
+        >
+          <ErrorBanner as="div" className="space-y-3 py-4">
+            <p className="text-sm text-gray-700">
+              We couldn’t load course suggestions. Check your connection and try again.
+            </p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                rememberFocus();
+                void fetchRecommendations();
+              }}
+            >
+              Retry loading
+            </Button>
+          </ErrorBanner>
         </div>
       </Card>
     );
@@ -165,9 +183,13 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
             : 'No numeric GPA is recorded. Suggestions may include both Year 4, Semester 2 paths; your manual curriculum choice is not applied here.'}
       </p>
       <Button
+        ref={refreshRef}
         variant="secondary"
         className="mb-4 min-h-11"
-        onClick={() => void fetchRecommendations()}
+        onClick={() => {
+          rememberFocus();
+          void fetchRecommendations();
+        }}
       >
         Refresh suggestions
       </Button>
@@ -180,6 +202,9 @@ export const Recommendations: React.FC<RecommendationsProps> = ({
       {recommendations.courses.length === 0 ? (
         <div className="border-t border-gray-200 pt-5">
           <p className="font-medium text-gray-900">No courses fit these planning limits.</p>
+          <p className="mt-1 text-sm text-gray-700">
+            Suggestions are limited to 18 credits and a maximum difficulty of 3.5.
+          </p>
           <p className="mt-1 text-sm text-gray-700">
             Review your recorded prerequisites and completed courses to see what is available next.
           </p>

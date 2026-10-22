@@ -5,7 +5,8 @@ import {
   type OwnStudyPlanReferenceSelectionPreviewBodyDTO,
   type OwnStudyPlanReferenceSelectionPreviewDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
+import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { SavedStudyPlanCoursesSessionChangedError } from '@/lib/savedStudyPlanCoursesApi';
 import {
   previewReferenceSelection,
@@ -37,6 +38,7 @@ function CheckBody({
   const alive = useRef(false);
   const busy = useRef(false);
   const controller = useRef<AbortController | null>(null);
+  const rememberFocus = useFocusAfterDisable(state.status === 'loading');
   useEffect(() => {
     const activeAlive = alive;
     const activeController = controller;
@@ -48,6 +50,7 @@ function CheckBody({
   }, []);
   const check = async () => {
     if (!alive.current || busy.current) return;
+    rememberFocus();
     busy.current = true;
     const active = new AbortController();
     controller.current?.abort();
@@ -94,7 +97,7 @@ function CheckBody({
       aria-label="Proposed course check"
       className="space-y-3 rounded border border-gray-200 p-3"
     >
-      <h5 className="font-semibold text-gray-900">Check proposed courses</h5>
+      <h4 className="font-semibold text-gray-900">Check proposed courses</h4>
       <p className="max-w-prose text-sm text-gray-700">
         Check this selection against current completed records, academic placements and numeric GPA.
         This does not save courses or confirm a timetable or degree plan. Saving checks the rules
@@ -110,10 +113,10 @@ function CheckBody({
         {state.status === 'loading' ? 'Checking proposed courses…' : 'Check proposed courses'}
       </Button>
       {state.status === 'error' && (
-        <p role="alert" className="text-sm text-red-700">
+        <ErrorBanner>
           Could not confirm this proposed selection. Reload the saved selection if it changed, then
           check again. No courses were saved by this check.
-        </p>
+        </ErrorBanner>
       )}
       {state.status === 'ready' && (
         <div className="space-y-3">

@@ -5,7 +5,7 @@ import {
   type ResourcesSnapshotDTO,
   type UpsertResourcesDTO,
 } from '@iu-study-planner/shared';
-import { Button } from '@/components/ui';
+import { Button, ErrorBanner } from '@/components/ui';
 
 type OverrideRow = { key: number; code: string; capacity: string; professorCount: string };
 const inputClass =
@@ -233,11 +233,7 @@ export function ResourceSettingsForm({
           Add course override
         </Button>
       </fieldset>
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
       <Button type="submit" className="min-h-11" disabled={locked} isLoading={saving}>
         Save simulation settings
       </Button>

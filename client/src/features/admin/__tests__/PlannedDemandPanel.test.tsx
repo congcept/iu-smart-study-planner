@@ -9,6 +9,7 @@ import type {
 import { getSession } from '@/lib/api';
 import { getPlannedDemand, getSimulationCapacity, saveResources } from '@/lib/adminResourcesApi';
 import { referenceSession } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { PlannedDemandPanel } from '../PlannedDemandPanel';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -125,6 +126,28 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    mount();
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getSimulationCapacity>>>();
+    vi.mocked(getSimulationCapacity).mockReturnValueOnce(pendingRead.promise);
+    const target = reloadButton();
+    await waitFor(() => expect(reloadButton()).toBeEnabled());
+
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(snapshot()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
+});
+
 describe('readonly current planned selections panel', () => {
   it('waits for a fresh matching admin session before reading the private report', async () => {
     const auth = deferred<AuthUserDTO>();
@@ -217,6 +240,18 @@ describe('readonly current planned selections panel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Your admin session changed');
     expectNoReport();
     expect(getSimulationCapacity).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a session change returned while fetching planned selections', async () => {
+    const denied = Object.assign(new Error('Forbidden'), {
+      isAxiosError: true,
+      response: { status: 403 },
+    });
+    vi.mocked(getSimulationCapacity).mockRejectedValueOnce(denied);
+    mount();
+    await ready();
+    expect(screen.getByRole('alert')).toHaveTextContent('Your admin session changed');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('offers retry after session verification fails without reading private demand', async () => {

@@ -31,6 +31,7 @@ import {
   referenceId,
   referenceSession,
 } from '@/test/fixtures/curriculumReference';
+import { dropFocusToBody } from '@/test/dropFocusToBody';
 import { AdminResourceDashboard } from '../AdminResourceDashboard';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
@@ -176,6 +177,42 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it('puts focus on the panel heading when the references are read again', async () => {
+  vi.mocked(getCurriculumReferences).mockRejectedValue(new Error('offline'));
+  render(<AdminResourceDashboard userId={ownerId} />);
+  const reload = await screen.findByRole('button', { name: 'Reload references' });
+  reload.focus();
+  fireEvent.click(reload);
+  await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+  expect(document.activeElement).toBe(
+    screen.getByRole('heading', { name: 'Simulation resources' }),
+  );
+});
+
+describe('focus while a read is in flight', () => {
+  it('returns focus to the reload control after reading finishes', async () => {
+    render(<AdminResourceDashboard userId={ownerId} />);
+    await ready();
+    const pendingRead = deferred<Awaited<ReturnType<typeof getResources>>>();
+    vi.mocked(getResources).mockReturnValueOnce(pendingRead.promise);
+    const target = screen.getByRole('button', { name: 'Reload saved settings' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Reload saved settings' })).toBeEnabled(),
+    );
+
+    target.focus();
+    fireEvent.click(target);
+    await waitFor(() => expect(target).toBeDisabled());
+    dropFocusToBody();
+    expect(target).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => pendingRead.resolve(snapshot()));
+    await waitFor(() => expect(target).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(target));
+  });
 });
 
 describe('AdminResourceDashboard scope and durable save proof', () => {
