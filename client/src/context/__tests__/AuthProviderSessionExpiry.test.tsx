@@ -64,10 +64,12 @@ function createBackend() {
   let loginGate: Gate | null = null;
   let loginCalls = 0;
   let gradesCalls = 0;
+  let sessionChecks = 0;
 
   const adapter = async (config: InternalAxiosRequestConfig) => {
     const url = config.url ?? '';
     if (url === '/auth/me') {
+      sessionChecks++;
       if (!signedIn) refused(config);
       return succeeded(config, { success: true, data: { user: signedIn } });
     }
@@ -110,11 +112,12 @@ function createBackend() {
     },
     loginCalls: () => loginCalls,
     gradesCalls: () => gradesCalls,
+    sessionChecks: () => sessionChecks,
   };
 }
 
 function SessionControls() {
-  const { user, status, login, logout } = useAuth();
+  const { user, status, login, logout, refresh } = useAuth();
   const signIn = (email: string) => {
     login({ email, password: 'correct-horse' }).catch(() => {});
   };
@@ -127,6 +130,7 @@ function SessionControls() {
       <button onClick={() => signIn(bob.email)}>sign in bob</button>
       <button onClick={() => signIn('unknown@example.test')}>sign in unknown</button>
       <button onClick={() => void logout().catch(() => {})}>sign out</button>
+      <button onClick={() => void refresh()}>check session</button>
     </>
   );
 }
@@ -170,13 +174,17 @@ describe('a refused protected read during session changes', () => {
     await signOut();
     await signIn('sign in bob', bob.id);
 
+    let outcome: unknown;
     await act(async () => {
       released.open();
-      await refusedRead;
+      outcome = await refusedRead;
     });
 
     expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${bob.id}`);
     expect(backend.account()).toBe(bob);
+    // The refusal still belongs to the caller that asked for the read.
+    expect(outcome).toBeInstanceOf(AxiosError);
+    expect((outcome as AxiosError).response?.status).toBe(401);
   });
 
   it('leaves the same account signed in again after the read was sent intact', async () => {
@@ -249,5 +257,45 @@ describe('a refused protected read during session changes', () => {
     await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
 
     expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${bob.id}`);
+  });
+
+  it('ends the session when the cookie the read was sent under is refused, even after the account was checked again', async () => {
+    const backend = await start();
+    await signIn('sign in bob', bob.id);
+
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+
+    // The account is checked again and it is the same account, so the read that
+    // is in flight still describes the session in use.
+    const checks = backend.sessionChecks();
+    fireEvent.click(screen.getByRole('button', { name: 'check session' }));
+    await waitFor(() => expect(backend.sessionChecks()).toBeGreaterThan(checks));
+
+    await act(async () => {
+      released.open();
+      await refusedRead;
+    });
+
+    expect(screen.getByTestId('session')).toHaveTextContent('unauthenticated:guest');
+  });
+
+  it('stays signed out when a read sent before the sign-out is refused', async () => {
+    const backend = await start();
+    await signIn('sign in bob', bob.id);
+
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+
+    await signOut();
+
+    await act(async () => {
+      released.open();
+      await refusedRead;
+    });
+
+    expect(screen.getByTestId('session')).toHaveTextContent('unauthenticated:guest');
   });
 });

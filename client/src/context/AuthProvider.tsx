@@ -11,10 +11,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthContextValue['status']>('loading');
   const [sessionError, setSessionError] = useState<string | null>(null);
   const requestVersion = useRef(0);
+  const currentUserId = useRef<string | null>(null);
 
   const applyUser = useCallback((nextUser: AuthUserDTO | null) => {
-    beginAuthenticationGeneration();
-    useAppStore.getState().setProgressOwner(nextUser?.id ?? null);
+    const nextId = nextUser?.id ?? null;
+    if (nextId !== currentUserId.current) {
+      // A different account, or no account at all, means every request still in
+      // flight belongs to a session that no longer exists. Checking the same
+      // account again does not: that request still describes the session in use.
+      beginAuthenticationGeneration();
+    }
+    currentUserId.current = nextId;
+    useAppStore.getState().setProgressOwner(nextId);
     setUser(nextUser);
     setSessionError(null);
     setStatus(nextUser ? 'authenticated' : 'unauthenticated');

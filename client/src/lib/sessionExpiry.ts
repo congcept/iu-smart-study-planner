@@ -33,7 +33,9 @@ export function bindRequestAuthentication(config: object): void {
  */
 export function isRequestAuthenticationCurrent(config: object): boolean {
   const generation = requestGenerations.get(config);
-  requestGenerations.delete(config);
+  // A request that never recorded a generation cannot be shown to be stale, so
+  // it keeps the plain behaviour of ending the session.
+  if (generation === undefined) return true;
   return generation === authenticationGeneration;
 }
 
