@@ -61,12 +61,12 @@ function createBackend() {
   ]);
   let signedIn: AuthUserDTO | null = null;
   let gradesGate: Gate | null = null;
-  let loginGate: Gate | null = null;
   let loginCalls = 0;
   let gradesCalls = 0;
   let sessionChecks = 0;
   let renameNextLogin = false;
   let sessionGate: Gate | null = null;
+  const loginGates: Gate[] = [];
 
   const adapter = async (config: InternalAxiosRequestConfig) => {
     const url = config.url ?? '';
@@ -84,7 +84,7 @@ function createBackend() {
     }
     if (url === '/auth/login') {
       loginCalls++;
-      const pending = loginGate;
+      const pending = loginGates.shift();
       if (pending) await pending.promise;
       const body = JSON.parse(String(config.data)) as LoginDTO;
       const account = accounts.get(body.email);
@@ -122,8 +122,9 @@ function createBackend() {
       return gradesGate;
     },
     holdLogin() {
-      loginGate = gate();
-      return loginGate;
+      const held = gate();
+      loginGates.push(held);
+      return held;
     },
     holdSession() {
       sessionGate = gate();
@@ -409,6 +410,89 @@ describe('a refused protected read during session changes', () => {
       login.open();
     });
     await screen.findByText('unauthenticated:guest');
+  });
+
+  it('applies a refusal after a superseded sign-in was rejected', async () => {
+    const backend = await start();
+    await signIn('sign in alice', alice.id);
+
+    // Two sign-ins at once; the first is refused by the server.
+    const first = backend.holdLogin();
+    const second = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in unknown' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+    fireEvent.click(screen.getByRole('button', { name: 'sign in bob' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls + 1));
+
+    await act(async () => {
+      first.open();
+    });
+    await act(async () => {
+      second.open();
+    });
+    await screen.findByText(`authenticated:${bob.id}`);
+
+    // A refusal of the session in use still ends it.
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+    await act(async () => {
+      released.open();
+      await refusedRead;
+    });
+    await screen.findByText('unauthenticated:guest');
+  });
+
+  it('applies a refusal that arrived while an older sign-in was still running', async () => {
+    const backend = await start();
+    const first = backend.holdLogin();
+    const second = backend.holdLogin();
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in bob' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+    fireEvent.click(screen.getByRole('button', { name: 'sign in alice' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls + 1));
+
+    // The second sign-in completes and replaces the cookie.
+    await act(async () => {
+      second.open();
+    });
+    await screen.findByText(`authenticated:${alice.id}`);
+
+    // A refusal of the session in use arrives while the first sign-in runs.
+    const released = backend.holdGrades();
+    const refusedRead = apiClient.get('/users/me/grades').catch((error: unknown) => error);
+    await waitFor(() => expect(backend.gradesCalls()).toBe(1));
+    await act(async () => {
+      released.open();
+      await refusedRead;
+    });
+    expect(screen.getByTestId('session')).toHaveTextContent(`authenticated:${alice.id}`);
+
+    // The first sign-in settles and no sign-in replaced the cookie the refusal
+    // belonged to, so the refusal is applied.
+    await act(async () => {
+      first.open();
+    });
+    await screen.findByText('unauthenticated:guest');
+  });
+
+  it('does not leave the app loading when a sign-in fails during a session check', async () => {
+    const backend = await start();
+    const check = backend.holdSession();
+    const checks = backend.sessionChecks();
+    fireEvent.click(screen.getByRole('button', { name: 'check session' }));
+    await waitFor(() => expect(backend.sessionChecks()).toBeGreaterThan(checks));
+
+    const loginCalls = backend.loginCalls();
+    fireEvent.click(screen.getByRole('button', { name: 'sign in unknown' }));
+    await waitFor(() => expect(backend.loginCalls()).toBeGreaterThan(loginCalls));
+
+    await act(async () => {
+      check.open();
+    });
+    await waitFor(() => expect(screen.getByTestId('session')).not.toHaveTextContent('loading:'));
   });
 
   it('still ends the current session when its own protected read is refused', async () => {

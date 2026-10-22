@@ -96,39 +96,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const runAuthentication = useCallback(
     async <T,>(operation: () => Promise<T>, apply: (result: T) => void) => {
-      // A sign-in that starts replaces the cookie, so every request that is
-      // still in flight belongs to the session that is going away.
-      refreshVersion.current++;
       const attempt = ++authAttempt.current;
       authInFlight.current++;
+      // A sign-in that starts replaces the cookie, so every request that is
+      // still in flight belongs to the session that is going away.
       beginAuthenticationGeneration();
       try {
         const result = await operation();
-        if (attempt !== authAttempt.current) {
-          authInFlight.current--;
-          return;
-        }
-        // The cookie is new now. A read that was sent before this moment cannot
-        // describe the session that is in use, so its refusal must not end it.
-        beginAuthenticationGeneration();
-        // A session check that is still running belongs to the cookie that is
-        // going away, so it must not answer for the session that replaced it.
-        refreshVersion.current++;
-        authInFlight.current--;
-        expiryPending.current = false;
-        apply(result);
-      } catch (error) {
         if (attempt === authAttempt.current) {
-          authInFlight.current--;
+          // The cookie is new now. A read that was sent before this moment
+          // cannot describe the session that is in use, so its refusal must not
+          // end it.
+          beginAuthenticationGeneration();
+          // A session check that is still running belongs to the cookie that is
+          // going away, so it must not answer for the session that replaced it.
+          refreshVersion.current++;
+          expiryPending.current = false;
+          apply(result);
+        }
+      } catch (error) {
+        if (attempt === authAttempt.current && expiryPending.current) {
           // A refusal that arrived while the sign-in was running belongs to the
-          // cookie that was going away. If the sign-in did not replace it, the
+          // cookie that was going away. The sign-in did not replace it, so the
           // session really is gone.
-          if (expiryPending.current) {
-            expiryPending.current = false;
-            applyUser(null);
-          }
+          expiryPending.current = false;
+          applyUser(null);
         }
         throw error;
+      } finally {
+        // Every attempt counts down once, whether it won, lost or failed.
+        authInFlight.current--;
+        if (authInFlight.current === 0 && expiryPending.current) {
+          // No sign-in is running any more and none of them replaced the cookie
+          // the refusal belonged to, so the refusal is applied now.
+          expiryPending.current = false;
+          applyUser(null);
+        }
       }
     },
     [applyUser],
