@@ -853,7 +853,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
                       } else if (hasRecommended) {
                         statusText = 'NEXT';
                         statusIcon = (
-                          <span className="text-amber-600 font-bold text-[11px]">{statusText}</span>
+                          <span className="text-amber-700 font-bold text-[11px]">{statusText}</span>
                         );
                         borderColor = isActive ? 'border-amber-500' : 'border-amber-500';
                         if (!isActive) statusRing = 'ring-2 ring-amber-200';
