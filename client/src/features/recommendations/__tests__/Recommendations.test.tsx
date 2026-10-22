@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
-import { StrictMode, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { StrictMode, forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResponse, Course, Recommendation } from '@/types';
 import { getRecommendations } from '@/lib/api';
@@ -12,19 +12,27 @@ vi.mock('@components/ui', async (importOriginal) => {
   const original = await importOriginal<typeof import('@components/ui')>();
   return {
     ...original,
-    Button: ({
-      children,
-      onClick,
-      ...props
-    }: ButtonHTMLAttributes<HTMLButtonElement> & { children?: ReactNode }) => {
-      if (typeof children === 'string' && onClick)
-        handlers.set(children, () => onClick({} as React.MouseEvent<HTMLButtonElement>));
-      return (
-        <button {...props} onClick={onClick}>
-          {children}
-        </button>
-      );
-    },
+    Button: forwardRef<
+      HTMLButtonElement,
+      ButtonHTMLAttributes<HTMLButtonElement> & { children?: ReactNode }
+    >(
+      (
+        {
+          children,
+          onClick,
+          ...props
+        }: ButtonHTMLAttributes<HTMLButtonElement> & { children?: ReactNode },
+        ref,
+      ) => {
+        if (typeof children === 'string' && onClick)
+          handlers.set(children, () => onClick({} as React.MouseEvent<HTMLButtonElement>));
+        return (
+          <button ref={ref} {...props} onClick={onClick}>
+            {children}
+          </button>
+        );
+      },
+    ),
   };
 });
 const course = (code: string): Course => ({
@@ -120,6 +128,35 @@ describe('account-scoped recommendations', () => {
     expect(screen.getByRole('status')).toBeInTheDocument();
     await act(async () => next.resolve(response('NEW')));
     expect(screen.getByText('NEW')).toBeInTheDocument();
+  });
+  it('returns focus to the refresh control after a refresh', async () => {
+    const next = deferred();
+    vi.mocked(getRecommendations)
+      .mockResolvedValueOnce(response('OLD'))
+      .mockReturnValueOnce(next.promise);
+    render(<Recommendations userId="A" />);
+    await screen.findByText('OLD');
+    const refresh = screen.getByRole('button', { name: 'Refresh suggestions' });
+    refresh.focus();
+    fireEvent.click(refresh);
+    await act(async () => next.resolve(response('NEW')));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Refresh suggestions' }),
+      ),
+    );
+  });
+  it('puts focus on the failure message when the retry control is replaced', async () => {
+    vi.mocked(getRecommendations)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'));
+    render(<Recommendations userId="A" />);
+    const retry = await screen.findByRole('button', { name: 'Retry loading' });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+    expect(document.activeElement).toHaveTextContent('couldn’t load course suggestions');
   });
   it('shows failure and retry then clears the error on success', async () => {
     vi.mocked(getRecommendations)
