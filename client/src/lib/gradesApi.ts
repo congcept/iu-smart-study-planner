@@ -2,6 +2,7 @@ import {
   AppendGradeAttemptSchema,
   StudentGradeScopeSchema,
   StudentGradeCoursesSchema,
+  StudentSemesterGradesSchema,
   type AppendGradeAttemptDTO,
   type ApiResponse,
   type StudentGradesDTO,
@@ -12,13 +13,20 @@ import apiClient from './api';
 function readGrades(response: ApiResponse<StudentGradesDTO>): StudentGradesDTO {
   if (!response.success || !response.data)
     throw new Error(response.error || 'Could not load grades');
-  if (response.data.scope !== undefined) {
-    const scope = StudentGradeScopeSchema.safeParse(response.data.scope);
-    if (!scope.success || (!scope.data.isGpaPath && response.data.summary?.gpaPath !== null))
+  let grades = response.data;
+  if (grades.scope !== undefined) {
+    const scope = StudentGradeScopeSchema.safeParse(grades.scope);
+    if (!scope.success || (!scope.data.isGpaPath && grades.summary?.gpaPath !== null))
       throw new Error('Could not verify the grade summary scope');
-    return { ...response.data, scope: scope.data };
+    grades = { ...grades, scope: scope.data };
   }
-  return response.data;
+  if (grades.semesterGrades !== undefined) {
+    const semesterGrades = StudentSemesterGradesSchema.safeParse(grades.semesterGrades);
+    if (!semesterGrades.success)
+      throw new Error('Could not verify the recorded semester GPA summary');
+    grades = { ...grades, semesterGrades: semesterGrades.data };
+  }
+  return grades;
 }
 
 export async function getStudentGrades(): Promise<StudentGradesDTO> {

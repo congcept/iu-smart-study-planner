@@ -159,4 +159,59 @@ describe('grade API adapter', () => {
     post.mockRejectedValue(new Error('Network failed'));
     await expect(appendStudentGrade(input)).rejects.toThrow('Network failed');
   });
+
+  describe('recorded semester GPA', () => {
+    const fall = {
+      year: 2025,
+      semester: 'FALL' as const,
+      gpa100: 87.5,
+      gradedCredits: 7,
+      gradedCourseCount: 2,
+    };
+    const spring = {
+      year: 2026,
+      semester: 'SPRING' as const,
+      gpa100: 90,
+      gradedCredits: 3,
+      gradedCourseCount: 1,
+    };
+    const semesterGrades = { terms: [fall, spring], undatedAttemptCount: 2 };
+    it('preserves a validated term summary on read and append', async () => {
+      get.mockResolvedValue({ data: { success: true, data: { ...data, semesterGrades } } });
+      post.mockResolvedValue({ data: { success: true, data: { ...data, semesterGrades } } });
+      expect(await getStudentGrades()).toEqual({ ...data, semesterGrades });
+      expect(await appendStudentGrade(input)).toEqual({ ...data, semesterGrades });
+    });
+    it('treats absent term evidence as a legacy snapshot, not an empty result', async () => {
+      const grades = await getStudentGrades();
+      expect(grades).toEqual(data);
+      expect(grades).not.toHaveProperty('semesterGrades');
+    });
+    it.each([
+      null,
+      'terms',
+      { terms: [], undatedAttemptCount: -1 },
+      { terms: [], undatedAttemptCount: 0, extra: true },
+      { terms: [fall] },
+      { terms: [{ ...fall, gpa100: null }], undatedAttemptCount: 0 },
+      { terms: [{ ...fall, gpa100: 100.5 }], undatedAttemptCount: 0 },
+      { terms: [{ ...fall, gpa100: '87.5' }], undatedAttemptCount: 0 },
+      { terms: [{ ...fall, gradedCredits: 0 }], undatedAttemptCount: 0 },
+      { terms: [{ ...fall, gradedCredits: 2.5 }], undatedAttemptCount: 0 },
+      { terms: [{ ...fall, gradedCourseCount: 0 }], undatedAttemptCount: 0 },
+      { terms: [{ ...fall, year: 1999 }], undatedAttemptCount: 0 },
+      { terms: [{ ...fall, semester: 'WINTER' }], undatedAttemptCount: 0 },
+      { terms: [fall, fall], undatedAttemptCount: 0 },
+      { terms: [spring, fall], undatedAttemptCount: 0 },
+    ])('rejects malformed term evidence %j', async (semesterGrades) => {
+      get.mockResolvedValue({ data: { success: true, data: { ...data, semesterGrades } } });
+      await expect(getStudentGrades()).rejects.toThrow(/semester GPA/);
+    });
+    it('rejects malformed term evidence in an append reply', async () => {
+      post.mockResolvedValue({
+        data: { success: true, data: { ...data, semesterGrades: { terms: [spring] } } },
+      });
+      await expect(appendStudentGrade(input)).rejects.toThrow(/semester GPA/);
+    });
+  });
 });

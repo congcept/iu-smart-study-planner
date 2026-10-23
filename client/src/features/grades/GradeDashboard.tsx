@@ -6,6 +6,7 @@ import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { getStudentGrades } from '@/lib/gradesApi';
 import { GradeEntry } from './GradeEntry';
 import { ScoreDistribution } from './ScoreDistribution';
+import { SemesterGpa } from './SemesterGpa';
 
 const SESSION_EXPIRED_MESSAGE = 'Your session expired. Sign out and sign in again.';
 
@@ -166,6 +167,7 @@ export function GradeDashboard({ userId }: { userId: string }) {
               )}
             </section>
             <ScoreDistribution courseScores={grades.summary.courseScores} />
+            <SemesterGpa semesterGrades={grades.semesterGrades} />
             <GradeEntry userId={userId} onSaved={acceptSaved} />
             <section aria-labelledby="grade-history-title">
               <h3 id="grade-history-title" className="text-lg font-semibold text-gray-900">
