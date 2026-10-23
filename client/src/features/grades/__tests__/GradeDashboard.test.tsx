@@ -382,4 +382,94 @@ describe('numeric grade dashboard', () => {
     await waitFor(() => expect(document.activeElement).not.toBe(document.body));
     expect(document.activeElement).toHaveTextContent('Could not load your grades');
   });
+
+  const semesterGrades = {
+    terms: [
+      {
+        year: 2026,
+        semester: 'FALL' as const,
+        gpa100: 84.5,
+        gradedCredits: 4,
+        gradedCourseCount: 1,
+      },
+    ],
+    undatedAttemptCount: 1,
+  };
+
+  it('renders recorded term GPA beside the unchanged cumulative summary', async () => {
+    getGrades.mockResolvedValue({ ...scored, scope, semesterGrades });
+    render(<GradeDashboard userId={userId} />);
+    expect(await screen.findByText('90.00')).toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Recorded semester GPA table' });
+    expect(within(region).getByRole('rowheader')).toHaveTextContent('FALL 2026');
+    expect(within(region).getByText('84.50')).toBeInTheDocument();
+    expect(within(region).getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('Scored attempts without a term').closest('div')!).toHaveTextContent(
+      '1',
+    );
+  });
+
+  it('marks a snapshot without term evidence as unavailable instead of an empty term list', async () => {
+    getGrades.mockResolvedValue({ ...empty, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('No scores yet');
+    expect(screen.getByText(/unavailable in this saved grade snapshot/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Recorded semester GPA table' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Recorded terms')).not.toBeInTheDocument();
+  });
+
+  it('reconciles term evidence from an accepted saved snapshot', async () => {
+    getGrades.mockResolvedValue({ ...empty, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('No scores yet');
+    act(() => entry.onSaved?.({ ...scored, scope, semesterGrades }));
+    const region = screen.getByRole('region', { name: 'Recorded semester GPA table' });
+    expect(within(region).getByText('84.50')).toBeInTheDocument();
+    expect(screen.queryByText(/unavailable in this saved grade snapshot/)).not.toBeInTheDocument();
+  });
+
+  it('never publishes term evidence from another cookie owner saved snapshot', async () => {
+    getGrades.mockResolvedValue({ ...empty, scope });
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByText('No scores yet');
+    act(() =>
+      entry.onSaved?.({
+        ...scored,
+        scope: { ...scope, userId: '33333333-3333-4333-8333-333333333333' },
+        semesterGrades,
+      }),
+    );
+    expect(
+      screen.queryByRole('region', { name: 'Recorded semester GPA table' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/unavailable in this saved grade snapshot/)).toBeInTheDocument();
+  });
+
+  it('keeps recorded term evidence visible when a reload fails', async () => {
+    getGrades
+      .mockResolvedValueOnce({ ...scored, scope, semesterGrades })
+      .mockRejectedValueOnce(new Error('offline'));
+    render(<GradeDashboard userId={userId} />);
+    await screen.findByRole('region', { name: 'Recorded semester GPA table' });
+    fireEvent.click(screen.getByRole('button', { name: 'Reload grades' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/last successful load/);
+    expect(screen.getByRole('region', { name: 'Recorded semester GPA table' })).toBeInTheDocument();
+    expect(screen.getByText('84.50')).toBeInTheDocument();
+  });
+
+  it('hides the previous account term evidence while the next account loads', async () => {
+    const next = deferred<StudentGradesDTO>();
+    getGrades
+      .mockResolvedValueOnce({ ...scored, scope, semesterGrades })
+      .mockReturnValueOnce(next.promise);
+    const { rerender } = render(<GradeDashboard userId={scope.userId} />);
+    await screen.findByRole('region', { name: 'Recorded semester GPA table' });
+    rerender(<GradeDashboard userId="33333333-3333-4333-8333-333333333333" />);
+    expect(
+      screen.queryByRole('region', { name: 'Recorded semester GPA table' }),
+    ).not.toBeInTheDocument();
+    await act(async () => next.resolve(empty));
+  });
 });

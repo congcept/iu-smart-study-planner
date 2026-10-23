@@ -64,6 +64,8 @@ export interface GradeAttemptDTO {
   course: { id: string; code: string; name: string; credits: number };
 }
 export type GpaPath = 'THESIS' | 'ALTERNATIVE';
+export type StudentSemesterGradeTermDTO = z.infer<typeof schemas.StudentSemesterGradeTermSchema>;
+export type StudentSemesterGradesDTO = z.infer<typeof schemas.StudentSemesterGradesSchema>;
 export interface RecommendationStatsDTO {
   gpaPath: GpaPath | null;
   totalAvailable: number;
@@ -90,6 +92,12 @@ export interface StudentGradesDTO {
     gradedCourseCount: number;
     courseScores: { courseId: string; score: number; credits: number }[];
   };
+  /**
+   * Per-term numeric GPA from explicitly recorded attempt year/semester metadata.
+   * Fresh server replies include it in the same snapshot as `scope`/`summary`;
+   * older persisted snapshots may omit it, which means "unavailable", not "empty".
+   */
+  semesterGrades?: StudentSemesterGradesDTO;
   completedCoursesWithoutNumericGrades: string[];
 }
 export interface StudentProgressDTO {

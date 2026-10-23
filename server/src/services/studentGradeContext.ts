@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { StudentGradeCoursesDTO, StudentGradesDTO } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { GradeAttemptError } from './gradeAttempts';
-import { calculateGradeSummary } from './gradeSummary';
+import { calculateGradeSummary, calculateSemesterGrades } from './gradeSummary';
 
 /** Full immutable history is retained; summary and coverage follow current membership. */
 export async function readStudentGradeSnapshot(
@@ -65,6 +65,10 @@ export async function readStudentGradeSnapshot(
       course: attempt.course,
     })),
     summary,
+    semesterGrades: calculateSemesterGrades(
+      eligibleAttempts.map(({ course }) => course),
+      eligibleAttempts,
+    ),
     completedCoursesWithoutNumericGrades: completed
       .filter(
         ({ courseId, course }) =>

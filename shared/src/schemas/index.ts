@@ -201,6 +201,46 @@ export const StudentGradeCoursesSchema = z
     },
   );
 
+/** Declaration order of SemesterSchema; a stable sort key, not an academic calendar. */
+const SEMESTER_ORDER: Record<z.infer<typeof SemesterSchema>, number> = {
+  FALL: 0,
+  SPRING: 1,
+  SUMMER: 2,
+};
+
+export const StudentSemesterGradeTermSchema = z
+  .object({
+    year: z.number().int().min(2000).max(2100),
+    semester: SemesterSchema,
+    gpa100: z.number().finite().min(0).max(100),
+    gradedCredits: z.number().int().positive(),
+    gradedCourseCount: z.number().int().positive(),
+  })
+  .strict();
+
+/**
+ * Optional per-term GPA over self-recorded attempt metadata. Terms are unique and
+ * ordered by year then SemesterSchema declaration order; undated attempts are counted
+ * separately and never assigned to a term.
+ */
+export const StudentSemesterGradesSchema = z
+  .object({
+    terms: z.array(StudentSemesterGradeTermSchema),
+    undatedAttemptCount: z.number().int().min(0),
+  })
+  .strict()
+  .refine(
+    ({ terms }) =>
+      terms.every(
+        (term, index) =>
+          index === 0 ||
+          terms[index - 1].year < term.year ||
+          (terms[index - 1].year === term.year &&
+            SEMESTER_ORDER[terms[index - 1].semester] < SEMESTER_ORDER[term.semester]),
+      ),
+    { message: 'Semester GPA terms must be unique and ordered by year then semester' },
+  );
+
 // A precondition, never an instruction to change the authenticated account/context.
 export const AccountWriteScopeSchema = z
   .object({

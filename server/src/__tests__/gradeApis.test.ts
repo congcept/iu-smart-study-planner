@@ -128,6 +128,7 @@ describe('numeric grade APIs (PostgreSQL)', () => {
         gradedCourseCount: 0,
         courseScores: [],
       },
+      semesterGrades: { terms: [], undatedAttemptCount: 0 },
       completedCoursesWithoutNumericGrades: [courseA, courseB].sort(),
     });
   });
