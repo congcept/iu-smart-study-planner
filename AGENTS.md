@@ -194,6 +194,37 @@ Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
+## Active Checkpoint — 2026-10-23
+
+### Recorded per-semester numeric GPA
+
+Grade read/append replies add an optional `semesterGrades: { terms, undatedAttemptCount }`
+computed in the same snapshot as `scope` and the existing cumulative `summary`. A term exists
+only from an attempt's stored `year` and `semester`; creation time and placement are never
+used to infer one. Eligibility matches the cumulative summary (current membership, numeric
+score, positive credits, PT exclusion), each term keeps its own highest score per course so a
+retake can count in more than one term, and weighting reuses the existing Decimal
+`calculateGradeSummary` path. Terms sort by year then `Semester` declaration order
+(`FALL`, `SPRING`, `SUMMER`); `undatedAttemptCount` counts eligible attempts missing either
+date. Cumulative GPA, `gpaPath`, credits, counts and `courseScores` are unchanged, and term
+labels stay self-recorded reference metadata rather than calendar or registration evidence.
+
+The optional DTO field keeps old snapshots readable. The strict shared schema rejects malformed
+term evidence, `readGrades` validates it only when present, and `SemesterGpa` shows a separate
+unavailable state for legacy snapshots, an honest empty state, and a keyboard-scrollable table
+inside the existing dashboard account/load/error/save reconciliation with no new cache, storage
+or fetch. Focused checks add 12 pure and 5 real PostgreSQL server cases against a disposable
+database, plus 18 adapter, 7 component and 6 dashboard client cases. On pinned Node 24.22.0 the
+production build, all typechecks, zero-warning lint and `npm test` pass: 109 server suites /
+2989 tests, 109 client suites / 2507 tests and 10 startup lifecycle cases. Independent review
+found no blockers. Full `npm run format:check` flags only the unrelated ignored generated
+`.impeccable/hook.cache.json`; `npm run format:check -- "!.impeccable/hook.cache.json"` passes.
+Browser QA on isolated 3015/5185 with disposable data passed: real demo sign-in and saves
+rendered 84.125 as 84.13, cross-term and undated additions matched server values with one
+undated attempt, desktop 1280 and mobile 390 had no page overflow and a scrollable term table,
+keyboard focus stayed visible, and full-page axe found zero violations. See
+`docs/phase-2/semester-gpa.md`.
+
 ## Active Checkpoint — 2026-10-18
 
 ### Highest-score distribution
