@@ -234,8 +234,9 @@ rule, and the concurrency cycle. Each was fixed with a case naming the shape tha
 **Open questions, all needing the school rather than a judgement call:**
 
 1. IT block I is 45 credits (Bảng 4) or 40 (Bảng 6 minus physical training)?
-2. What are `IT151IU`'s 2025 prerequisites? The text prints `MA026IU`; the 2024 cohort required
-   `MA001IU` and `IT149IU`; 2025 replaced `MA026IU` with `MA036IU`.
+2. ~~What are `IT151IU`'s 2025 prerequisites?~~ Closed: the 2025 document replaced `MA026IU` with
+   `MA036IU`, and the 2025 cohort follows the 2025 plan. The 2024 rule governs 2024 students and is
+   not an alternative reading — cohorts are independent, and a later document supersedes nothing.
 3. Is Table 9's `IT154IU` a stale label for `MA033IU`?
 
 The `T149IU → IT149IU` reading is no longer a question: the 2024 document prints `IT149IU` in the

@@ -62,18 +62,25 @@ This settles one reading and unsettles the other.
 for the same course, and 2025's `IT154IU` became `MA033IU`. The reading is now evidence, not
 inference.
 
-**`MA026IU → MA036IU` is not supported by the predecessor.** The 2024 document gave `IT151IU` two
-prior courses, `MA001IU` and `IT149IU` — neither of which is `MA026IU`. Applying the appendix's
-substitution rule produces a value that is consistent with the 2025 text but contradicts what the
-course actually required a year earlier. No reading is established here; the cell is doubtful in a
-way a substitution cannot repair.
+**`MA026IU → MA036IU` is the 2025 answer, and the 2024 value does not compete with it.** The 2024
+document gave `IT151IU` two prior courses, `MA001IU` and `IT149IU`. That governs students admitted in
+2024, who follow the 2024 plan. A student admitted in 2025 follows the 2025 plan, and the 2025
+document says `MA026IU` was replaced by `MA036IU`. Cohorts are independent: a later cohort's
+document supersedes nothing and rewrites nothing, and a prior cohort's rule is not an alternative
+reading for a later one.
+
+The cross-check therefore settles `T149IU → IT149IU` (a typographical slip, corroborated) and
+otherwise confirms only that the two cohorts genuinely differ.
 
 ## Questions for the school
 
 1. ~~Is `T149IU` a slip for `IT149IU`?~~ Answered by the 2024 document: yes.
-2. What are `IT151IU`'s prior courses for 2025? The text prints `MA026IU`; the 2024 cohort required
-   `MA001IU` and `IT149IU`; the 2025 catalogue replaced `MA026IU` with `MA036IU`.
-3. Is Table 9's `IT154IU` a stale label for `MA033IU`, or does an equivalent-course arrangement apply?
+2. ~~What are `IT151IU`'s prior courses for 2025?~~ Answered by the document itself: `MA026IU` was
+   replaced by `MA036IU` in 2025, and that is what the 2025 cohort follows.
+3. ~~Is Table 9's `IT154IU` a stale label for `MA033IU`?~~ Answered by the same replacement rule.
+
+No question about the 2025 Data Science curriculum remains open. What remains is transcription
+work, not clarification.
 
 ## A note on elective placements
 
