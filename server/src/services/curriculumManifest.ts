@@ -127,6 +127,9 @@ export const CurriculumManifestSchema = z
             course: code,
             prerequisite: code,
             kind: z.enum(['TQ', 'HT', 'SH']),
+            // Edges that share a group name are alternatives: any one of them satisfies the
+            // requirement. A null group is a single mandatory edge, which is the normal case.
+            alternativeGroup: z.string().trim().min(1).max(40).nullable().default(null),
           })
           .strict(),
       )
@@ -331,6 +334,8 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
 
   // Prerequisites: both endpoints are members, no self-edge, no cycle.
   const edges = new Map<string, Set<string>>();
+  const alternatives = new Map<string, { prerequisites: Set<string>; kinds: Set<string> }>();
+  const seenPairs = new Map<string, Set<string | null>>();
   for (const [index, edge] of manifest.prerequisites.entries()) {
     const path = `prerequisites.${index}`;
     if (!byCode.has(edge.course)) fail('PREREQUISITE', path, `Unknown course ${edge.course}`);
@@ -338,15 +343,52 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
       fail('PREREQUISITE', path, `Unknown prerequisite ${edge.prerequisite}`);
     if (edge.course === edge.prerequisite)
       fail('PREREQUISITE', path, `${edge.course} cannot precede itself`);
-    const outgoing = edges.get(edge.course) ?? new Set<string>();
-    if (outgoing.has(edge.prerequisite))
+    // The same pair may appear once alone or once inside one alternative group, never both and
+    // never twice in the same group.
+    const pairKey = `${edge.course}\u0000${edge.prerequisite}`;
+    const pairGroups = seenPairs.get(pairKey) ?? new Set<string | null>();
+    if (pairGroups.has(edge.alternativeGroup))
       fail('PREREQUISITE', path, `Duplicate edge ${edge.course} -> ${edge.prerequisite}`);
+    else if (pairGroups.size > 0 && (pairGroups.has(null) || edge.alternativeGroup === null))
+      fail(
+        'PREREQUISITE',
+        path,
+        `${edge.prerequisite} is required both alone and as an alternative for ${edge.course}`,
+      );
+    pairGroups.add(edge.alternativeGroup);
+    seenPairs.set(pairKey, pairGroups);
+    const outgoing = edges.get(edge.course) ?? new Set<string>();
     outgoing.add(edge.prerequisite);
     edges.set(edge.course, outgoing);
+    if (edge.alternativeGroup !== null) {
+      const key = `${edge.course}#${edge.alternativeGroup}`;
+      const entry = alternatives.get(key) ?? {
+        prerequisites: new Set<string>(),
+        kinds: new Set<string>(),
+      };
+      entry.prerequisites.add(edge.prerequisite);
+      entry.kinds.add(edge.kind);
+      alternatives.set(key, entry);
+    }
     for (const excluded of [edge.course, edge.prerequisite])
       if (excludedCodes.has(excluded))
         fail('EXCLUSION', path, `${excluded} is excluded but has prerequisites`);
   }
+  for (const [key, entry] of alternatives) {
+    if (entry.prerequisites.size < 2)
+      fail(
+        'PREREQUISITE',
+        `alternatives.${key}`,
+        'An alternative group must offer at least two prerequisites',
+      );
+    if (entry.kinds.size > 1)
+      fail(
+        'PREREQUISITE',
+        `alternatives.${key}`,
+        'Every alternative in a group must state the same prerequisite kind',
+      );
+  }
+
   if (issues.every(({ category }) => category !== 'PREREQUISITE')) {
     const state = new Map<string, 'open' | 'done'>();
     const visit = (node: string, trail: string[]): string[] | null => {

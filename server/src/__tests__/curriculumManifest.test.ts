@@ -105,7 +105,9 @@ function manifest(changes: Record<string, unknown> = {}): Record<string, unknown
       },
     ],
     requirements: [],
-    prerequisites: [{ course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT' }],
+    prerequisites: [
+      { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT', alternativeGroup: null },
+    ],
   };
   return { ...base, ...changes };
 }
@@ -415,6 +417,79 @@ describe('curriculum manifest verification', () => {
     const report = verifyCurriculumManifest({ ...scheduled, placements });
     expect(report.readiness).toBe(true);
     expect(report.credits).toEqual({ declared: 14, blocks: 14, required: 10, elective: 4 });
+  });
+
+  it('accepts an alternative group where any one prerequisite satisfies the requirement', () => {
+    // IT shape: four courses accept either programming course as their prior study.
+    const it = manifest();
+    const prerequisites = [
+      { course: 'IT079IU', prerequisite: 'IT116IU', kind: 'HT', alternativeGroup: 'programming' },
+      { course: 'IT079IU', prerequisite: 'IT149IU', kind: 'HT', alternativeGroup: 'programming' },
+    ];
+    const courses = [
+      ...(it.courses as { code: string }[]),
+      { code: 'IT116IU', name: 'C/C++ Programming', credits: 4, lecture: 3, lab: 1 },
+      { code: 'IT149IU', name: 'Fundamentals of Programming', credits: 4, lecture: 3, lab: 1 },
+    ];
+    const report = verifyCurriculumManifest({ ...it, courses, prerequisites });
+    expect(report.readiness).toBe(true);
+    expect(report.counts.prerequisites).toBe(2);
+  });
+
+  it('rejects an alternative group with only one member', () => {
+    const report = verifyCurriculumManifest(
+      manifest({
+        prerequisites: [
+          {
+            course: 'IT079IU',
+            prerequisite: 'IT069IU',
+            kind: 'HT',
+            alternativeGroup: 'programming',
+          },
+        ],
+      }),
+    );
+    expect(report.readiness).toBe(false);
+    expect(report.issues.some(({ message }) => /at least two prerequisites/.test(message))).toBe(
+      true,
+    );
+  });
+
+  it('rejects an alternative group that mixes prerequisite kinds', () => {
+    const it = manifest();
+    const courses = [
+      ...(it.courses as { code: string }[]),
+      { code: 'IT116IU', name: 'C/C++ Programming', credits: 4, lecture: 3, lab: 1 },
+    ];
+    const report = verifyCurriculumManifest({
+      ...it,
+      courses,
+      prerequisites: [
+        { course: 'IT079IU', prerequisite: 'IT116IU', kind: 'HT', alternativeGroup: 'programming' },
+        { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'TQ', alternativeGroup: 'programming' },
+      ],
+    });
+    expect(report.issues.some(({ message }) => /same prerequisite kind/.test(message))).toBe(true);
+  });
+
+  it('rejects a prerequisite required both alone and as an alternative', () => {
+    const it = manifest();
+    const courses = [
+      ...(it.courses as { code: string }[]),
+      { code: 'IT116IU', name: 'C/C++ Programming', credits: 4, lecture: 3, lab: 1 },
+    ];
+    const report = verifyCurriculumManifest({
+      ...it,
+      courses,
+      prerequisites: [
+        { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT', alternativeGroup: 'programming' },
+        { course: 'IT079IU', prerequisite: 'IT116IU', kind: 'HT', alternativeGroup: 'programming' },
+        { course: 'IT079IU', prerequisite: 'IT116IU', kind: 'HT', alternativeGroup: null },
+      ],
+    });
+    expect(
+      report.issues.some(({ message }) => /both alone and as an alternative/.test(message)),
+    ).toBe(true);
   });
 
   it('rejects a placement that states both pool units', () => {
