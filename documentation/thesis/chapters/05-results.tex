@@ -1,0 +1,224 @@
+\chapter{RESULTS AND EVALUATION}
+
+\label{ch:results}
+
+This chapter demonstrates the artifact and then reports what was measured. It is deliberately
+organised around the question each piece of evidence answers, not around the size of the test suite.
+Where a number comes from a single machine, a single fixture set or a single observational sample,
+it is reported with that limitation attached.
+
+\section{System Demonstration}
+
+The application is a single-page web client served alongside an Express API and a PostgreSQL
+database. All three run from one repository, and a development launcher builds the shared contract
+package before starting the watchers so that the client and the server never disagree about a
+schema.
+
+\subsection{The Editable Curriculum Map}
+
+An account with no program context sees the curriculum as semester columns. Each card carries its
+code, name, credits and requirement category, and its state is expressed in text as well as
+colour: completed, planned, locked, recommended, or a highlighted prerequisite of a course the
+reader is inspecting.
+
+\begin{figure}[h]
+\centering
+\makebox[\textwidth][c]{\includegraphics[width=1.15\textwidth]{semester-grid.png}}
+\caption{Semester-column curriculum map with completion and planning states}
+\end{figure}
+
+Hovering a locked course highlights the chain of courses that must be completed first. The highlight
+is a planning aid: it shows what the declared prerequisites are, not what the institution will offer
+next term.
+
+\begin{figure}[h]
+\centering
+\makebox[\textwidth][c]{\includegraphics[width=1.15\textwidth]{prerequisite-highlight.png}}
+\caption{Prerequisite chain highlighted for a locked course}
+\end{figure}
+
+Elective groups open in a sidebar that lists the group's members and their states. A completed
+course is claimed by the group where it was clicked and is dimmed in the other groups that also
+list it, so it is counted once.
+
+\begin{figure}[h]
+\centering
+\makebox[\textwidth][c]{\includegraphics[width=1.15\textwidth]{elective-sidebar.png}}
+\caption{Elective group sidebar showing group members and claimed courses}
+\end{figure}
+
+\subsection{Context-Aware Screens}
+
+When a reference program is attached to an account, the curriculum route becomes a read-only
+reference view. It lists the program's placements with their prerequisite edges, shows each
+course's difficulty estimate together with the number of votes behind it, names the requirements
+the import could not resolve, and separates current member progress from records the account earned
+outside the program. Nothing on that screen is editable, and the screen states why: editing inside
+an assigned program requires a claim-transfer policy and a context-keyed client cache that are not
+part of this artifact.
+
+The planner follows the same branch. A guest receives the legacy workload analysis; an assigned
+account receives a context preview that resolves prerequisites, credits and the rating prior inside
+that program, rejects a non-member selection, and reports courses it could not schedule with the
+reason. The grades screen reports the credit-weighted average, the retake history and the
+highest-score distribution, plus a per-semester table when attempts carry term metadata. The ratings
+screen lists only completed courses and holds a submitted vote's retry identity until the server
+confirms it.
+
+\subsection{Administrative Simulation}
+
+The administrative surface presents a scenario: a reference program, a semester and a year. Within
+that scenario an administrator saves resource settings, reads a planned-selection report, compares
+declared seats with current demand, previews a capacity envelope, runs either allocation model,
+captures the result and browses the history of earlier captures. Every screen in that surface
+carries the same qualification: the numbers are simulation assumptions, not university capacity,
+and a capture is a record of a simulation rather than a registration decision.
+
+\section{Verification Evidence}
+
+\subsection{Scale and Shape of the Suite}
+
+At the time of writing the automated suite comprises three thousand and one server tests across one
+hundred and ten suites, two thousand five hundred and sixteen client tests across one hundred and
+ten files, and ten startup lifecycle cases that exercise the real development launcher, including
+shutdown of all three watchers from one signal.
+
+Counting tests is not itself evidence, so the suite is better described by what it protects.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{0.32\textwidth}p{0.58\textwidth}}
+\toprule
+\textbf{Property} & \textbf{Representative evidence} \\
+\midrule
+Prerequisite enforcement & completion refused on an unmet mandatory parent; recommendations never
+offer a blocked course \\
+Transitive cascade & uncompletion removes direct and transitive dependents in one transaction,
+including a real concurrent writer \\
+Scope isolation & a mismatched expected scope conflicts and leaves stored rows byte-identical;
+cascades refuse across owners \\
+Immutable attempts & identical retry returns the original row; changed payload under a used key is
+refused; boundaries 0 and 100 enforced at the database \\
+Rollback & a real failure after each write stage leaves no partial run, participant or receipt \\
+Retry recovery & a lost reply is recovered by an exact retry; a changed payload conflicts \\
+Corruption & malformed or mismatched stored history fails closed rather than displaying a partial
+page \\
+Honest absence & unknown credits, seats and eligibility produce their own states, never zeros \\
+Access control & unauthenticated, non-owner, non-administrator and demoted-mid-transaction calls
+are refused \\
+\bottomrule
+\end{tabular}
+\caption{What the suite is organised to protect}
+\end{table}
+
+\subsection{Fail-First Practice}
+
+Each increment's new tests were run against the code they replace before the fix was applied, and
+the failure was recorded. This matters because a test written after a fix tends to encode the
+implementation rather than the requirement. A representative case is the session-expiry fix, whose
+seventeen integration and five unit tests were each observed failing without the change.
+
+The same discipline applies to defects found during review. Where a review identified a gap -- an
+impossible prerequisite that ranking still rewarded, a numeric precision edge in a stored JSON
+position, a missing independent guard on a profiling helper -- the test was written to fail against
+the pre-fix source and then kept.
+
+\subsection{Reproducibility}
+
+The runtime is pinned to an exact Node and npm pair, the dependency lockfile is committed, and
+installs use the lockfile rather than resolving ranges. One continuous-integration job runs the
+whole gate on every change: restore, build the shared package, build both applications, typecheck,
+lint with zero warnings, check formatting, apply migrations to a disposable PostgreSQL service,
+seed it, then run the startup, server and client suites. The job never touches an application
+database and holds no deployment secret, so a contributor cannot mistake it for a deployment
+pipeline.
+
+\subsection{An Open Finding}
+
+Two consecutive full server runs against the same seeded disposable database failed different
+suites, and every failing suite passed in isolation. One run produced a 401 where a business-level
+refusal was expected; the other failed two suites untouched by the change under test. The cause has
+not been established. The finding is recorded in the repository's working notes rather than
+resolved by relaxing an assertion or widening a timeout, because a suite that passes only after its
+constraints are loosened provides no evidence.
+
+\section{Measured Behaviour of the Simulation Models}
+
+The allocation models are the only parts of the artifact whose cost is not dominated by network or
+database latency, so they were measured directly with a purpose-built profiler over synthetic
+fixtures at the supported bounds: up to five hundred students, one hundred choices per student, ten
+thousand catalogue entries and one hundred rounds.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Scenario} & \textbf{Allocation median (ms)} & \textbf{Additional replay median (ms)} \\
+\midrule
+Maximum students and choices & 3381--4843 & 1681--2502 \\
+\bottomrule
+\end{tabular}
+\caption{Local observations of the semester allocation model}
+\end{table}
+
+The observations were taken on an Apple M2 running macOS on arm64, with one warm-up and three
+samples per scenario. Full result digests agree across repeats and across reversed input order, and
+input digests confirm the fixtures were not mutated, so the measurement is repeatable even though it
+is local.
+
+A second profiler measured the persisted verification and projection paths that a stored capture
+must replay. Its maximum single-run observations were between 1.7 and 2.5 seconds for one capture,
+and between 10.4 and 17.7 seconds for a history page, using one observational sample per scenario.
+
+Three limitations attach to all of these numbers. They exclude database time, capture time, worker
+time and HTTP latency; they come from one machine; and the history figure in particular rests on a
+single sample rather than a distribution. They therefore bound nothing about deployed latency, and
+they are reported as observations about the model rather than as performance guarantees.
+
+\section{Accessibility Evaluation}
+
+Because the interface is dense, correctness of rendering was measured rather than assumed. The audit
+ran in headless Chromium with computed styles and an automated rule engine, at desktop and mobile
+widths, with scripted keyboard traversal.
+
+The audit produced nine defects, all of which are fixed: a map that faded when a locked course was
+hovered; an elective panel more than forty tab stops from its trigger and indifferent to Escape; a
+save that lost keyboard focus because the focused control became disabled; zoom controls that looked
+available at their limits; a crash screen with no exit; a sign-in error that left focus at the top of
+the document; a rejected score that did not identify the offending field; a curriculum load that
+could not be retried in place; and the session-expiry race.
+
+One finding was deliberately not fixed. At a 390-pixel viewport the rule engine reports a
+label-in-name mismatch on curriculum cards, because the card extends past the edge of a horizontally
+scrollable region, so the engine drops the credits from the visible text and compares the remainder
+with the accessible name. The accessible name does contain every visible word and the page is clean
+at 1280 pixels, so the name was left unchanged rather than distorted to satisfy the tool. The
+disposition is recorded with its reasoning.
+
+\section{Threats to Validity}
+
+\textbf{Construct validity.} The artifact measures internal consistency, not academic truth. A
+credit total that the program does not declare is stored as unknown, and no screen presents a
+derived graduation total while the program's rules remain unverified. A reader could reasonably
+want a number; the artifact's position is that a number would be wrong.
+
+\textbf{Internal validity.} The simulated allocation models are greedy, scarcity-ordered heuristics.
+They are not optimal, and no optimality claim is made. Their outputs are reproducible because the
+contracts are frozen and the tie-breaking is deterministic, which makes them inspectable, not
+correct.
+
+\textbf{External validity.} The reference program is Computer Science alone. The model supports
+several programs, and the administrative simulation exercises that shape, but no second program was
+populated because the published sources for the other two conflicts with themselves on credits and
+course identities. Extending the artifact is therefore plausible but unverified.
+
+\textbf{Ecological validity.} No students were recruited, no planning behaviour was observed, and
+no claim is made that the recommendations improve outcomes. The evidence is that the artifact
+enforces the invariants it declares, is reproducible, and remains operable by keyboard and screen
+reader at the widths tested.
+
+\textbf{Construct of the measurements.} The profiling figures are local observations of pure
+functions on synthetic data. They say something about the models and nothing about the deployed
+system, and the report states the excluded costs alongside each number.

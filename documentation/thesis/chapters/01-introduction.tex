@@ -1,0 +1,131 @@
+\chapter{INTRODUCTION}
+
+\label{ch:introduction}
+
+\section{Rationale}
+
+Planning a university degree is a constraint-satisfaction problem that students usually solve
+with a printed curriculum sheet and a spreadsheet. The sheet states which courses exist, which
+academic year and semester each is nominally offered in, and occasionally which courses must
+precede which; the spreadsheet records what the student has already passed. Neither artifact can
+answer the questions students actually ask: which courses am I now eligible for, what happens to
+the rest of my plan if I drop this one, which elective group should claim this course, and do I
+still qualify for the thesis track.
+
+At the International University -- VNU HCMC the problem is sharper than the generic case for three
+reasons. First, prerequisite relationships are declarative but numerous, so eligibility depends on
+a graph rather than a list. Second, the curriculum repeats courses across elective groups: one
+course can appear in several groups and in more than one semester, so a completed course must be
+attributed to exactly one group without being counted twice. Third, the final year branches: a
+student above a grade threshold takes the thesis, a student below it takes additional coursework
+instead, which changes both the number of remaining courses and the shape of the last semesters.
+
+A fourth reason emerged while building the system. Much of the information a planning tool needs is
+\emph{per program}, not global. The same calculus course is a first-semester course for computer
+science and a second-year course for business, and the prerequisite edges around a shared course
+differ between majors. A single global catalogue therefore cannot represent more than one program
+honestly, and a tool that quietly unions two programs would produce prerequisites that neither
+program declares.
+
+\section{Problem Statement}
+
+The thesis addresses one question: how can a web-based system represent a university program, the
+student's record, and the institution's resource constraints precisely enough that a student can
+plan a semester and an administrator can reason about capacity, while making no claim that the
+available evidence does not support?
+
+The question decomposes into six design problems:
+
+\begin{enumerate}
+  \item \textbf{Program representation.} Model program membership, per-program placement and
+        per-program prerequisites without duplicating shared courses or merging programs.
+  \item \textbf{Account scope.} Bind every read and write to one account and one program context,
+        so a stale client cannot write against the wrong scope.
+  \item \textbf{Progress integrity.} Keep completion consistent: a completion is refused when its
+        prerequisites are unmet, and removing a prerequisite must remove everything that depended
+        on it, transitively, on the server.
+  \item \textbf{Grade and difficulty evidence.} Record attempts immutably, compute a defensible
+        grade average, and derive course difficulty from student votes in a way that stays honest
+        when few votes exist.
+  \item \textbf{Saved-plan integrity.} Let a student edit a saved semester without admitting an
+        unsupported, duplicated or unprincipled course selection, and without losing work when a
+        reply is lost.
+  \item \textbf{Planning and capacity under uncertainty.} Offer semester recommendations and an
+        administrative allocation simulation that state their assumptions, degrade explicitly when
+        data is missing, and never present a simulated allocation as a registration decision.
+\end{enumerate}
+
+\section{Objectives}
+
+The objectives of this work are:
+
+\begin{enumerate}
+  \item To design and implement a program-aware curriculum model in which courses are global but
+        membership, placement and prerequisites are per program, with an imported reference
+        curriculum that preserves repeated elective occurrences and uncoded requirements.
+  \item To implement cookie-based accounts in which the server re-reads the current role and
+        program context for every request, and in which every mutation carries an expected scope
+        that is compared inside the same transaction as the write.
+  \item To implement server-authoritative completion with mandatory prerequisite validation and a
+        transactional transitive cascade on uncompletion.
+  \item To record numeric grade attempts immutably, compute a credit-weighted average from the
+        highest score per course with physical training excluded, and record per-semester averages
+        from stored term metadata without inferring dates.
+  \item To collect completion-gated course difficulty ratings, combine them with a per-program
+        prior through Bayesian shrinkage, and display the vote count beside every estimate.
+  \item To implement a saved-semester editor with atomic validation, immutable request receipts,
+        recoverable unsent drafts, per-course blocker explanations and an explicit display order.
+  \item To implement an administrator simulation of resource settings, cohort demand, capacity and
+        two allocation models, with versioned contracts, private per-student outcomes and an
+        explicit single-job executor rather than an unattended daemon.
+  \item To verify the artifact with fail-first tests against a real PostgreSQL database, a single
+        reproducible continuous-integration gate, and a measured accessibility pass in a real
+        browser.
+\end{enumerate}
+
+\section{Scope and Limitations}
+
+The artifact is a work in progress toward an institutionally valid planner, and the thesis is
+explicit about where that line sits.
+
+\textbf{Within scope.} A single reference program (Computer Science) imported from the program's
+published curriculum page; a second tier of program support in the data model, exercised by tests
+and by the administrator simulation, but not populated with verified Information Technology or
+Data Science data. Simulated students, simulated resource configurations and simulated allocations.
+Numeric grading on a 0--100 scale. Engineering evidence: automated tests, continuous integration,
+reproducibility, measured profiling of the allocation models, and a browser accessibility audit.
+
+\textbf{Outside scope.} Institutional validation of any program: the imported curriculum is a
+reference, and neither its credit total nor its elective rules are asserted to be the signed
+policy of a cohort. Course offerings, meeting times, rooms, laboratory suitability and staff
+qualification, none of which were available, so calendar validity is not claimed. Editing of a
+student's record inside an assigned program context, which requires context-keyed client caches
+and a claim-transfer policy that were deliberately left out. A real deployment with a public
+origin, a production database and operational recovery. A user study: no students were recruited,
+and no claim is made that recommendations improve outcomes.
+
+\textbf{Known open finding.} The server suite occasionally returns an authentication refusal where
+a business-level refusal is expected, and occasionally fails a suite that passes in isolation. The
+cause has not been established. It is recorded rather than suppressed, and no assertion or timeout
+was weakened to obtain a passing run.
+
+\section{Research Framework}
+
+The work follows the Design Science Research Methodology of Hevner et al.\ \cite{hevner2004},
+which suits an artifact whose contribution is evaluated by construction, demonstration and
+measurement rather than by hypothesis testing on a population. The six activities are mapped in
+Chapter~\ref{ch:methodology} to the increments actually delivered, and the evaluation is confined
+to what the artifacts of those increments can support.
+
+\section{Structure of Research}
+
+Chapter~\ref{ch:literature} reviews degree-audit and planning systems, prerequisite-graph
+analysis, course sequencing and timetabling, difficulty estimation, and web accessibility.
+Chapter~\ref{ch:methodology} states the methodology, the requirements derived from it, the
+architecture, the data model and the verification strategy.
+Chapter~\ref{ch:implementation} describes the implementation increment by increment, including the
+decisions that were deliberately reversed during development.
+Chapter~\ref{ch:results} demonstrates the system and reports the verification evidence, the
+measured performance of the simulation models, and the accessibility results, together with the
+threats to validity.
+Chapter~\ref{ch:conclusion} states the contributions, the limitations and the work that remains.

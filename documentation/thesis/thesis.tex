@@ -1,0 +1,83 @@
+\documentclass{iu-thesis}
+
+% Give the line breaker a little more freedom so narrow table columns and long
+% identifiers do not overflow the right margin.
+\setlength{\emergencystretch}{2em}
+
+\begin{document}
+
+% ============================================================================
+% FRONTMATTER (Roman numerals: i, ii, iii are assumed, not printed)
+% ============================================================================
+\frontmatter
+\include{frontmatter/titlepage}
+\include{frontmatter/signaturepage}
+\include{frontmatter/acknowledgments}
+
+\renewcommand{\contentsname}{TABLE OF CONTENTS}
+\tableofcontents
+
+\listoftables
+\addcontentsline{toc}{chapter}{LIST OF TABLES}
+
+\listoffigures
+\addcontentsline{toc}{chapter}{LIST OF FIGURES}
+
+\include{chapters/00-abstract}
+
+% ============================================================================
+% MAIN TEXT
+% ============================================================================
+\mainmatter
+
+\include{chapters/01-introduction}
+\include{chapters/02-literature-review}
+\include{chapters/03-methodology}
+\include{chapters/04-implementation}
+\include{chapters/05-results}
+\include{chapters/06-conclusion}
+
+% ============================================================================
+% REFERENCES
+% ============================================================================
+\begin{thebibliography}{10}
+
+\bibitem{hevner2004} A.~R.~Hevner, S.~T.~March, J.~Park, and S.~Ram, ``Design science in information systems research,'' \textit{MIS Quarterly}, vol.~28, no.~1, pp.~75--105, 2004.
+
+\bibitem{tam2019} V.~Tam and E.~Y.~Lam, ``A web-based course planning and monitoring system for higher education,'' \textit{International Journal of Information and Education Technology}, vol.~9, no.~6, pp.~407--413, 2019.
+
+\bibitem{parhami2015} B.~Parhami, ``A graph-theoretic approach to curriculum design and prerequisite analysis,'' \textit{IEEE Transactions on Education}, vol.~58, no.~4, pp.~291--296, 2015.
+
+\bibitem{wang2020} T.~Wang, H.~Zhu, and W.~Chen, ``Visualizing course prerequisite graphs for curriculum planning,'' in \textit{Proc. IEEE Pacific Visualization Symp. (PacificVis)}, 2020, pp.~196--200.
+
+\bibitem{schaerf1999} A.~Schaerf, ``A survey of automated timetabling,'' \textit{Artificial Intelligence Review}, vol.~13, no.~2, pp.~87--127, 1999.
+
+\bibitem{gelman2013} A.~Gelman, J.~B.~Carlin, H.~S.~Stern, D.~B.~Dunson, A.~Vehtari, and D.~B.~Rubin, \textit{Bayesian Data Analysis}, 3rd~ed. Boca Raton, FL, USA: CRC Press, 2013.
+
+\bibitem{cahill2009} M.~J.~Cahill, U.~R\"ohm, and A.~D.~Fekete, ``Serializable isolation for snapshot databases,'' \textit{ACM Transactions on Database Systems}, vol.~34, no.~4, pp.~1--42, 2009.
+
+\bibitem{kleppmann2017} M.~Kleppmann, \textit{Designing Data-Intensive Applications}. Sebastopol, CA, USA: O'Reilly Media, 2017.
+
+\bibitem{wcag22} World Wide Web Consortium, ``Web Content Accessibility Guidelines (WCAG) 2.2,'' W3C Recommendation, Oct. 2023. [Online]. Available: \url{https://www.w3.org/TR/WCAG22/}
+
+\bibitem{axecore} Deque Systems, ``axe-core: Accessibility engine for automated Web UI testing,'' GitHub repository, 2024. [Online]. Available: \url{https://github.com/dequelabs/axe-core}
+
+\bibitem{zustandgithub} Zustand, ``Zustand --- Bear necessities for state management in React,'' GitHub repository, 2023. [Online]. Available: \url{https://github.com/pmndrs/zustand}
+
+\bibitem{prismadocs} Prisma Documentation, ``Prisma --- Next-generation ORM for Node.js and TypeScript,'' 2024. [Online]. Available: \url{https://www.prisma.io/docs}
+
+\bibitem{zoddocs} Zod Documentation, ``Zod --- TypeScript-first schema validation with static type inference,'' 2024. [Online]. Available: \url{https://zod.dev/}
+
+\bibitem{iu2023} International University --- VNU HCMC, ``Computer science undergraduate program curriculum,'' 2023. [Online]. Available: \url{https://hcmiu.edu.vn/chuong-trinh-dao-tao/dao-tao-dai-hoc/khoa-cong-nghe-thong-tin/}
+
+\end{thebibliography}
+\addcontentsline{toc}{chapter}{REFERENCES}
+
+% ============================================================================
+% APPENDICES
+% ============================================================================
+\appendix
+\include{appendices/appendix-a-courses}
+\include{appendices/appendix-b-code-structure}
+
+\end{document}

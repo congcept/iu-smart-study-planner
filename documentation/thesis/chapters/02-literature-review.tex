@@ -1,0 +1,97 @@
+\chapter{LITERATURE REVIEW}
+
+\label{ch:literature}
+
+\section{Degree Audit and Course Planning Systems}
+
+Institutional planning tools fall into two families. Degree-audit systems such as DegreeWorks
+apply a program's requirement rules to a transcript and report what remains; planning systems such
+as Stellic and Coursicle arrange courses into terms and flag conflicts. Both families assume that
+the institution has already encoded its rules authoritatively and that offerings, meeting times and
+rooms are known. That assumption is reasonable for a university with a mature catalog system and
+unreasonable for a student prototype, where the program rules are published as a web page and the
+schedule is not published in machine-readable form at all.
+
+Tam and Lam \cite{tam2019} describe a web-based course planning and monitoring system for a Hong
+Kong university and show that a domain-specific planner is feasible without an institutional
+integration project. Their system checks prerequisites and lays out semesters but does not
+represent shared courses across programs, and it relies on institution-supplied rule data. The
+distinction matters here: the present work has to {\em derive} and then {\em distrust} its program
+data, and it records that distrust in the software rather than in a caveat.
+
+\section{Prerequisite Structures}
+
+Treating a curriculum as a directed acyclic graph over courses is the standard formalisation.
+Parhami \cite{parhami2015} analyses curriculum design with graph-theoretic tools, including
+topological ordering and critical-path reasoning, and shows how prerequisite structure constrains
+the feasible orderings of a program. Wang et al.\ \cite{wang2020} visualise prerequisite graphs
+for planning and report that the visual form helps students reason about chains they otherwise
+trace by hand.
+
+Two lessons were taken from this literature and both changed the implementation. The first is that
+the graph is a {\em planning} structure, not a {\em validity} structure: a topological order says
+what is possible, not what the institution will offer in a given term. The second is that the graph
+is program-specific. Parhami's analysis is of one program; when a shared course appears in two
+programs with different neighbours, a single global edge set is simply the union of two graphs that
+the institutions never declared jointly. The artifact therefore keeps courses global and edges
+per program, and refuses to fall back to a global graph when a program context is present.
+
+\section{Course Sequencing and Timetabling}
+
+The semester-planning problem is a constrained sequencing problem with a long timetabling
+literature. Schaerf \cite{schaerf1999} surveys automated timetabling and separates
+{\em timetabling} proper, the assignment of events to times and places under hard and soft
+constraints, from the coarser problem of sequencing a student's courses. The present work deliberately solves
+only the coarser problem for students, and states that no offering or room data exists to justify
+a timetable. For the administrative simulation it solves a capacity-constrained allocation problem
+in the simpler form of a scarcity-ordered greedy round, and reports the result as a simulation
+rather than a timetable.
+
+\section{Estimating Difficulty from Sparse Ratings}
+
+Course difficulty is used throughout the system as a planning signal, and ratings are sparse: a
+new course may have no votes at all. Reporting the raw mean of one or two votes would make the
+recommendation engine unstable and would present sampling noise as knowledge. The standard remedy
+is shrinkage: an estimate is pulled toward a prior in proportion to how little data supports it,
+with the weight on the prior decreasing as the sample grows. This is the empirical-Bayes
+construction described by Gelman et al.\ \cite{gelman2013} for hierarchical models. The artifact
+applies the elementary form of that estimator -- a weighted mean between the course's own votes and
+a program-level prior whose strength is a fixed pseudo-count -- and always displays the number of
+votes next to the estimate so a reader can judge how much of the number came from data.
+
+\section{Transactional Integrity in Web Applications}
+
+Several behaviours in the artifact are correctness properties rather than features: a completion
+must not be recorded when a prerequisite is unmet; a retry of a lost request must not create a
+second grade attempt; two administrators editing the same resource configuration must not silently
+overwrite one another. Kleppmann \cite{kleppmann2017} sets out the failure modes these properties
+guard against, and Cahill et al.\ \cite{cahill2009} describe serializable snapshot isolation, the
+mechanism PostgreSQL exposes as {\tt SERIALIZABLE}. The implementation uses that isolation level
+for every multi-row decision, holds authorization rows with explicit locks so that a role change
+cannot commit mid-decision, and treats a serialization failure as a bounded retry rather than an
+error surfaced to the user. The expected-scope precondition carried by each mutation is a form of
+optimistic concurrency control in the same tradition.
+
+\section{Accessibility of Planning Interfaces}
+
+A planning interface is dense: grids of small cards, tables of numbers, and controls that change
+what is shown. Web Content Accessibility Guidelines \cite{wcag22} require, among other things, that
+controls have accessible names that contain their visible labels, that colour is never the only
+carrier of meaning, that focus remains visible and does not disappear when a control becomes
+disabled, and that zoom controls behave as described at their limits. Automated rule engines such
+as axe-core \cite{axecore} detect a subset of these problems, and only in a real rendering engine,
+because a DOM emulator computes no colours and does not move focus the way a browser does. The
+artifact was therefore audited in headless Chromium with computed styles rather than only in a unit
+test environment, and the audit produced both defects and a deliberate non-fix, both reported in
+Chapter~\ref{ch:results}.
+
+\section{Gap Analysis}
+
+The literature supplies the graph formalisation, the sequencing problem, the shrinkage estimator
+and the transactional vocabulary that this work uses. What it does not supply, and what the artifact
+contributes, is a system that carries {\em provenance} through all of those layers at once: a
+program model that distinguishes a reference import from a verified cohort, an account scope that
+is enforced in the same transaction as the write, a rating estimate that reports its own
+confidence, a saved-plan editor whose retries are provably idempotent, and an allocation simulation
+whose contracts are frozen and replayed rather than re-interpreted. The gap is not algorithmic;
+it is the engineering discipline of keeping an unverified planning tool honest about what it knows.

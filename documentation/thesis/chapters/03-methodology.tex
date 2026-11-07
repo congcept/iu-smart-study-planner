@@ -1,0 +1,187 @@
+\chapter{METHODOLOGY}
+
+\label{ch:methodology}
+
+\section{Research Methodology}
+
+The work follows the Design Science Research Methodology \cite{hevner2004}, in which an artifact is
+built to address a problem class, demonstrated against the problem, and evaluated with evidence
+appropriate to the artifact. For a planning tool the appropriate evidence is not a satisfaction
+survey but a demonstration that the artifact enforces the properties it claims and degrades
+explicitly where it cannot.
+
+\subsection{Iterations}
+
+The thesis was executed as a sequence of small, independently reviewable increments rather than as
+a single build. Each increment had to satisfy four conditions before it counted as delivered: it
+added one coherent capability; its new tests failed against the code they replace; it passed a
+single continuous-integration gate; and it recorded what it deliberately did not do. The
+increments grouped into five phases.
+
+\begin{enumerate}
+  \item \textbf{Foundation.} Accounts, sessions, and the global course catalogue.
+  \item \textbf{Program context.} The program-aware data model, an imported reference curriculum,
+        and the rewrite of every progress, grade and rating read to resolve per program.
+  \item \textbf{Numeric grades and difficulty.} Immutable attempts, a credit-weighted average, and
+        completion-gated ratings with a shrinkage estimate.
+  \item \textbf{Planning.} Workload analysis, semester recommendations, the saved-plan browser, and
+        the atomic reference-selection editor with drafts, blockers and ordering.
+  \item \textbf{Administration.} Resource settings, cohort demand, capacity diagnostics, two
+        allocation models, an explicit job executor, and immutable captures with history.
+\end{enumerate}
+
+\subsection{Evaluation strategy}
+
+Evaluation is confined to three questions the artifact can actually answer. Does it enforce its
+stated invariants? The answer is a test suite that exercises the invariants against a real database,
+including real concurrent writers and real transaction rollback. Can the result be reproduced? The
+answer is a pinned runtime, a committed lockfile, a disposable database, and one continuous-
+integration job that runs the whole gate on every change. Does it remain usable by people who do not
+read the code? The answer is a browser accessibility audit and a measured profiling run, both of
+which are reported with their limits rather than as headline numbers.
+
+What the evaluation deliberately does not attempt is an outcome study. Recommending courses is a
+decision-support problem with a long feedback loop and many confounders; measuring whether the
+recommendation engine improves graduation outcomes would require a population, a control condition
+and a multi-year horizon, none of which were available.
+
+\section{Requirements}
+
+The problem statement in Chapter~\ref{ch:introduction} yields functional requirements, each paired
+with the property that makes it testable.
+
+\begin{enumerate}
+  \item \textbf{Program context.} A course may belong to several programs; placement and
+        prerequisites resolve inside one program. Testable property: no reader falls back to a
+        global catalogue or to a union of programs when a context is present.
+  \item \textbf{Account scope.} Every mutation carries the owner and program context the client
+        observed. Testable property: a mismatched scope is refused with a conflict, and the stored
+        data is unchanged.
+  \item \textbf{Authoritative completion.} Completion validates prerequisites, and uncompletion
+        cascades transitively. Testable property: after a cascade, no remaining completion has an
+        unmet prerequisite.
+  \item \textbf{Immutable grade history.} A retake adds an attempt; it does not overwrite one.
+        Testable property: an identical retry returns the original attempt; a changed payload for
+        the same key is refused.
+  \item \textbf{Honest estimates.} A difficulty estimate from few votes is pulled toward a prior
+        and always displayed with its vote count.
+  \item \textbf{Atomic saved selections.} A saved semester is validated, canonicalised, revision
+        checked and committed with its receipt in one transaction.
+  \item \textbf{Frozen simulations.} An allocation model that changes is a new version, not an
+        edit, and a stored capture replays under the version that produced it.
+  \item \textbf{Explicit absence.} Missing data produces an explicit unknown state, never a zero,
+        a default or a fabricated total.
+\end{enumerate}
+
+\section{Architecture}
+
+The system is an npm-workspace monorepo with three packages. The {\em shared} package holds Zod
+schemas and inferred TypeScript types and is compiled before either application so that both sides
+import the same contract. The {\em server} package is an Express application over Prisma and
+PostgreSQL. The {\em client} package is a React single-page application built with Vite.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{0.10\textwidth}p{0.44\textwidth}p{0.32\textwidth}}
+\toprule
+\textbf{Package} & \textbf{Responsibility} & \textbf{Verification} \\
+\midrule
+shared & Zod contracts, DTOs, frozen simulation schemas & compiled first, typechecked \\
+server & REST API, transactions, services & Jest on real PostgreSQL \\
+client & routes, panels, guards, stores & Vitest in jsdom \\
+root   & scripts, CI, startup supervision & one Ubuntu job \\
+\bottomrule
+\end{tabular}
+\caption{Package responsibilities and their verification surface}
+\end{table}
+
+Three architectural rules are load-bearing rather than stylistic.
+
+\textbf{The server is authoritative.} The client may optimistically pre-compute a cascade so the
+interface responds immediately, but the stored result is whatever the server's transaction decided,
+and the client reconciles to the returned snapshot.
+
+\textbf{Every write is scoped.} A mutation carries the expected owner and program context. The
+server compares them against the values it reads inside the same transaction that performs the
+write, so a client holding a stale view cannot commit against a changed context.
+
+\textbf{Absence is a value.} Unknown credits, unknown seats, unknown grade eligibility and
+unresolved requirements have their own representation. A missing resource configuration is not zero
+capacity; a course with no votes is not a course of average difficulty; a program with no verified
+credit total is not a program of zero credits.
+
+\section{Data Model}
+
+The schema has twenty-three models and six enumerations. Six of them carry the program context and
+four carry the simulation.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{0.44\textwidth}p{0.44\textwidth}}
+\toprule
+\textbf{Model} & \textbf{Role} \\
+\midrule
+{\tt Course} & global identity; never duplicated per program \\
+{\tt Curriculum} & program metadata; credit total may be unknown \\
+{\tt CurriculumCourse} & membership; unique per program and course \\
+{\tt CurriculumPlacement} & one source occurrence with year, semester and group \\
+{\tt CurriculumPrerequisite} & a program-scoped prerequisite edge \\
+{\tt CurriculumRequirement} & an uncoded requirement such as a free elective \\
+{\tt User} & account, role, optional program assignment \\
+{\tt StudentRecord} & completion or plan per course, with elective claim \\
+{\tt GradeAttempt} & immutable attempt with an owner-scoped key \\
+{\tt CourseRating} & one vote per account and course \\
+{\tt StudyPlan} & saved plan metadata \\
+{\tt PlannedSemester} & stored selection, revision and reference metadata \\
+{\tt ReferenceSelectionReceipt} & immutable receipt for an atomic save \\
+{\tt SchoolResource} & scenario settings with a compare-and-set revision \\
+{\tt SimulationAllocationRun} & immutable one-course aggregate capture \\
+{\tt SimulationSemesterRun} & immutable semester aggregate capture \\
+{\tt SimulationAllocationJob} & durable one-course request \\
+{\tt SimulationSemesterAllocationJob} & durable semester request \\
+{\tt SimulationSemesterParticipant} & private per-student outcome \\
+\bottomrule
+\end{tabular}
+\caption{The models that carry program context, evidence and simulation state}
+\end{table}
+
+Membership and placement are separate for a reason. A course appears once in a program but may be
+listed in several semesters and in several elective groups: the reference curriculum imports
+repeated placements as placement rows distinguished by source order, while membership stays unique.
+Prerequisite edges reference the (program, course) pair rather than the course alone, which is what
+makes one program's edges independent of another's.
+
+\section{Program Data Processing}
+
+The reference curriculum was obtained from the program's published curriculum page and imported by
+a staged pipeline rather than by a direct write. A read-only verifier first loads the source and
+proves that nothing in it is lost: course identities must be unique within the source, credits must
+equal the sum of their lecture and laboratory units, repeated placements must be preserved, a blank
+course code is accepted only for an explicit free-elective requirement, and elective selection
+counts must agree within a group. A compatibility preflight then inspects the target database, and
+only then does an idempotent {\tt --apply} backfill create the program, its memberships, its
+placements, its requirements and its prerequisite edges, recording the source label and order.
+
+The import deliberately does not compute a degree total. The legacy reference's modelled path
+totals disagree with the credit total stated in later published versions of the same program, and
+no authoritative reconciliation was available. The stored total is therefore null, every reader
+treats it as unknown, and the interface reports an unavailable percentage rather than a number
+derived from an assumption.
+
+\section{Verification Strategy}
+
+Server tests run against a real PostgreSQL database rather than a mock, because the properties
+worth testing here are transactional: cascade behaviour, lock ordering, rollback after a partial
+write, and an exact retry that must not duplicate an immutable row. Suites run sequentially against
+a shared instance so that fixtures do not fight over predicate locks, while individual race tests
+still issue genuinely concurrent requests. Client tests run in a DOM emulator and cover state
+machines, stale replies, guards and rendering; the properties that need a real engine -- colours,
+focus movement, zoom limits -- are checked in a browser.
+
+The gate is one Ubuntu job: pinned Node and npm, restore from a committed lockfile, build shared,
+build both applications, typecheck, lint with zero warnings, check formatting, apply migrations and
+seed a disposable service, then run startup, server and client suites. A change that cannot pass
+that job is not merged. Where a run failed for a reason that could not be established, the failure
+was recorded as an open finding rather than absorbed by relaxing an assertion.

@@ -15,6 +15,7 @@ import { getResources, saveResources } from '@/lib/adminResourcesApi';
 import { getCurriculumReference, getCurriculumReferences } from '@/lib/curriculumApi';
 import { ResourceSettingsForm } from './ResourceSettingsForm';
 import { PlannedDemandPanel } from './PlannedDemandPanel';
+import { ReferenceAssignmentPanel } from './ReferenceAssignmentPanel';
 import { AllocationPreviewPanel } from './AllocationPreviewPanel';
 import { SemesterAllocationPreviewPanel } from './SemesterAllocationPreviewPanel';
 import { SemesterAllocationRunCapturePanel } from './SemesterAllocationRunCapturePanel';
@@ -362,6 +363,7 @@ function ResourceSession({ userId }: { userId: string }) {
           </div>
         </div>
       )}
+      <ReferenceAssignmentPanel userId={userId} />
       {catalogLoading ? (
         <p role="status" className="text-gray-600">
           Loading simulation curriculum references…
