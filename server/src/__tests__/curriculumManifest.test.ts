@@ -397,6 +397,26 @@ describe('curriculum manifest verification', () => {
     );
   });
 
+  it('accepts a placement for an excluded course that counts toward no block', () => {
+    // Physical training is scheduled in a semester but excluded from the credit total.
+    const scheduled = manifest();
+    const placements = [
+      ...placementsOf(scheduled),
+      {
+        code: 'PT001IU',
+        year: 1,
+        semester: 1,
+        group: null,
+        selectCount: null,
+        selectCredits: null,
+        sourceOrder: 20,
+      },
+    ];
+    const report = verifyCurriculumManifest({ ...scheduled, placements });
+    expect(report.readiness).toBe(true);
+    expect(report.credits).toEqual({ declared: 14, blocks: 14, required: 10, elective: 4 });
+  });
+
   it('rejects a placement that states both pool units', () => {
     const report = verifyCurriculumManifest(
       manifest({

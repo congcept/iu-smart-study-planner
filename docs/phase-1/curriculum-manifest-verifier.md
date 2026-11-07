@@ -50,6 +50,10 @@ and requirements together, and a case in the suite pins that shape.
 
 ## What it cannot do
 
+An excluded course may still be **scheduled**: both documents place physical training in a semester
+while excluding it from the credit total, so exclusion is a credit rule, not a calendar rule. It may
+not be required by a block.
+
 It proves the manifest agrees with **itself**. It cannot prove the document agrees with the
 manifest, and it must not be used to resolve a contradiction inside a source document. The DS
 document still cites `MA026IU` for `IT151IU` and schedules `IT154IU` where it means `MA033IU`; a
@@ -62,6 +66,17 @@ Sixteen pure cases cover a consistent manifest and every rejection path above, e
 category and message rather than only the outcome. Four command cases prove the exit codes, that a
 blocker is named in the report, that a missing or non-JSON file produces a readable error rather
 than a stack trace, and that the usage guard holds.
+
+## Status of the DS transcription
+
+A DS manifest is **not** included here. The course table converts cleanly — 50 identities with
+credits that match the document's own block totals of 38, 27 and 16 — but the per-semester schedule
+does not: the fixed-width layout wraps names, prerequisite cells and semester labels across lines, and
+a regex over the extracted text recovered 39 of roughly 50 rows and misattributed semesters.
+
+Placements and prerequisite edges therefore have to be transcribed row by row against the source
+locators, not parsed. That is the next increment, and it is why this gate exists: the transcription
+will be checked by arithmetic rather than trusted.
 
 No database is touched, no curriculum is created, and no reader changes. This is the gate that IT
 and DS manifests will have to pass before an importer is written.
