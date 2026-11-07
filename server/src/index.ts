@@ -14,6 +14,7 @@ import authRoutes from './routes/auth';
 import gradeRoutes from './routes/grades';
 import courseRatingRoutes from './routes/courseRatings';
 import adminResourceRoutes from './routes/adminResources';
+import adminUserRoutes from './routes/adminUsers';
 import { checkRequestOrigin } from './middleware/auth';
 
 const app: Application = express();
@@ -56,6 +57,7 @@ app.use('/api/users/me/grades', gradeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/study-plans', studyPlanRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin', adminResourceRoutes);
 
 // 404 handler

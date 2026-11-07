@@ -783,3 +783,18 @@ export {
   type OwnStudyPlanReferenceSelectionPreviewBodyDTO,
   type OwnStudyPlanReferenceSelectionPreviewDTO,
 } from './ownStudyPlanReferenceSelectionPreview';
+
+export {
+  ReferenceCurriculumSummarySchema,
+  AdminStudentSummarySchema,
+  AdminStudentsPageSchema,
+  ListAdminStudentsSchema,
+  AssignReferenceCurriculumSchema,
+  ReferenceAssignmentSchema,
+  type ReferenceCurriculumSummaryDTO,
+  type AdminStudentSummaryDTO,
+  type AdminStudentsPageDTO,
+  type ListAdminStudentsDTO,
+  type AssignReferenceCurriculumDTO,
+  type ReferenceAssignmentDTO,
+} from './referenceCurriculumAssignment';
