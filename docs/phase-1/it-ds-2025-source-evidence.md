@@ -24,19 +24,20 @@ these exact documents.
 
 ## What the DS document states
 
-| Item                | Value                                                                                      |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| Total credits       | **124** (excluding physical education and defence education)                               |
-| General education   | 38 required                                                                                |
-| Major foundation    | 27 required                                                                                |
-| Specialised         | 43 = 32 required + **11 self-chosen** in the structure table, **7** in the change appendix |
-| Internship / thesis | 16 required                                                                                |
-| Physical training   | PT001IU, PT002IU, 3 credits each, excluded from the total                                  |
+| Item                | Value                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| Total credits       | **124** (excluding physical education and defence education)                             |
+| General education   | 38 required                                                                              |
+| Major foundation    | 27 required                                                                              |
+| Specialised         | 43 = 32 required + **11 self-chosen**, which is **7 from the DS pool + 4 free elective** |
+| Internship / thesis | 16 required                                                                              |
+| Physical training   | PT001IU, PT002IU, 3 credits each, excluded from the total                                |
 
 Resolved by the document itself (Appendix 1, "2025 vs 2024"):
 
 - Total reduced **129 → 124**.
-- DS elective group reduced **11 → 7 credits**.
+- DS elective group (the DS pool) reduced **11 → 7 credits**. The block's other 4 elective credits
+  are the separate free-elective requirement, which is unchanged.
 - `IT154IU` Linear Algebra (3) replaced by **`MA033IU`** (3).
 - `MA026IU` Probability, Statistics and Random Process (3) replaced by **`MA036IU`** (3).
 - Statistical Learning (4) reduced to 3 and renamed **Algorithmic Statistics `IT176IU`**.
@@ -60,14 +61,19 @@ These are recorded, not repaired:
 
 | Location             | Statement                          | Conflict                                    |
 | -------------------- | ---------------------------------- | ------------------------------------------- |
-| Table 5 (structure)  | DS electives 11 credits            | Appendix 1 and Table 7 both say 7           |
 | Table 8, `IT151IU`   | prior course `MA026IU`             | `MA026IU` was replaced by `MA036IU` in 2025 |
 | Table 8, `MA033IU`   | prior courses `MA001IU`, `T149IU`  | `T149IU` is a typo for `IT149IU`            |
 | Table 9, semester II | lists `IT154IU` for Linear Algebra | replaced by `MA033IU`                       |
 
-The consistent reading is the change appendix, which is the document's own statement of what
-changed. Any importer must therefore treat the structure table as descriptive and the appendix as
-authoritative where they disagree.
+The arithmetic closes once the two elective pools are kept apart: 38 general + 27 foundation +
+(32 required + 7 DS pool + 4 free elective) + 16 internship and thesis = **124**. Table 8 confirms
+it independently, scheduling 4 elective credits in semester V, 3 in semester VI and a further
+4 free-elective credits in semester VI. The change appendix's 11 → 7 refers to the DS pool only,
+not to the whole elective block, and is not in conflict with the structure table.
+
+Any importer must therefore treat the change appendix as authoritative where it disagrees with the
+descriptive tables, and must keep the DS pool and the free-elective requirement as separate
+requirements rather than summing them into one number.
 
 ## What the IT document states
 
