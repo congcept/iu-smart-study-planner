@@ -230,8 +230,6 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
       fail('PLACEMENT', path, `Placement names unknown course ${placement.code}`);
       continue;
     }
-    if (excludedCodes.has(placement.code))
-      fail('EXCLUSION', path, `${placement.code} is excluded but is placed`);
     const key = [placement.code, placement.year, placement.semester, placement.group].join(':');
     if (seenPlacements.has(key))
       fail('PLACEMENT', path, `Duplicate placement for ${placement.code} in the same slot`);
