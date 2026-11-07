@@ -110,7 +110,10 @@ The two are only interchangeable when every option in the pool has the same cred
 pool that is false: `IT120IU` and `IT153IU` carry 3 credits while the other thirteen options carry 4. A 7-credit requirement therefore cannot be expressed as a course count without silently changing
 what the document requires.
 
-This must be decided before IT or DS can be imported.
+**Decided 7 November 2026:** add a nullable `electiveSelectCredits` to `CurriculumPlacement` in an
+additive migration. Placements keep `electiveSelectCount`; a pool stated in credits populates the
+credit field instead, and readers sum member credits rather than counting rows. The count field stays
+for sources that state a course count, so the CS reference import is unaffected.
 
 ## Standing gates
 
