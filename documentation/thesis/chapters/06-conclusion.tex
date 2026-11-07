@@ -58,11 +58,23 @@ to be built into the schema, the contracts and the copy rather than added as a d
         page and is deliberately not asserted to match the signed policy of a cohort. Its credit
         total is unknown, its elective rules are unresolved, and the final-year branch is a declared
         reference rule rather than a verified regulation.
-  \item \textbf{One program populated.} The model supports several programs and the administrative
-        simulation exercises that shape, but neither of the other two candidate programs could be
-        imported: their published sources disagree with themselves on credit totals and course
-        identities, and substituting a plausible value would have manufactured authority the work
-        does not have.
+  \item \textbf{One program populated, and why.} The model supports several programs and the
+        administrative simulation exercises that shape. The other two candidate programs were
+        analysed rather than assumed: both were retrieved, transcribed and checked. Neither could be
+        imported, and not because the work ran out.
+
+        Data Science transcribes cleanly into fifty courses, fifty placements, thirty-two
+        prerequisite edges and blocks of 38, 27, 32 and 16 credits, reaching the document's own total
+        of 124 once its eleven elective credits are split into a seven-credit pool and a four-credit
+        free elective. Two cells in that document contradict the rest of it, and the transcription is
+        committed in two forms so the contradiction stays visible rather than being repaired on the
+        author's own authority.
+
+        Information Technology could not be transcribed at all. Its scheduled rows total exactly 150
+        credits, matching its stated total, but six of its nine semester labels disagree with their
+        own rows, and its general-education block declares 45 credits where its own framework table
+        yields 40 once physical training is removed. The difference is five credits, the size of a
+        course, and it is the kind of discrepancy a transcription must not resolve by preference.
   \item \textbf{No calendar validity.} Offerings, meeting times, rooms, laboratory suitability and
         staff qualification were unavailable, so a placement in a semester is a catalogue fact and
         not evidence that the course is offered in a given term. The per-semester grade labels are
@@ -90,8 +102,13 @@ to be built into the schema, the contracts and the copy rather than added as a d
 
 \begin{enumerate}
   \item \textbf{Reconcile the remaining programs from signed sources.} The blocking work is
-        documentary, not technical: the conflicting credit totals, course codes and prerequisite
-        edges in the other programs need an authoritative resolution before they can be imported.
+        documentary, not technical. Four questions remain open, each needing the school rather than a
+        judgement call: whether Information Technology's general block is 45 credits or 40; what
+        \texttt{IT151IU} requires, given that the 2025 text, the 2024 cohort and the 2025 catalogue give
+        three different answers; whether a table of that document still cites the retired code
+        \texttt{IT154IU}; and how its three unnamed elective slots relate to the twelve self-chosen credits
+        its block allocates. Concurrent pairs are no longer among them: the artifact accepts two
+        courses that name each other as concurrent, which is what concurrent study means.
         A cohort must not be activated by an artefact alone.
   \item \textbf{Encode offerings and the academic calendar.} With timetable data, the reference
         year and semester could become a validated constraint rather than a label, and the
