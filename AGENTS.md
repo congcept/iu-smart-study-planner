@@ -278,8 +278,13 @@ cases. Workspace build, typecheck, zero-warning lint and formatting pass; 110 cl
 **Open stability finding.** Full server runs on the same seeded disposable database keep failing
 different suites, and every failing suite passes in isolation. Observed so far: `401` instead of a
 business refusal, a `401` instead of `500`, a socket-level `Parse Error: Expected HTTP/, RTSP/ or
-ICE/`, and now a `5000 ms` test timeout plus "Jest did not exit one second after the test run has
-completed". Each affected suite passed unchanged when run alone, and the repositories' clean-room CI
+ICE/`, a `5000 ms` test timeout plus "Jest did not exit one second after the test run has
+completed", and one client failure on a documentation-only branch
+(`SavedStudyPlanCoursesPanel > hides parent course evidence when a proposed-course check loses its
+session`, unable to find "Selection academic year") that passed when the same commit's job was
+re-run and passed 6/6 in isolation and 3/3 as a full client suite locally. The client test waits for
+a label with Testing Library's one-second default after a click that triggers an asynchronous read,
+which is a plausible window on a contended runner, but that is a hypothesis and not a diagnosis. Each affected suite passed unchanged when run alone, and the repositories' clean-room CI
 gate has stayed green through every merge. No assertion, timeout or transaction budget was weakened
 to obtain a pass, and no `--forceExit` or `--detectOpenHandles` workaround was adopted.
 
