@@ -39,9 +39,14 @@ when everything passes — a self-consistent manifest is not a verified cohort.
 | `PREREQUISITE`      | Both endpoints are members, no self-edge, no duplicate, no cycle                                      |
 | `EXCLUSION`         | A physical-training exclusion names its course, agrees on credits, and is neither required nor placed |
 
-The last two arithmetic checks are the ones that would have caught the two mistakes already made in
-this project: a DS reading that produced a 120-credit degree from a 124-credit document, and an
-elective block whose 11 credits were mistaken for a single pool instead of 7 plus 4 free elective.
+The arithmetic checks are the ones that would have caught the mistakes already made in this
+project: a DS reading that produced a 120-credit degree from a 124-credit document, and an elective
+block whose 11 credits were mistaken for a single pool.
+
+That second case caught a defect in this verifier. Its first version compared the pools against the
+block allocation and treated uncoded requirements as an alternative — so a correct DS manifest, with
+a 7-credit pool plus a 4-credit free elective, was rejected. The allocation is now spent by pools
+and requirements together, and a case in the suite pins that shape.
 
 ## What it cannot do
 

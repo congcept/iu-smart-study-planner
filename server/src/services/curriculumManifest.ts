@@ -316,25 +316,19 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
     if (entry.confirmations === 0)
       fail('ELECTIVE', `groups.${key}`, 'An elective group states no pool limit');
   }
-  const declaredElectiveCredits = [...groups.values()].reduce(
-    (total, entry) => total + entry.declared,
-    0,
-  );
-  if (groups.size > 0 && declaredElectiveCredits !== elective)
-    fail(
-      'ELECTIVE',
-      'blocks',
-      `Declared pools total ${declaredElectiveCredits} but blocks allocate ${elective} elective credits`,
-    );
+  // The elective allocation is spent by pools and by uncoded requirements together. A DS-shaped
+  // program spends it as a 7-credit pool plus a 4-credit free-elective requirement; counting only
+  // one of the two would reject a correct manifest.
+  const poolCredits = [...groups.values()].reduce((total, entry) => total + entry.declared, 0);
   const requirementCredits = manifest.requirements.reduce(
     (total, requirement) => total + requirement.credits,
     0,
   );
-  if (requirementCredits !== elective && groups.size === 0 && elective !== 0)
+  if (poolCredits + requirementCredits !== elective)
     fail(
       'ELECTIVE',
-      'requirements',
-      `Requirements total ${requirementCredits} but blocks allocate ${elective} elective credits`,
+      'blocks',
+      `Elective allocation is ${elective} credits but pools declare ${poolCredits} and requirements declare ${requirementCredits}`,
     );
 
   // Prerequisites: both endpoints are members, no self-edge, no cycle.

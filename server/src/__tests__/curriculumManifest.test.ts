@@ -279,6 +279,59 @@ describe('curriculum manifest verification', () => {
     ).toBe(true);
   });
 
+  it('accepts a pool and an uncoded requirement that together spend the allocation', () => {
+    // The DS shape: 11 elective credits, spent as a 7-credit pool plus a 4-credit free elective.
+    const ds = manifest({
+      totalCredits: 14,
+      requirements: [
+        {
+          kind: 'FREE_ELECTIVE',
+          name: 'Free elective',
+          credits: 4,
+          year: 3,
+          semester: 2,
+          sourceOrder: 0,
+        },
+      ],
+    });
+    const placements = placementsOf(ds).map((placement) =>
+      placement.group === null ? placement : { ...placement, selectCredits: 7 },
+    );
+    const blocks = blocksOf(ds).map((block) =>
+      block.code === 'III' ? { ...block, electiveCredits: 11 } : block,
+    );
+    const report = verifyCurriculumManifest({
+      ...ds,
+      blocks,
+      placements,
+      totalCredits: 21,
+    });
+    expect(report.readiness).toBe(true);
+    expect(report.credits).toEqual({ declared: 21, blocks: 21, required: 10, elective: 11 });
+  });
+
+  it('rejects a pool and a requirement that overspend or underspend the allocation', () => {
+    const ds = manifest({
+      requirements: [
+        {
+          kind: 'FREE_ELECTIVE',
+          name: 'Free elective',
+          credits: 4,
+          year: 3,
+          semester: 2,
+          sourceOrder: 0,
+        },
+      ],
+    });
+    const report = verifyCurriculumManifest({ ...ds, totalCredits: 18 });
+    expect(report.readiness).toBe(false);
+    expect(
+      report.issues.some(({ message }) =>
+        /pools declare 4 and requirements declare 4/.test(message),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects a pool that disagrees with the elective credits the block allocates', () => {
     const oversized = manifest();
     const placements = placementsOf(oversized).map((placement) =>
@@ -288,7 +341,7 @@ describe('curriculum manifest verification', () => {
     expect(report.readiness).toBe(false);
     expect(
       report.issues.some(({ message }) =>
-        /Declared pools total 8 but blocks allocate 4/.test(message),
+        /pools declare 8 and requirements declare 0/.test(message),
       ),
     ).toBe(true);
   });
