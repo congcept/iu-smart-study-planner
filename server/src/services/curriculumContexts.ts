@@ -79,6 +79,7 @@ export async function readCurriculumSnapshot(
               academicSemester: true,
               electiveGroup: true,
               electiveSelectCount: true,
+              electiveSelectCredits: true,
               sourceOrder: true,
               sourceLabel: true,
             },

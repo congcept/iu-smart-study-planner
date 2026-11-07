@@ -34,6 +34,7 @@ const course = (index: number, year = 1, semester = 1): CurriculumCourseDTO => (
       academicSemester: semester,
       electiveGroup: null,
       electiveSelectCount: null,
+      electiveSelectCredits: null,
       sourceOrder: index,
       sourceLabel: null,
     },

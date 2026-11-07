@@ -227,13 +227,13 @@ listing, continuation conflicts, a two-writer race, and a real row-lock demotion
 cases. Workspace build, typecheck, zero-warning lint and formatting pass; 110 client files /
 2,516 tests pass.
 
-**Open stability finding.** Two consecutive full server runs on the same seeded disposable database
-failed different suites, and every failing suite passed in isolation: run 1 failed
-`courseDifficultyProjection` (unseeded-fixture dependency, resolved by seeding) and this feature's
-list case with `401` instead of `200`; run 2 failed `ownStudyPlanReferenceSelection` and
-`adminAllocationRunHistory`, neither touched here, and this feature's suite passed. This continues
-the previously recorded intermittent `401` responses. No assertion, timeout or transaction budget
-was weakened to obtain a pass; the clean-room CI gate remains the authority.
+**Open stability finding.** Full server runs on the same seeded disposable database keep failing
+different suites, and every failing suite passes in isolation. Observed so far: `401` instead of a
+business refusal, a `401` instead of `500`, a socket-level `Parse Error: Expected HTTP/, RTSP/ or
+ICE/`, and now a `5000 ms` test timeout plus "Jest did not exit one second after the test run has
+completed". Each affected suite passed unchanged when run alone, and the repositories' clean-room CI
+gate has stayed green through every merge. No assertion, timeout or transaction budget was weakened
+to obtain a pass, and no `--forceExit` or `--detectOpenHandles` workaround was adopted.
 
 Next: the demonstration scenario and walkthrough, then the thesis re-baseline
 (`00-abstract`, `05-results`, `06-conclusion` still describe the June prototype). Feature freeze

@@ -47,6 +47,7 @@ function preview(): CurriculumSemesterPreviewDTO {
             academicSemester: 1,
             electiveGroup: null,
             electiveSelectCount: null,
+            electiveSelectCredits: null,
             sourceOrder: 0,
             sourceLabel: null,
           },

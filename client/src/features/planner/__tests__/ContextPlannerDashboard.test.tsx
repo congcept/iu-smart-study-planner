@@ -87,6 +87,7 @@ function preview(curriculumId = contextA, name = 'Scoped Calculus'): CurriculumS
             academicSemester: 1,
             electiveGroup: null,
             electiveSelectCount: null,
+            electiveSelectCredits: null,
             sourceOrder: 0,
             sourceLabel: 'Simulated reference',
           },
