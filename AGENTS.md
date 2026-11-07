@@ -194,6 +194,51 @@ Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
+## Active Checkpoint — 2026-11-07
+
+### Admin reference curriculum assignment
+
+`users.curriculum_id` finally has a reviewed writer. Before this, no endpoint, service, script or
+seed could set it, so every curriculum-context reader was reachable only by editing the database.
+
+`GET /api/admin/users/students` lists STUDENT accounts only, 50 per page with a `studentId` keyset
+continuation and an explicit conflict when the continuation no longer identifies an account.
+`POST /api/admin/users/students/:userId/curriculum` attaches or clears one reference curriculum in
+a Serializable transaction that re-reads the acting role `FOR SHARE` through commit, locks the
+target `FOR UPDATE`, refuses non-STUDENT targets, requires `expectedCurriculumId` to match, and
+returns `changed: false` for an identical repeat **before** the precondition is checked — so a
+retry after a lost reply recovers instead of conflicting, and no receipt table is needed.
+
+Only `users.curriculum_id` is written. Records, attempts, ratings, plans and receipts are
+byte-identical before and after; courses outside the new context stay as preserved history. Every
+reply carries `usage: 'REFERENCE_ONLY'`: this is a demonstration attachment, not cohort activation,
+not graduation or elective validation, and not assigned-context editing. There is deliberately no
+assignment history or audit row; the column is one mutable value.
+
+`/admin` gains a matching section that writes nothing on mount, confirms the administrator before
+and after each write, hides student rows when confirmation is lost, keeps the unconfirmed request
+visible for retry, and states both the reference-only boundary and that an assigned account loses
+the legacy editable map.
+
+Verification on a seeded disposable PostgreSQL database: 12 real-database cases (authorization and
+identity, stripped body, session propagation, idempotent retry, stale precondition, clear and round
+trip, unknown account/curriculum, administrator targets, byte-identical preservation, bounded
+listing, continuation conflicts, a two-writer race, and a real row-lock demotion) plus 8 client
+cases. Workspace build, typecheck, zero-warning lint and formatting pass; 110 client files /
+2,516 tests pass.
+
+**Open stability finding.** Two consecutive full server runs on the same seeded disposable database
+failed different suites, and every failing suite passed in isolation: run 1 failed
+`courseDifficultyProjection` (unseeded-fixture dependency, resolved by seeding) and this feature's
+list case with `401` instead of `200`; run 2 failed `ownStudyPlanReferenceSelection` and
+`adminAllocationRunHistory`, neither touched here, and this feature's suite passed. This continues
+the previously recorded intermittent `401` responses. No assertion, timeout or transaction budget
+was weakened to obtain a pass; the clean-room CI gate remains the authority.
+
+Next: the demonstration scenario and walkthrough, then the thesis re-baseline
+(`00-abstract`, `05-results`, `06-conclusion` still describe the June prototype). Feature freeze
+applies after the 3 December progress check.
+
 ## Active Checkpoint — 2026-10-23
 
 ### Recorded per-semester numeric GPA
