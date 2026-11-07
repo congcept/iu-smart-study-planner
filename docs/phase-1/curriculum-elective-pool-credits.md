@@ -14,11 +14,11 @@ document requires, so the field is added rather than approximated.
 `CurriculumPlacement.electiveSelectCredits` is a nullable integer. A placement states its pool in
 exactly one of the two units:
 
-| `electiveSelectCount` | `electiveSelectCredits` | Meaning |
-| --- | --- | --- |
-| null | null | A required course, or a placement with no pool |
-| positive | null | A pool that admits this many courses |
-| null | positive | A pool that admits this many credits |
+| `electiveSelectCount` | `electiveSelectCredits` | Meaning                                        |
+| --------------------- | ----------------------- | ---------------------------------------------- |
+| null                  | null                    | A required course, or a placement with no pool |
+| positive              | null                    | A pool that admits this many courses           |
+| null                  | positive                | A pool that admits this many credits           |
 
 Sources that state counts — the CS reference import — keep writing `electiveSelectCount` and leave
 the new field null, so their behaviour is unchanged.
