@@ -57,10 +57,34 @@ outside the program. Nothing on that screen is editable, and the screen states w
 an assigned program requires a claim-transfer policy and a context-keyed client cache that are not
 part of this artifact.
 
+Terminal output of the assigned screen is shown below: the reference curriculum, the account's
+current member progress, and the saved course list, all read-only.
+
+\begin{figure}[h]
+\centering
+\makebox[\textwidth][c]{\includegraphics[width=1.15\textwidth]{reference-view.png}}
+\caption{The curriculum route for an account with an assigned reference curriculum}
+\end{figure}
+
+The same account's totals are honest about their own scope: ten completed courses and thirty-four
+earned credits, with the percentage and remaining requirements explicitly withheld because the
+program's own rules are unverified.
+
 The planner follows the same branch. A guest receives the legacy workload analysis; an assigned
 account receives a context preview that resolves prerequisites, credits and the rating prior inside
 that program, rejects a non-member selection, and reports courses it could not schedule with the
-reason. The grades screen reports the credit-weighted average, the retake history and the
+reason.
+
+\begin{figure}[h]
+\centering
+\makebox[\textwidth][c]{\includegraphics[width=1.15\textwidth]{planner-preview.png}}
+\caption{The contextual semester preview for the same account}
+\end{figure}
+
+That preview shows three things a guest never sees: the grade-based branch resolved from the
+account's own average, the difficulty prior drawn from ratings inside the program rather than
+globally, and the requirement the import could not resolve, held apart from the course list instead
+of being guessed at. The grades screen reports the credit-weighted average, the retake history and the
 highest-score distribution, plus a per-semester table when attempts carry term metadata. The ratings
 screen lists only completed courses and holds a submitted vote's retry identity until the server
 confirms it.
