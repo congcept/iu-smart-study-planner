@@ -247,6 +247,8 @@ documentation/thesis/*
 !documentation/thesis/iu-thesis.cls
 !documentation/thesis/Makefile
 !documentation/thesis/claims-ledger.md
+!documentation/thesis/figures
+!documentation/thesis/figures/*.png
 # Build artefacts produced by a local LaTeX run.
 documentation/thesis/**/*.aux
 documentation/thesis/**/*.log
