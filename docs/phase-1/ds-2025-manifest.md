@@ -44,10 +44,35 @@ reading. It does **not** prove the reading is the school's intent. `IT154IU` was
 `MA033IU` in 2025, and the document's own Table 9 still shows `IT154IU`; that table is not
 transcribed here because it is a curriculum-outcome matrix, not a schedule.
 
-Three questions remain for the school, and no manifest should be imported until they are answered:
+## Cross-check against the 2024 document
 
-1. Is `T149IU` in `MA033IU`'s prior-course list a slip for `IT149IU`?
-2. Is `IT151IU`'s prior course `MA036IU` (2025) or `MA026IU` (the pre-2025 code the schedule still prints)?
+The signed 2024 Data Science curriculum was retrieved to test the two readings rather than assert
+them. It is 20 pages, SHA-256 `f3d53eae…07ff`, and it lists the same courses under their previous
+codes. Three cells matter:
+
+| Course (2024)                                     | Prior study printed in 2024 |
+| ------------------------------------------------- | --------------------------- |
+| `IT154IU` Linear Algebra                          | `MA001IU`, `IT149IU`        |
+| `IT151IU` Statistical Method                      | `MA001IU`, `IT149IU`        |
+| `MA026IU` Probability, Statistic & Random Process | `MA001IU`                   |
+
+This settles one reading and unsettles the other.
+
+**`T149IU` is confirmed as `IT149IU`.** The 2024 document prints `IT149IU` in exactly the same pair,
+for the same course, and 2025's `IT154IU` became `MA033IU`. The reading is now evidence, not
+inference.
+
+**`MA026IU → MA036IU` is not supported by the predecessor.** The 2024 document gave `IT151IU` two
+prior courses, `MA001IU` and `IT149IU` — neither of which is `MA026IU`. Applying the appendix's
+substitution rule produces a value that is consistent with the 2025 text but contradicts what the
+course actually required a year earlier. No reading is established here; the cell is doubtful in a
+way a substitution cannot repair.
+
+## Questions for the school
+
+1. ~~Is `T149IU` a slip for `IT149IU`?~~ Answered by the 2024 document: yes.
+2. What are `IT151IU`'s prior courses for 2025? The text prints `MA026IU`; the 2024 cohort required
+   `MA001IU` and `IT149IU`; the 2025 catalogue replaced `MA026IU` with `MA036IU`.
 3. Is Table 9's `IT154IU` a stale label for `MA033IU`, or does an equivalent-course arrangement apply?
 
 ## A note on elective placements
