@@ -50,6 +50,23 @@ and requirements together, and a case in the suite pins that shape.
 
 ## What it cannot do
 
+## Alternative prerequisites
+
+IT's schedule states four requirements as "**IT116IU or IT149IU**": `IT069IU`, `IT079IU`, `IT091IU`
+and `IT153IU` accept either programming course as their prior study. A single mandatory edge cannot
+express that, and importing it as two edges would block every student who took the other course.
+
+An edge may therefore name an `alternativeGroup`. Edges sharing a group for the same course mean
+_at least one of these satisfies the requirement_; an edge with no group stays a single mandatory
+requirement. The verifier rejects a group with fewer than two members, a group that mixes
+prerequisite kinds, and a prerequisite demanded both alone and as an alternative.
+
+This is the **manifest contract only**. Completion validation, planning eligibility and cohort demand
+still treat every stored edge as mandatory, so nothing may import an alternative group until that
+enforcement is designed. Adding the contract first is deliberate: it lets the IT transcription be
+checked now and keeps the enforcement change, which touches every reader, as its own reviewable
+increment.
+
 An excluded course may still be **scheduled**: both documents place physical training in a semester
 while excluding it from the credit total, so exclusion is a credit rule, not a calendar rule. It may
 not be required by a block.
