@@ -98,15 +98,14 @@ Three shapes here are not in DS or CS:
 
 ## What this blocks
 
-A manifest cannot be produced without deciding, on the school's authority:
+The block arithmetic no longer blocks anything: the programme's own tables reconcile at 150, so an IT
+manifest can be built. Three questions remain, and none of them is arithmetic:
 
-1. Whether block I is **45** credits (Bảng 4) or **40** (Bảng 6 with physical training removed).
-2. Whether `IT091I` is `IT091IU`, and whether "Physics 1" means `PH013IU`.
-3. Whether `IT067IU` / `IT099IU` and `IT067IU` / `EE054IU` are concurrent pairs that must be taken
+1. Whether `IT091I` is `IT091IU`, and whether "Physics 1" means `PH013IU`.
+2. Whether `IT067IU` / `IT099IU` and `IT067IU` / `EE054IU` are concurrent pairs that must be taken
    together, or prior-study edges in one direction.
-
-The first alone prevents an IT manifest from passing the verifier, because the block arithmetic is
-the check that makes the transcription trustworthy.
+3. How the three unnamed elective slots relate to the twelve self-chosen credits the specialised
+   block allocates.
 
 ## Verified before shipping
 

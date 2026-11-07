@@ -215,11 +215,12 @@ the documents, not the code, are the blocker. Ten merged increments since the as
 - **DS 2025 transcribed** (50 courses, 50 placements, 32 edges, blocks 38/27/32+11/16 = 124). Two
   files: faithful, which the verifier rejects on the document's own `T149IU`, and a proposed-readings
   variant that passes.
-- **IT 2025 analysed, not transcribable**: row-level credits total exactly 150, but six semester
-  labels contradict their own rows and the general block claims 45 credits where its own framework
-  table yields 40 once physical training is removed. A five-credit gap — the size of a course —
-  blocks any manifest, because the verifier refuses a block whose declared credits disagree with the
-  courses it claims.
+- **IT 2025 analysed, transcribable but not yet transcribed**: row-level credits total exactly 150
+  and every block reconciles against the courses it lists (45 + 35 + 32 + 12 + 6 + 20). An earlier
+  note claimed a five-credit gap in the general block; that was wrong, and the error came from
+  subtracting physical training from the group-wide framework table (Bảng 6) instead of reading the
+  programme's own block table (Bảng 4 / Bảng 7). Bảng 6 does not add up by its own parts, but it is a
+  summary of the shared Toán–Tin core and not a block of this programme.
 - **Alternative prerequisite groups** in the manifest contract (`alternativeGroup`), because IT
   states four requirements as "IT116IU or IT149IU". **Contract only**: nothing enforces alternatives
   yet, so no import may use one.
