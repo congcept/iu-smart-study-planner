@@ -36,6 +36,9 @@ import { AdminResourceDashboard } from '../AdminResourceDashboard';
 
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
 vi.mock('../PlannedDemandPanel', () => ({ PlannedDemandPanel: () => null }));
+vi.mock('../ReferenceAssignmentPanel', () => ({
+  ReferenceAssignmentPanel: () => 'reference-assignment-panel',
+}));
 vi.mock('@/lib/adminResourcesApi', () => ({ getResources: vi.fn(), saveResources: vi.fn() }));
 vi.mock('@/lib/curriculumApi', () => ({
   getCurriculumReference: vi.fn(),
@@ -177,6 +180,11 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it('mounts the reference curriculum assignment panel beside the simulation settings', async () => {
+  render(<AdminResourceDashboard userId={ownerId} />);
+  expect(await screen.findByText('reference-assignment-panel')).toBeTruthy();
 });
 
 it('puts focus on the panel heading when the references are read again', async () => {
