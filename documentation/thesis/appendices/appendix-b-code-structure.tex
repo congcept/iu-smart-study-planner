@@ -1,0 +1,121 @@
+\chapter{SOURCE CODE STRUCTURE}
+
+This appendix describes how the repository is organised. It is a map, not an inventory: the
+authoritative lists are the build scripts and the migration history.
+
+\section{Root Directory}
+
+\begin{lstlisting}
+iu-smart-study-planner/
+  package.json              # npm workspaces: client, server, shared
+  package-lock.json         # committed; installs use npm ci
+  .nvmrc                    # pinned Node for reproducible verification
+  docker-compose.yml        # PostgreSQL, backend and frontend services
+  scripts/
+    runDevelopment.mjs      # startup supervisor for the three watchers
+  documentation/thesis/     # LaTeX sources for this document
+  docs/                     # per-increment feature notes
+  AGENTS.md                 # working checkpoint: decisions and open findings
+\end{lstlisting}
+
+\section{Shared Package}
+
+The shared package holds every contract used by both applications, and it is compiled before either
+of them so that neither can import a stale schema.
+
+\begin{lstlisting}
+shared/src/
+  index.ts                  # barrel: exports dto and schemas
+  schemas/
+    index.ts                # core schemas
+    semesterAllocation*.ts  # frozen simulation contracts
+    ownStudyPlan*.ts        # saved-plan, review and selection contracts
+  dto/
+    index.ts                # inferred types and API envelope
+    curriculum.ts           # curriculum summaries, placements, requirements
+\end{lstlisting}
+
+\section{Server Package}
+
+The server is organised as routes over services, with one service per capability and one module per
+frozen contract. Transactions, authorization re-reads and retry handling live in the services rather
+than in the routes, so a direct service call follows the same rules as an HTTP request.
+
+\begin{lstlisting}
+server/src/
+  index.ts                  # express app, route mounts, health check
+  db.ts                     # prisma singleton
+  config/                   # environment and policy readers
+  middleware/auth.ts        # requireAuth, requireAdmin, requireUserAccess
+  routes/
+    auth.ts                 # cookie register, login, logout, me
+    curricula.ts            # public reference reads
+    users.ts                # own progress, records, own plans
+    grades.ts               # numeric attempt history and append
+    courseRatings.ts        # ratings and rating summaries
+    studyPlans.ts           # saved plan and semester CRUD
+    recommendations.ts      # workload, planning, prerequisite chains
+    adminResources.ts       # resources, demand, capacity, runs, jobs
+    adminUsers.ts           # reference curriculum assignment
+  services/
+    authService.ts          # token, cookie, auth selects
+    curriculumContexts.ts   # program metadata, placements, prior
+    curriculumReference.ts  # lossless source verifier
+    csReferenceBackfill.ts  # idempotent import
+    studentRecords.ts       # completion, mandatory prerequisites, cascade
+    progressWriteScope.ts   # expected-scope comparison in the write transaction
+    importStudentProgress.ts
+    gradeAttempts.ts        # immutable attempts
+    gradeSummary.ts         # credit-weighted average, term averages
+    bayesianDifficulty.ts   # shrinkage estimator
+    courseRatings.ts        # gated, quota-limited, atomic vote
+    curriculumSemesterPreview.ts
+    plannedSemesters.ts     # saved semester writes
+    ownStudyPlanReferenceSelection.ts
+    schoolResources.ts      # compare-and-set settings
+    eligibleCohortDemand.ts
+    schoolSupply.ts         # capacity diagnostics
+    allocationPreview.ts    # one-course model
+    simulationSemesterAllocation.ts # credit-budget model, frozen V1
+    semesterAllocationCapture.ts
+    semesterAllocationJobExecution.ts
+  scripts/                  # explicit, one-job CLIs
+\end{lstlisting}
+
+\section{Client Package}
+
+The client is organised by feature, with routes declared in one place so that the guards are
+impossible to bypass by accident.
+
+\begin{lstlisting}
+client/src/
+  App.tsx                   # routes under AuthGuard and AdminGuard
+  lib/
+    api.ts                  # axios client, session read
+    sessionExpiry.ts        # session generation guard
+    store.ts                # editable progress for a null context
+    curriculumApi.ts        # reference reads, contextual progress
+    gradesApi.ts, ratingsApi.ts
+    savedStudyPlansApi.ts, savedStudyPlanSemestersApi.ts
+    savedStudyPlanCoursesApi.ts
+    savedStudyPlanReferenceSelectionApi.ts
+    savedStudyPlanReferenceReviewApi.ts
+    savedReferenceSelectionDraft.ts
+    adminResourcesApi.ts, adminUsersApi.ts
+  features/
+    curriculum/             # map, reference view, cards, GPA controls
+    grades/                 # dashboard, entry, distribution, term table
+    ratings/                # completed-course rating screen
+    planner/                # workload, preview, saved-plan browsers
+    admin/                  # resource form and the simulation panels
+  components/ui/            # Button, ErrorBanner, Card, ...
+\end{lstlisting}
+
+\section{Verification Assets}
+
+\begin{lstlisting}
+server/src/__tests__/       # jest suites; real PostgreSQL
+client/src/**/__tests__/    # vitest suites; jsdom
+scripts/__tests__/          # startup lifecycle cases
+.github/workflows/ci.yml    # the single Ubuntu quality gate
+\end{lstlisting}

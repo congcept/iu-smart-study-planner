@@ -1,0 +1,30 @@
+\begin{abstract}
+
+Planning a university degree is a constraint-satisfaction problem that students usually attempt
+with a printed curriculum sheet and a spreadsheet. Neither can say which courses are currently
+eligible, what a dropped prerequisite invalidates, which elective group should claim a repeated
+course, or whether the final-year thesis track is still available. This thesis presents the IU Smart
+Study Planner, a web application for students at International University -- VNU HCMC, and reports
+what it does and does not establish.
+
+The artifact contributes a program-aware curriculum model in which courses are global while
+membership, placement and prerequisite edges are per program, so shared courses are not duplicated
+and two programs are never silently merged. Accounts use cookie-based sessions whose role and
+program context are re-read on every request, and each mutation carries an expected scope that is
+compared inside the writing transaction, turning a stale client into a conflict rather than a silent
+error. Completion is server-authoritative, with mandatory prerequisite validation and a
+transactional transitive cascade on uncompletion. Grade attempts are immutable and append-only,
+feeding a credit-weighted average computed from the highest score per course in decimal arithmetic.
+Completion-gated difficulty ratings are combined with a program prior through Bayesian shrinkage and
+always displayed with their vote count. A saved-semester editor validates ownership, revision,
+membership, prerequisites and grade eligibility in one serializable transaction with immutable
+receipts, recoverable drafts and per-course blocker explanations. An administrative surface
+simulates resource settings, cohort demand, capacity and two allocation models behind frozen,
+replayable contracts executed by an explicit single-job command.
+
+Verification uses fail-first tests against a real PostgreSQL database, one reproducible
+continuous-integration gate, local profiling of the allocation models and a browser accessibility
+audit. The artifact makes no claim of institutional validation, calendar validity or improved
+student outcomes, and reports those limits explicitly rather than filling them.
+
+\end{abstract}

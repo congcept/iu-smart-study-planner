@@ -233,7 +233,31 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # ============================================================================
 # THESIS DOCUMENTATION
 # ============================================================================
-documentation/
+documentation/*
+!documentation/thesis
+documentation/thesis/*
+# The thesis sources are the deliverable; build artefacts stay ignored.
+!documentation/thesis/chapters
+!documentation/thesis/chapters/*.tex
+!documentation/thesis/frontmatter
+!documentation/thesis/frontmatter/*.tex
+!documentation/thesis/appendices
+!documentation/thesis/appendices/*.tex
+!documentation/thesis/*.tex
+!documentation/thesis/iu-thesis.cls
+!documentation/thesis/Makefile
+!documentation/thesis/claims-ledger.md
+# Build artefacts produced by a local LaTeX run.
+documentation/thesis/**/*.aux
+documentation/thesis/**/*.log
+documentation/thesis/**/*.out
+documentation/thesis/**/*.toc
+documentation/thesis/**/*.lof
+documentation/thesis/**/*.lot
+documentation/thesis/**/*.fls
+documentation/thesis/**/*.fdb_latexmk
+documentation/thesis/*.pdf
+documentation/thesis/*.xdv
 
 # ============================================================================
 # PROJECT SPECIFIC

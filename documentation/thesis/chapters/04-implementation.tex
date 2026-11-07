@@ -1,0 +1,302 @@
+\chapter{IMPLEMENTATION}
+
+\label{ch:implementation}
+
+This chapter describes the artifact as it stands, increment by increment. Each section states the
+property being protected, the mechanism that protects it, and the boundary the mechanism does not
+cross. Decisions reversed during development are recorded at the end, because the reversals are
+part of the evidence: the first design was a single graph view with browser-local state, and almost
+none of that layer survives.
+
+\section{Accounts, Sessions and Scope}
+
+Authentication issues a JSON Web Token into an {\tt httpOnly}, {\tt SameSite=Lax} cookie marked
+{\tt Secure} in production. The client never reads the token, so a script injected into the page
+cannot exfiltrate it. Because a token is a snapshot, the server does not trust what it carries: on
+every request the middleware re-reads the account from the database and attaches the current role
+and program context. A token issued while an account was a student cannot act as an administrator
+after a role change.
+
+The second half of the mechanism is the expected scope. A mutation such as completing a course,
+recording a grade, casting a rating or saving a semester may carry an optional structure naming the
+owner and the program context the client observed. The server compares that expectation with the
+values it reads \emph{inside the transaction that performs the write}. Equality proceeds; a
+mismatch is refused with a conflict and nothing is written. An expected scope is never persisted.
+
+Two consequences are worth stating. A stale tab cannot silently write into a scope the user no
+longer occupies. And the mechanism is deliberately backward-compatible: a request that omits the
+expectation is treated as a legacy client, so the client could adopt the precondition one screen at
+a time rather than in a single flag day.
+
+The client half of the same problem is the session-expiry race. A protected read refused with 401
+once ended the session even when the user had already signed in again while that read was in
+flight. Each request now records the session generation it was sent under; a refusal belonging to
+an earlier generation is ignored, and a refusal from the current generation still ends the session.
+
+\section{Program Context and the Reference Import}
+
+The program model separates four ideas a single table would conflate. A \emph{course} is a global
+identity with a code, a name and a credit count. A \emph{membership} says the course belongs to a
+program and is unique per pair. A \emph{placement} says where the program lists the course --
+academic year, semester, elective group, selection count -- and is not unique, because the same
+course may be listed twice with different source order. A \emph{prerequisite edge} connects two
+memberships of the same program.
+
+Keeping courses global and placement local is what makes multiple programs possible at all. A shared
+mathematics course exists once, so its rating average serves every program, while its year and
+semester differ per program and therefore live in placements.
+
+The import runs in three independently inspectable stages: a verifier that proves the source is
+losslessly representable, a preflight that inspects the target database, and an idempotent backfill.
+Two source irregularities are modelled rather than normalised away. A blank course code appears in
+the source as an explicit free-elective requirement, so it is stored as a requirement with its own
+credits, not as a course. A course listed in several elective groups becomes several placements
+sharing one membership, so a completed course is claimed by exactly one group while remaining
+hidden in the others.
+
+The program records its provenance and admits its uncertainty. The stored credit total is nullable
+and null in the reference import, so readers resolve an unknown percentage rather than dividing by
+an assumed target. The final-year branch -- a thesis track above a grade threshold and a coursework
+track below it -- is retained as a declared reference rule, and the interface says so.
+
+An administrator can attach or clear a reference program for a student account, which is what makes
+the context-aware screens demonstrable. The control is deliberately narrow: it writes one column in
+one transaction, refuses a stale precondition, returns a {\tt changed} flag so an identical retry
+recovers instead of conflicting, writes no record, grade, rating or plan, and labels every reply as
+a reference attachment rather than a cohort assignment.
+
+\section{Progress, Prerequisites and Cascades}
+
+Progress is one row per account and course, with a status and, where it applies, the elective group
+that claimed the course. The client keeps an optimistic view so the interface responds immediately,
+but the stored truth is the server's.
+
+Completion is validated on the server against the program's mandatory prerequisite edges. Every
+declared edge is mandatory: a legacy corequisite or strictness column is preserved as provenance
+but does not soften the rule, which removed an earlier client array of exceptions that duplicated,
+and disagreed with, the database.
+
+Uncompletion cascades, because leaving a dependent completed would violate the system's own rule. On
+the server the closure is computed inside the same serializable transaction as the status change, so
+the invariant holds at commit rather than eventually. On the client the same closure is computed
+optimistically from a reverse dependency map built over the loaded edges,
+\[
+  \mathit{dependencyMap}[p] = \{\, c \mid (c, p) \in \mathit{prerequisites} \,\},
+\]
+so the interface updates before the reply arrives. The client result is a prediction; if the
+server's returned snapshot differs, the snapshot wins.
+
+\begin{algorithm}[H]
+\caption{Optimistic dependent removal on the client}
+\KwIn{reverse map $D$, completed record $C$, course $c$}
+\KwOut{updated completed record $C'$}
+$queue \leftarrow [c]$\;
+\While{$queue$ is not empty}{
+  $current \leftarrow \text{pop}(queue)$\;
+  $C \leftarrow C \setminus \{current\}$\;
+  \ForEach{$dependent \in D[current]$}{
+    \If{$dependent \in C$}{
+      $queue.\text{push}(dependent)$\;
+    }
+  }
+}
+\Return $C$\;
+\end{algorithm}
+
+The same closure is applied when a completed course is converted to planned: the course leaves the
+completed set, enters the planned set, and its completed dependents are removed with it.
+
+Archive import follows the same discipline. An account's older browser-local selections can be
+imported, but the import validates membership, prerequisites and cycles atomically and refuses a
+selection the assigned program does not permit, rather than accepting a client's opinion about what
+the student has done.
+
+\section{The Unassigned Curriculum Map}
+
+An account with no program context sees the editable curriculum map. It is a semester-column layout
+that mirrors how the program is published: eight standard semesters plus a summer column where the
+catalogue declares one. Each course is a card showing its code, name, credits and requirement
+category, and its state is carried by more than colour: completed, planned, locked because a
+mandatory prerequisite is unmet, recommended for the current window, highlighted as a prerequisite
+of a hovered locked course, or dimmed as a duplicate occurrence of a course claimed elsewhere.
+
+A left click toggles completion and a right click toggles planning; both actions are also available
+from the keyboard, and every control names what it does in text a screen reader reads rather than
+only in a tooltip. Completing an elective-group course records the group that claimed it, so the
+course is counted once and hidden from the other groups that also list it:
+\[
+  \mathit{completedIds}[\mathit{courseId}] = \mathit{electiveGroupName}.
+\]
+
+Clicking a group label opens a sidebar listing that group's members with their own states. The map
+rescales when the sidebar opens or closes and deliberately does not rescale when the student
+switches between groups while the sidebar is already open, because that transition does not change
+the available width.
+
+The intensity control sets the credit band used for the recommended set: nine, fifteen, eighteen or
+twenty-one credits per semester for the low, normal, high and maximum settings. The recommended set
+is computed from the loaded catalogue and the current completion state. The final-year branch
+determines whether the thesis course or the alternative coursework is offered, and the reference
+target used for the progress figure follows the same branch, with physical training excluded from
+earned credits but included in planning. Where the target is unknown the percentage is withheld
+rather than assumed.
+
+\section{Grades, Averages and Per-Semester Records}
+
+A grade is an immutable attempt, not a field on a record. Each attempt stores a course, a score from
+0 to 100, optional term metadata, and a request identifier unique per account. A retake appends; it
+never overwrites. An identical retry returns the original attempt, so a lost reply is safe to
+repeat, and a different payload under a used identifier is refused rather than applied.
+
+The cumulative average is credit-weighted over the highest score recorded for each course, with
+physical training excluded because it carries no grade weight in the program. Arithmetic is decimal,
+not binary floating point, because the threshold that selects the thesis track is an exact
+comparison and a value that should sit exactly at the threshold must not fall below it through
+rounding.
+
+Per-semester averages are a separate, deliberately narrower claim. A term exists only when an
+attempt stores a year and a semester; creation time and a saved plan's placement are never used to
+infer one. Each term keeps its own highest score per course, so a retake can count in more than one
+term, and the weighting reuses the cumulative evaluator. Attempts without dates are counted and
+reported as undated rather than assigned to a guessed term. The interface states that these labels
+are self-recorded reference metadata, not calendar or registration evidence.
+
+\section{Difficulty Ratings and Shrinkage}
+
+Students may rate a completed course from one to five. Write access is gated on a completion record
+in the same snapshot, limited by a durable hourly quota per account, and idempotent by vote: an
+unchanged repeat is acknowledged rather than counted twice. The cached average and count on the
+course row are updated in the same transaction as the vote.
+
+The displayed difficulty is a shrinkage estimate. With $v$ the course's average vote, $n$ its vote
+count, $m$ the program-level prior mean and $C$ a prior strength expressed as pseudo-votes,
+\[
+  \hat{d} \;=\; \frac{v n + m C}{n + C}.
+\]
+At $n = 0$ the estimate is exactly the prior; as $n$ grows the course's own evidence dominates. When
+a program has no rated courses the prior falls back to the seed difficulty mean of its members, and
+the interface distinguishes the two sources. The vote count is shown next to every estimate, and a
+course with no votes is described as having no votes rather than as being of average difficulty.
+
+\section{Workload Analysis and Recommendations}
+
+Workload analysis and semester recommendations share one resolver. It reads the account's program,
+placements, prerequisite edges, progress, highest numeric scores and rating prior in a single
+snapshot, and rejects a selection that is not a member of that program instead of falling back to
+the global catalogue. Recommendations rank eligible courses by the shrunk difficulty estimate and a
+bounded numeric-grade fit, then budget credits by the selected intensity. Courses that cannot be
+scheduled -- because a mandatory prerequisite is unmet, or because the term label contradicts the
+placement -- are reported with their reason instead of being silently dropped, and the interface
+states that no graduation estimate is available while the program's own rules remain unverified.
+
+The final-year branch is applied before ranking, not after: a student on the thesis path is not
+offered the coursework the alternative path would require, and the reverse. Where eligibility is
+unknown -- a program without a numeric average, or a guest -- both options are kept and the
+interface says so rather than choosing one.
+
+\section{Saved Plans and the Reference-Selection Editor}
+
+Saved plans are browsed in three steps: plan metadata, then its stored semesters, then the courses
+of one semester. Each read is bounded and keyset paginated, and each returns enough of its scope
+that the client can verify the reply belongs to the object it asked for.
+
+Editing a saved semester is the most constrained operation in the system and the one with the most
+recovery. The write must confirm, inside one serializable transaction, that the caller owns the
+plan, that the plan's program is still the caller's current program, that the semester's stored
+revision still matches what the client saw, that every selected course is a current member with a
+placement, that every mandatory prerequisite is completed, and what the caller's numeric average is
+if the selection depends on the branch. Credits and difficulty totals are computed from that same
+snapshot, and the revision increment and the immutable receipt commit with the selection. An exact
+retry of a committed request is acknowledged from the receipt before the current-context checks, so
+a lost reply does not become a lost edit; a changed payload under the same key conflicts.
+
+Around that transaction the client provides three more layers. An unsent draft is stored per tab,
+bound to the exact account, program, plan, semester and base revision, and restores only against a
+candidate that still matches; a newer saved revision makes the draft discard-only rather than
+rebased. Proposed courses can be checked before saving, reporting per course which prerequisite is
+missing, whether the placement is wrong, whether the numeric average is unknown, and whether the
+course is placed at all -- and the interface states that this diagnostic never authorises the later
+save, which rechecks everything. The stored list order can be changed with explicit move controls,
+and the interface states that order does not alter academic chronology, prerequisite satisfaction or
+allocation priority.
+
+\section{Administration: Resources, Demand and Capacity}
+
+The administrative side is explicitly a simulation and is labelled as such everywhere.
+
+Resource settings are scoped to a program, a semester and a year, and consist of a professor count,
+a classroom count, a laboratory count, a maximum section size, and optional per-course overrides.
+Each save carries the revision the administrator observed; the update is a compare-and-set, so a
+concurrent save produces a conflict rather than a lost update. Absent settings are unknown, an
+explicit zero is zero, and every diagnostic keeps the two apart.
+
+Demand is counted from the current assigned cohort's planned selections, with each student counted
+once per course. A planned selection that is not a member of the program is excluded and the
+exclusion is reported. Capacity comparisons use declared seats where an override exists and report
+unknown where it does not. A classroom-seat proxy is presented separately and never copied into
+every course, because one room can host only one simultaneous section.
+
+\section{Allocation Models and the Explicit Executor}
+
+Two allocation models exist and are versioned contracts rather than code paths. The earlier model
+allocates one course per student in a single scarcity-ordered round. The later model allocates
+several courses per student across rounds against one shared section-and-seat ledger, with a
+per-student credit target and explicit stop reasons. Both order students by how constrained they
+are, break ties deterministically, and report individual outcomes separately from the aggregate.
+
+Each capture stores the model identifier, the captured policies, the aggregate result and the
+private per-student results, and each read replays the stored contract rather than re-deriving it
+from current configuration. That is what makes history meaningful: a capture taken under one
+resource policy remains readable after the policy changes, and a corrupt or mismatched record fails
+closed instead of being partially displayed.
+
+Execution is explicit. A queued request names its scenario and its actor; one job is executed either
+by a command-line invocation or by a protected administrator action, inside one transaction that
+claims the job, verifies the caller, captures the result and writes the terminal outcome together.
+There is no daemon, no queue drain and no timer. A crash leaves the request pending rather than half
+executed, and an exact retry either recovers the original outcome or finds the job still pending.
+
+\section{Client Interface and Accessibility}
+
+The interface is a set of routes -- curriculum, grades, ratings, planner, administration -- behind
+an authentication guard, with an administrator guard on the administrative surface.
+
+The curriculum route branches on context. With no program the editable map is shown; with an
+assigned program the screen becomes a read-only reference: placements, mandatory prerequisites,
+difficulty estimates with real vote counts, an explicit list of unresolved requirements, and a
+progress summary that separates current member data from preserved history. The branch is
+deliberate. Editing inside an assigned program needs a context-keyed cache and a claim-transfer
+policy that were not built, so the interface refuses to pretend otherwise.
+
+The planner follows the same shape, with the legacy analysis for guests and the context preview for
+assigned accounts. The grades screen shows the average, the retake history, a highest-score
+distribution and, where the data supports it, the per-semester table. The ratings screen lists only
+courses the account has completed and keeps a submitted vote's retry identity until the server
+confirms it.
+
+Because the interface is dense, it was audited rather than assumed correct. The audit found a map
+that faded entirely when a locked course was hovered, an elective panel more than forty tab stops
+from the control that opened it and indifferent to Escape, a save that dropped keyboard focus to the
+document body because the focused control became disabled, zoom buttons that looked available at
+their limits, a crash screen with no exit, an error message that left focus at the top of the
+document, a rejected score that did not point at the field that needed fixing, and the session-
+expiry race described above.
+
+\section{Reversed Decisions}
+
+Three early decisions were reversed on evidence, and the reversals explain why the artifact looks
+the way it does.
+
+\textbf{The graph view was deleted.} An interactive node-and-edge curriculum graph was built on a
+third-party layout library and then removed: it duplicated the semester-column layout, was the only
+consumer of two dependencies, and could not represent repeated elective placements without inventing
+positions. The semester columns, which mirror how the program is published, replaced it.
+
+\textbf{Browser-local state was replaced by server state.} The first version persisted completions
+and plans in browser storage, which made progress device-specific and unverifiable. Browser storage
+now remains only as a confirmed cache for an account with no program context, and is refused as
+truth once a program is attached.
+
+\textbf{A duplicated rule array was removed.} The planner originally carried its own list of
+semester ordering rules alongside the database prerequisites, and the two disagreed. The rules now
+live only in the database, and every edge is mandatory.

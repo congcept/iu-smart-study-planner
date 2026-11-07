@@ -1,0 +1,129 @@
+\chapter{CONCLUSION AND RECOMMENDATION}
+
+\label{ch:conclusion}
+
+\section{Summary of Contributions}
+
+This thesis asked how a web-based planner can represent a university program, a student's record
+and an institution's resource constraints precisely enough to be useful, without claiming more than
+the available evidence supports. The artifact answers that question with seven contributions.
+
+\begin{enumerate}
+  \item \textbf{A program-aware curriculum model.} Courses are global; membership, placement and
+        prerequisite edges are per program. Repeated elective placements are preserved as ordered
+        placement rows, and an uncoded requirement is a first-class entity rather than a placeholder
+        course. The model therefore supports several programs without duplicating shared courses
+        and without unioning their prerequisite graphs.
+
+  \item \textbf{An account scope that is enforced transactionally.} Authentication uses an
+        {\tt httpOnly} cookie, the server re-reads the current role and program context on every
+        request, and every mutation may carry an expected scope that is compared against the values
+        read inside the writing transaction. A stale client cannot write into a scope the user no
+        longer occupies, and the mechanism allowed the client to adopt it one screen at a time.
+
+  \item \textbf{Server-authoritative progress integrity.} Completion validates mandatory
+        prerequisites, and uncompletion removes direct and transitive dependents inside the same
+        serializable transaction. A duplicated rule array that had disagreed with the database was
+        removed, so the database is the single source of prerequisite truth.
+
+  \item \textbf{Immutable grade evidence and a defensible average.} Grade attempts append instead of
+        overwriting, carry an owner-scoped request key that makes an exact retry idempotent, and feed
+        a credit-weighted average computed from the highest score per course in decimal arithmetic.
+        Per-semester averages were added as a separate, narrower claim that never infers a term from
+        a timestamp or a saved plan.
+
+  \item \textbf{Difficulty estimates that report their own confidence.} Completion-gated ratings are
+        combined with a program-level prior through Bayesian shrinkage, and the vote count is shown
+        beside every estimate, so a course with no votes is visibly a course with no evidence.
+
+  \item \textbf{A versioned, explicit administrative simulation.} Resource settings, cohort demand,
+        capacity diagnostics and two allocation models are implemented behind frozen contracts with
+        immutable captures and private per-student outcomes, executed by an explicit single-job
+        command or protected action rather than an unattended daemon.
+
+  \item \textbf{An evidence discipline.} New tests are observed failing against the code they
+        replace; the server suite runs against a real database; one reproducible continuous-
+        integration gate blocks every change; and the interface was audited in a real browser rather
+        than assumed correct.
+\end{enumerate}
+
+The most transferable of these is the sixth. A planning tool for an unverified catalogue is a tool
+whose value depends entirely on how candidly it represents its own uncertainty, and that candour has
+to be built into the schema, the contracts and the copy rather than added as a disclaimer.
+
+\section{Limitations}
+
+\begin{enumerate}
+  \item \textbf{No institutional validation.} The reference program is imported from a published
+        page and is deliberately not asserted to match the signed policy of a cohort. Its credit
+        total is unknown, its elective rules are unresolved, and the final-year branch is a declared
+        reference rule rather than a verified regulation.
+  \item \textbf{One program populated.} The model supports several programs and the administrative
+        simulation exercises that shape, but neither of the other two candidate programs could be
+        imported: their published sources disagree with themselves on credit totals and course
+        identities, and substituting a plausible value would have manufactured authority the work
+        does not have.
+  \item \textbf{No calendar validity.} Offerings, meeting times, rooms, laboratory suitability and
+        staff qualification were unavailable, so a placement in a semester is a catalogue fact and
+        not evidence that the course is offered in a given term. The per-semester grade labels are
+        self-recorded metadata for the same reason.
+  \item \textbf{Assigned contexts are read-only.} A student whose account holds a program reference
+        cannot complete courses through the map, because doing so needs a context-keyed client cache
+        and a policy for transferring elective claims that were not built. The interface states the
+        boundary instead of hiding it.
+  \item \textbf{Simulated resources and allocations.} Every administrative number derives from
+        configuration a user typed into a form. The allocation models are greedy heuristics, not
+        optimisers, and their outputs are reproducible rather than correct.
+  \item \textbf{Engineering evidence only.} No students were recruited and no planning outcome was
+        measured. The evaluation establishes that the artifact enforces the invariants it declares,
+        is reproducible, and remains operable with a keyboard and a screen reader; it does not
+        establish that the recommendations are academically effective.
+  \item \textbf{Not deployed.} A production start-up refuses to run without an explicit frontend
+        origin, which is a configuration preflight rather than a deployment. Hosting, certificate
+        and cookie topology, secret provisioning and operational recovery remain undecided.
+  \item \textbf{An open stability finding.} The server suite occasionally produces an authentication
+        refusal where a business-level refusal is expected, and occasionally fails a suite that
+        passes in isolation. The cause is unestablished and is recorded rather than suppressed.
+\end{enumerate}
+
+\section{Future Work}
+
+\begin{enumerate}
+  \item \textbf{Reconcile the remaining programs from signed sources.} The blocking work is
+        documentary, not technical: the conflicting credit totals, course codes and prerequisite
+        edges in the other programs need an authoritative resolution before they can be imported.
+        A cohort must not be activated by an artefact alone.
+  \item \textbf{Encode offerings and the academic calendar.} With timetable data, the reference
+        year and semester could become a validated constraint rather than a label, and the
+        allocation models could reason about actual meeting times and rooms.
+  \item \textbf{Enable editing inside an assigned context.} This requires context-keyed browser
+        caches, a claim-transfer policy for elective groups, and a decision about what happens to
+        records that are not members of the newly assigned program.
+  \item \textbf{Replace the greedy allocator with an optimiser} and compare the two on the same
+        fixtures, so that the cost of the heuristic can be quantified rather than asserted.
+  \item \textbf{Deploy and operate.} Choose a hosting topology, provision secrets securely, verify
+        the deployed flows and rehearse recovery, then re-run the continuous-integration gate
+        against the deployed configuration.
+  \item \textbf{Evaluate with students.} A study with a control condition would be the appropriate
+        way to test whether recommendations change planning decisions or outcomes. The artifact's
+        existing instrumentation, which records what was recommended and what was chosen, is the
+        starting point.
+\end{enumerate}
+
+\section{Recommendations}
+
+\textbf{For the school.} Publish the curriculum in a machine-readable form with an explicit version
+and an explicit effective cohort. Most of the difficulty in this work came from reconstructing
+intent from a page whose credit totals, course codes and elective rules had drifted between
+versions; a maintained source would remove that class of problem for every downstream tool.
+
+\textbf{For future developers.} Two practices carried more weight than any technology choice. The
+first is enforcing scope inside the transaction that writes, which turned a whole class of stale-
+client bugs into conflicts. The second is treating absence as a value -- nullable credit totals,
+unknown seats, unresolved requirements -- because a system that can say ``unknown'' is much harder
+to mislead than one that must always produce a number.
+
+\textbf{For students.} The artifact is most honest when used as a planning aid rather than an
+authority: it can show which prerequisites are unmet, what a semester would cost in credits, and how
+confident the difficulty estimates are, but it cannot tell you what the school will offer, and it
+does not pretend to.

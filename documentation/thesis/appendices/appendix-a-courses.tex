@@ -1,0 +1,74 @@
+\chapter{REFERENCE CURRICULUM SHAPE AND SAMPLES}
+
+This appendix records the shape of the Computer Science reference source after import, and gives a
+representative sample of its course identities. The full source is retained in the repository with a
+recorded origin and a verifier that proves the import is lossless; it is not reproduced here.
+
+\section{Source Counts}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lr}
+\toprule
+\textbf{Measure} & \textbf{Count} \\
+\midrule
+Academic slots (year and semester) & 9 \\
+Source rows & 72 \\
+Coded placements & 71 \\
+Unique course identities & 56 \\
+Repeated placements & 15 \\
+Uncoded requirements (free elective) & 1 \\
+Elective groups & 3 \\
+Sum of placement credit units & 259 \\
+\bottomrule
+\end{tabular}
+\caption{Reference source counts after import}
+\end{table}
+
+The sum of placement credit units is deliberately not treated as a degree total. It counts repeated
+elective placements more than once, it includes physical training, and its single uncoded
+requirement is a placeholder for credits the source does not name. Every reader therefore treats
+the program's credit total as unknown, and the interface withholds a degree percentage rather than
+dividing by a number the source does not state.
+
+\section{Representative Courses}
+
+The following rows are examples taken from the imported source, chosen to show the kinds of
+identity the model must distinguish: courses with lecture and laboratory units, zero-grade physical
+training, elective-group members, and the uncoded requirement.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llrrl}
+\toprule
+\textbf{Code} & \textbf{Name} & \textbf{Credits} & \textbf{Lab} & \textbf{Kind} \\
+\midrule
+MA001IU & Calculus 1                          & 4 & 0 & required \\
+EN007IU & Writing AE1                         & 2 & 0 & required \\
+IT064IU & Introduction to Computing           & 3 & 0 & required \\
+IT116IU & C/C++ Programming                   & 4 & 1 & required \\
+MA003IU & Calculus 2                          & 4 & 0 & required \\
+IT069IU & Object-Oriented Programming         & 4 & 1 & required \\
+IT153IU & Discrete Mathematics                & 3 & 0 & required \\
+IT013IU & Algorithms and Data Structures      & 4 & 1 & required \\
+IT079IU & Principles of Database Management   & 4 & 1 & required \\
+PT001IU & Physical Training 1                 & 3 & 3 & required, no grade weight \\
+PT002IU & Physical Training 2                 & 3 & 3 & required, no grade weight \\
+IT160IU & Data Mining                         & 4 & 1 & elective group 02 \\
+IT076IU & Software Engineering                & 4 & 1 & required \\
+IT159IU & Artificial Intelligence             & 4 & 1 & required \\
+---     & Free elective                       & 3 & 0 & uncoded requirement \\
+\bottomrule
+\end{tabular}
+\caption{Representative course identities from the reference source}
+\end{table}
+
+\section{Repeated Placements}
+
+Fifteen placements repeat a course identity that the source also lists elsewhere. They are stored as
+separate placement rows sharing one membership, ordered by their position in the source, so that a
+completed course can be claimed by exactly one elective group while remaining visible in the others.
+Collapsing them into a single row would lose the group a student's claim refers to; duplicating the
+course identity instead would make the rating average and the credit count wrong.
