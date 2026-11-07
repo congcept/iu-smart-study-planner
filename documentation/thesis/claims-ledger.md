@@ -25,6 +25,10 @@ cd client && npx vitest list | wc -l
 
 Counts drift with every increment. The chapter states a count, so re-run before submission.
 
+**Last re-verified:** 8 November 2026 on `main` at `34c1776` — 115 server suites / 3,050 tests and
+110 client files / 2,516 tests, both fully green. The chapter previously carried 3,001 over 110
+suites, which had gone stale within a day of being written.
+
 ## Chapter 1 — Introduction
 
 | Claim                                                                   | Evidence                                                                                       |
@@ -92,8 +96,8 @@ Counts drift with every increment. The chapter states a count, so re-run before 
 
 | Claim                                                                | Evidence                                                                                    |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 3,001 server tests across 110 suites                                 | full Jest run, 7 Nov 2026                                                                   |
-| 2,516 client tests across 110 files                                  | full Vitest run, 7 Nov 2026                                                                 |
+| 3,050 server tests across 115 suites                                 | full Jest run, 8 Nov 2026                                                                   |
+| 2,516 client tests across 110 files                                  | full Vitest run, 8 Nov 2026                                                                 |
 | 10 startup lifecycle cases                                           | `npm run test:development`                                                                  |
 | Fail-first: 17 integration + 5 unit tests for the session-expiry fix | session-expiry PR body in `git log`                                                         |
 | Allocation medians 3,381–4,843 ms; replay 1,681–2,502 ms; Apple M2   | `docs/phase-4/semester-allocation-profile.md` and its dated JSON                            |
