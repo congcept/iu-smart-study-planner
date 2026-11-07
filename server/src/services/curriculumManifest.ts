@@ -336,6 +336,7 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
   const edges = new Map<string, Set<string>>();
   const alternatives = new Map<string, { prerequisites: Set<string>; kinds: Set<string> }>();
   const seenPairs = new Map<string, Set<string | null>>();
+  const ordering = new Map<string, Set<string>>();
   for (const [index, edge] of manifest.prerequisites.entries()) {
     const path = `prerequisites.${index}`;
     if (!byCode.has(edge.course)) fail('PREREQUISITE', path, `Unknown course ${edge.course}`);
@@ -360,6 +361,14 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
     const outgoing = edges.get(edge.course) ?? new Set<string>();
     outgoing.add(edge.prerequisite);
     edges.set(edge.course, outgoing);
+    // Concurrency says two courses are taken together, so it cannot order them. Only prior-study
+    // and prerequisite edges may form a cycle; two courses naming each other as concurrent is
+    // exactly what concurrent means.
+    if (edge.kind !== 'SH') {
+      const ordered = ordering.get(edge.course) ?? new Set<string>();
+      ordered.add(edge.prerequisite);
+      ordering.set(edge.course, ordered);
+    }
     if (edge.alternativeGroup !== null) {
       const key = `${edge.course}#${edge.alternativeGroup}`;
       const entry = alternatives.get(key) ?? {
@@ -395,14 +404,14 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
       if (state.get(node) === 'done') return null;
       if (state.get(node) === 'open') return [...trail, node];
       state.set(node, 'open');
-      for (const next of edges.get(node) ?? []) {
+      for (const next of ordering.get(node) ?? []) {
         const cycle = visit(next, [...trail, node]);
         if (cycle) return cycle;
       }
       state.set(node, 'done');
       return null;
     };
-    for (const node of edges.keys()) {
+    for (const node of ordering.keys()) {
       const cycle = visit(node, []);
       if (cycle) {
         fail('PREREQUISITE', 'prerequisites', `Cycle detected: ${cycle.join(' -> ')}`);

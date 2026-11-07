@@ -368,6 +368,53 @@ describe('curriculum manifest verification', () => {
     expect(report.issues.some(({ message }) => /Cycle detected/.test(message))).toBe(true);
   });
 
+  it('accepts two courses that name each other as concurrent', () => {
+    // IT shape: a lecture and its laboratory are taken together, so each is concurrent with the
+    // other. Concurrency cannot order courses, so it must not be read as a cycle.
+    const it = manifest();
+    const courses = [
+      ...(it.courses as { code: string }[]),
+      { code: 'EE054IU', name: 'Digital Logic Design Laboratory', credits: 1, lecture: 0, lab: 1 },
+    ];
+    const report = verifyCurriculumManifest({
+      ...it,
+      courses,
+      prerequisites: [
+        { course: 'IT079IU', prerequisite: 'EE054IU', kind: 'SH', alternativeGroup: null },
+        { course: 'EE054IU', prerequisite: 'IT079IU', kind: 'SH', alternativeGroup: null },
+      ],
+    });
+    expect(report.blockers).toEqual([]);
+    expect(report.readiness).toBe(true);
+  });
+
+  it('still rejects a cycle among ordering prerequisites', () => {
+    const report = verifyCurriculumManifest(
+      manifest({
+        prerequisites: [
+          { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT', alternativeGroup: null },
+          { course: 'IT069IU', prerequisite: 'IT079IU', kind: 'HT', alternativeGroup: null },
+        ],
+      }),
+    );
+    expect(report.issues.some(({ message }) => /Cycle detected/.test(message))).toBe(true);
+  });
+
+  it('rejects a cycle that mixes a concurrent edge with an ordering edge', () => {
+    const report = verifyCurriculumManifest(
+      manifest({
+        prerequisites: [
+          { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT', alternativeGroup: null },
+          { course: 'IT069IU', prerequisite: 'IT079IU', kind: 'SH', alternativeGroup: null },
+          { course: 'IT069IU', prerequisite: 'MA001IU', kind: 'HT', alternativeGroup: null },
+        ],
+      }),
+    );
+    // IT069IU -> MA001IU -> ... does not return, and IT079IU -> IT069IU is one-way: no cycle.
+    expect(report.issues.some(({ message }) => /Cycle detected/.test(message))).toBe(false);
+    expect(report.readiness).toBe(true);
+  });
+
   it('rejects a prerequisite that names a course outside the program', () => {
     const report = verifyCurriculumManifest(
       manifest({ prerequisites: [{ course: 'IT079IU', prerequisite: 'ZZ999IU', kind: 'HT' }] }),
