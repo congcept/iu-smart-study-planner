@@ -109,15 +109,21 @@ suites, which had gone stale within a day of being written.
 
 ## Chapter 6 — Conclusion
 
-| Claim                                         | Evidence                                            |
-| --------------------------------------------- | --------------------------------------------------- |
-| Seven contributions                           | Chapters 3 and 4                                    |
-| No institutional validation                   | `docs/current-data-and-inputs-audit.md` §4A         |
-| One program populated; IT/DS sources conflict | `docs/phase-1/cse-curriculum-sources.md`; audit §4A |
-| No calendar or offering data                  | audit §4D                                           |
-| Assigned contexts are read-only               | `docs/phase-2/account-curriculum-reference.md`      |
-| Resources and allocations are simulated       | `docs/phase-4/simulation-resource-persistence.md`   |
-| Not deployed                                  | `docs/phase-5/deployment-readiness.md`              |
+| Claim                                                                              | Evidence                                                                                            |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Seven contributions                                                                | Chapters 3 and 4                                                                                    |
+| No institutional validation                                                        | `docs/current-data-and-inputs-audit.md` §4A                                                         |
+| One program populated; IT/DS sources conflict                                      | `docs/phase-1/cse-curriculum-sources.md`; audit §4A                                                 |
+| DS transcribes to 50 courses, 50 placements, 32 edges, blocks 38/27/32+11/16 = 124 | `docs/phase-1/ds-2025-manifest.md`; `ds-2025-manifest-proposed-readings.json`; `dsManifest.test.ts` |
+| DS cells `T149IU` and `MA026IU` contradict the rest of the document                | `docs/phase-1/ds-2025-manifest.md`; the faithful manifest fails verification on purpose             |
+| `T149IU` is `IT149IU`, confirmed by the 2024 document                              | `docs/phase-1/ds-2025-manifest.md`, 2024 cross-check table                                          |
+| IT scheduled rows total 150 but six semester labels contradict their rows          | `docs/phase-1/it-2025-source-findings.md`                                                           |
+| IT general block is 45 credits per Bảng 4 and 40 per Bảng 6                        | `docs/phase-1/it-2025-source-findings.md`                                                           |
+| The artifact accepts mutually concurrent courses                                   | `server/src/services/curriculumManifest.ts`; `curriculumManifest.test.ts`                           |
+| No calendar or offering data                                                       | audit §4D                                                                                           |
+| Assigned contexts are read-only                                                    | `docs/phase-2/account-curriculum-reference.md`                                                      |
+| Resources and allocations are simulated                                            | `docs/phase-4/simulation-resource-persistence.md`                                                   |
+| Not deployed                                                                       | `docs/phase-5/deployment-readiness.md`                                                              |
 
 ## Deliberate non-claims
 
@@ -131,7 +137,8 @@ These must never appear in the thesis without new evidence:
 
 ## Known stale artefacts to check before submission
 
-- `documentation/thesis/figures/*.png` were captured before the accessibility pass. Re-capture from
-  the current build if the cards or controls changed visibly.
+- `documentation/thesis/figures/*.png` were re-captured on 8 November 2026 against a running build
+  at 1280 pixels, using the provisioned demonstration scenario. Re-capture again only if the
+  curriculum map changes visibly.
 - `thesis.pdf` is committed; regenerate it with the command above rather than editing it.
 - The results chapter states a test count that will be wrong the moment another increment lands.
