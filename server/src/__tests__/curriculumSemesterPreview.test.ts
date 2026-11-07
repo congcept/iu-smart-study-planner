@@ -13,6 +13,7 @@ const placement = (academicYear = 1, academicSemester = 1): CurriculumPlacementD
   academicSemester,
   electiveGroup: null,
   electiveSelectCount: null,
+  electiveSelectCredits: null,
   sourceOrder: 0,
   sourceLabel: 'Simulated source',
 });

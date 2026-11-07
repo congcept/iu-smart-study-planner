@@ -14,10 +14,16 @@ const placement = z
     academicSemester: semester.nullable(),
     electiveGroup: z.string().nullable(),
     electiveSelectCount: z.number().int().positive().safe().nullable(),
+    electiveSelectCredits: z.number().int().positive().safe().nullable(),
     sourceOrder: count,
     sourceLabel: z.string().nullable(),
   })
-  .strict();
+  .strict()
+  .refine(
+    ({ electiveSelectCount, electiveSelectCredits }) =>
+      electiveSelectCount === null || electiveSelectCredits === null,
+    'An elective pool is stated in courses or in credits, never both',
+  );
 export const CurriculumCourseSchema = z
   .object({
     id: uuid,

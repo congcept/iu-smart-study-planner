@@ -29,6 +29,7 @@ export interface CurriculumPlacementDTO {
   academicSemester: number | null;
   electiveGroup: string | null;
   electiveSelectCount: number | null;
+  electiveSelectCredits: number | null;
   sourceOrder: number;
   sourceLabel: string | null;
 }

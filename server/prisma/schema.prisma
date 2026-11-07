@@ -113,9 +113,13 @@ model CurriculumPlacement {
   curriculumCourseId  String  @map("curriculum_course_id")
   academicYear        Int?    @map("academic_year")
   academicSemester    Int?    @map("academic_semester")
-  electiveGroup       String? @map("elective_group")
-  electiveSelectCount Int?    @map("elective_select_count")
-  sourceOrder         Int     @map("source_order")
+  electiveGroup         String? @map("elective_group")
+  electiveSelectCount   Int?    @map("elective_select_count")
+  // A pool stated in credits instead of a course count. Sources that state
+  // counts (the CS reference) leave this null; a migration constraint forbids
+  // both fields on the same placement.
+  electiveSelectCredits Int?    @map("elective_select_credits")
+  sourceOrder           Int     @map("source_order")
   sourceLabel         String? @map("source_label")
 
   curriculumCourse CurriculumCourse @relation(fields: [curriculumCourseId], references: [id], onDelete: Cascade)

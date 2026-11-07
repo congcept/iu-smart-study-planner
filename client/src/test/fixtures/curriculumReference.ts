@@ -51,6 +51,7 @@ export function curriculumReference(): CurriculumDetailDTO {
             academicSemester: 1,
             electiveGroup: 'Group A',
             electiveSelectCount: 1,
+            electiveSelectCredits: null,
             sourceOrder: 0,
             sourceLabel: null,
           },
