@@ -194,6 +194,54 @@ Remaining stabilization findings: partially populated database seed behavior,
 and the sidebar overlay/pan bounds in uncommitted interface work. Those interface
 edits are preserved separately from the narrow auth/GPA fixes.
 
+## Active Checkpoint — 2026-11-08
+
+### Demonstration scenario and the curriculum source gate
+
+The demonstration now has a reproducible scenario, and the IT/DS source work reached the point where
+the documents, not the code, are the blocker. Ten merged increments since the assignment control:
+
+- **Demo scenario** (`demo:scenario --check | --apply`): ten completed records, eleven numeric
+  attempts across four terms including one retake, one rating and one saved plan for the development
+  demo student. Idempotent by deterministic per-term keys, refuses production and out-of-range
+  scores, fails closed on unknown codes, and never assigns a curriculum — the walkthrough exercises
+  the `/admin` control for that. Best score per course gives 78.3529 across 34 credits.
+- **Credit-stated elective pools**: `CurriculumPlacement.electiveSelectCredits`, with a database
+  constraint and the matching client rule rejecting a pool that states both units. CS is unaffected.
+- **Manifest verifier** (`verify:curriculum-manifest <file>`): proves a curriculum transcription is
+  self-consistent before anything is written — block arithmetic, pool units and allocation,
+  prerequisite membership, cycles, and exclusions. It always reports `REFERENCE_ONLY` and never
+  claims the document agrees with the manifest.
+- **DS 2025 transcribed** (50 courses, 50 placements, 32 edges, blocks 38/27/32+11/16 = 124). Two
+  files: faithful, which the verifier rejects on the document's own `T149IU`, and a proposed-readings
+  variant that passes.
+- **IT 2025 analysed, not transcribable**: row-level credits total exactly 150, but six semester
+  labels contradict their own rows and the general block claims 45 credits where its own framework
+  table yields 40 once physical training is removed. A five-credit gap — the size of a course —
+  blocks any manifest, because the verifier refuses a block whose declared credits disagree with the
+  courses it claims.
+- **Alternative prerequisite groups** in the manifest contract (`alternativeGroup`), because IT
+  states four requirements as "IT116IU or IT149IU". **Contract only**: nothing enforces alternatives
+  yet, so no import may use one.
+- **Concurrency is not ordering**: the cycle check runs over prior-study and prerequisite edges only,
+  because `IT067IU` and `IT099IU` name each other as concurrent, which is what concurrent means.
+
+The verifier found three defects in itself while being applied to real documents — elective
+arithmetic that split pools from requirements, exclusion treated as a calendar rather than a credit
+rule, and the concurrency cycle. Each was fixed with a case naming the shape that exposed it.
+
+**Open questions, all needing the school rather than a judgement call:**
+
+1. IT block I is 45 credits (Bảng 4) or 40 (Bảng 6 minus physical training)?
+2. What are `IT151IU`'s 2025 prerequisites? The text prints `MA026IU`; the 2024 cohort required
+   `MA001IU` and `IT149IU`; 2025 replaced `MA026IU` with `MA036IU`.
+3. Is Table 9's `IT154IU` a stale label for `MA033IU`?
+
+The `T149IU → IT149IU` reading is no longer a question: the 2024 document prints `IT149IU` in the
+same pair for the same course.
+
+No curriculum is activated, no account assigned, and no IT or DS data is seeded.
+
 ## Active Checkpoint — 2026-11-07
 
 ### Admin reference curriculum assignment
