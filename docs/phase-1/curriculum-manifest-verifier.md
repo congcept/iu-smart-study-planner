@@ -50,6 +50,17 @@ and requirements together, and a case in the suite pins that shape.
 
 ## What it cannot do
 
+## Concurrency is not ordering
+
+IT's schedule names a lecture and its laboratory as concurrent with each other — `IT067IU` and
+`IT099IU` each require the other. That is what concurrent means, and a cycle check that treats every
+edge as an ordering constraint rejects the pair.
+
+The cycle check therefore runs over **prior-study and prerequisite edges only**. A concurrent edge
+still has to name two member courses and still cannot point at itself, but it cannot order them.
+This was found by reading the IT schedule rather than by running the verifier, and is fixed before
+any IT transcription exists so that the first attempt is not defeated by a false cycle.
+
 ## Alternative prerequisites
 
 IT's schedule states four requirements as "**IT116IU or IT149IU**": `IT069IU`, `IT079IU`, `IT091IU`
