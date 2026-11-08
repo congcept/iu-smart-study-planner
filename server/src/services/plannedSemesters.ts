@@ -8,6 +8,7 @@ import {
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { decorateCourseDifficulties } from './courseRatings';
+import { pauseBeforeRetry } from './retryBackoff';
 
 export class PlannedSemesterError extends Error {
   constructor(
@@ -27,7 +28,10 @@ async function writeSnapshot<T>(work: (tx: Prisma.TransactionClient) => Promise<
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2034') {
-          if (attempt < 4) continue;
+          if (attempt < 4) {
+            await pauseBeforeRetry(attempt);
+            continue;
+          }
           throw new PlannedSemesterError('Plan changed concurrently; please retry', 409);
         }
         if (error.code === 'P2002')

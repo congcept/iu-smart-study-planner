@@ -15,6 +15,7 @@ import {
 } from './semesterStoredVerification';
 export { verifyStoredSemesterAllocationJobOutcome } from './semesterStoredVerification';
 import { storeSemesterAllocationRunInTransaction } from './semesterAllocationStorage';
+import { pauseBeforeRetry } from './retryBackoff';
 
 export const semesterAllocationJobOutcomeInclude = {
   execution: {
@@ -159,7 +160,10 @@ async function executeOne(jobId: string, authorization?: ExecutionAuthorization)
         },
       );
     } catch (error) {
-      if (retryable(error) && attempt < 4) continue;
+      if (retryable(error) && attempt < 4) {
+        await pauseBeforeRetry(attempt);
+        continue;
+      }
       if (
         retryable(error) ||
         (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2028')
@@ -228,7 +232,10 @@ export async function readSemesterAllocationJobOutcome(actorId: string, jobId: s
         },
       );
     } catch (error) {
-      if (retryable(error) && attempt < 4) continue;
+      if (retryable(error) && attempt < 4) {
+        await pauseBeforeRetry(attempt);
+        continue;
+      }
       if (
         retryable(error) ||
         (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2028')

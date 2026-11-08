@@ -9,6 +9,7 @@ import {
   type ResourcesSnapshotDTO,
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
+import { pauseBeforeRetry } from './retryBackoff';
 
 export class SchoolResourceError extends Error {
   constructor(
@@ -122,7 +123,10 @@ export async function upsertResources(actorId: string, input: UpsertResourcesDTO
       );
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2034' && attempt < 4) continue;
+        if (error.code === 'P2034' && attempt < 4) {
+          await pauseBeforeRetry(attempt);
+          continue;
+        }
         if (['P2034', 'P2002', 'P2003'].includes(error.code))
           throw new SchoolResourceError('Resource settings changed; reload before saving', 409);
       }

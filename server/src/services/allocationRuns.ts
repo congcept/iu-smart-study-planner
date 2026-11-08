@@ -13,6 +13,7 @@ import { prisma } from '../db';
 import { readAllocationPreview } from './allocationPreview';
 import { projectAllocationRunSummary } from './allocationRunProjection';
 import { SchoolResourceError } from './schoolResources';
+import { pauseBeforeRetry } from './retryBackoff';
 
 async function authorize(tx: Prisma.TransactionClient, actorId: string) {
   const actor = await tx.user.findUnique({ where: { id: actorId }, select: { role: true } });
@@ -179,7 +180,10 @@ export async function createAllocationRun(actorId: string, input: CreateAllocati
       );
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (['P2034', 'P2002'].includes(error.code) && attempt < 4) continue;
+        if (['P2034', 'P2002'].includes(error.code) && attempt < 4) {
+          await pauseBeforeRetry(attempt);
+          continue;
+        }
         if (['P2034', 'P2002', 'P2003'].includes(error.code))
           throw new SchoolResourceError(
             'Could not confirm the simulation save; retry with the same request key',

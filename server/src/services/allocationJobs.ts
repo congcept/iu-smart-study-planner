@@ -8,6 +8,7 @@ import {
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { SchoolResourceError } from './schoolResources';
+import { pauseBeforeRetry } from './retryBackoff';
 
 async function authorize(tx: Prisma.TransactionClient, actorId: string) {
   const actor = await tx.user.findUnique({ where: { id: actorId }, select: { role: true } });
@@ -77,7 +78,10 @@ export async function enqueueAllocationJob(actorId: string, input: CreateAllocat
       );
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (['P2034', 'P2002'].includes(error.code) && attempt < 4) continue;
+        if (['P2034', 'P2002'].includes(error.code) && attempt < 4) {
+          await pauseBeforeRetry(attempt);
+          continue;
+        }
         if (['P2034', 'P2002', 'P2003'].includes(error.code))
           throw new SchoolResourceError(
             'Could not confirm the queued simulation; retry with the same request key',
