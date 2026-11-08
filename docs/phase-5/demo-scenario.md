@@ -20,20 +20,41 @@ both side by side is the honest demonstration.
 
 ## Scenario values
 
-| Item                     | Value                   | Basis                                                 |
-| ------------------------ | ----------------------- | ----------------------------------------------------- |
-| Reference curriculum     | `CS-REFERENCE`          | the imported reference program; not a verified cohort |
-| Academic year            | 2026                    | scenario label only                                   |
-| Semester                 | FALL                    | scenario label only, not an offering                  |
-| Professors               | 5                       | simulation assumption                                 |
-| Classrooms               | 6                       | simulation assumption                                 |
-| Lab rooms                | 2                       | simulation assumption                                 |
-| Max students per section | 40                      | simulation assumption                                 |
-| Resource revision        | 1                       | created by the first save                             |
-| Saved plan shown         | the account's only plan | stored metadata, unvalidated as a degree plan         |
+| Item                     | Value                   | Basis                                                    |
+| ------------------------ | ----------------------- | -------------------------------------------------------- |
+| Reference curriculum     | `CS-REFERENCE`          | the author's manual check of the current page; no cohort |
+| Academic year            | 2026                    | scenario label only                                      |
+| Semester                 | FALL                    | scenario label only, not an offering                     |
+| Professors               | 5                       | simulation assumption                                    |
+| Classrooms               | 6                       | simulation assumption                                    |
+| Lab rooms                | 2                       | simulation assumption                                    |
+| Max students per section | 40                      | simulation assumption                                    |
+| Resource revision        | 1                       | created by the first save                                |
+| Saved plan shown         | the account's only plan | stored metadata, unvalidated as a degree plan            |
 
 Every number in the lower half of that table is a **typed simulation assumption**, not a university
 fact. Nothing in the scenario establishes an offering, a room, a section or a registration decision.
+
+## Which program to attach
+
+Three structures are available, and they are not equivalent. Choosing one is a demonstration choice,
+so it is worth choosing deliberately rather than taking the first row.
+
+| Curriculum     | Credits | Source                                              | Attach it when                                                                          |
+| -------------- | ------: | --------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `CS-REFERENCE` | unknown | read by the author from the current page            | showing the program the seeded demo data already references                             |
+| `DS`           |     124 | transcribed from the signed 2025 document, verified | showing a **known** credit total and a declared cohort                                  |
+| `IT-NET`       |     150 | transcribed from the signed 2025 document, verified | showing external prerequisites, and the elective allocation the document leaves unnamed |
+
+The third is the strongest of the three to demonstrate, for a reason that is visible on screen: IT
+Network Engineering has requirements satisfied by courses it does not offer, so the reference view
+lists them marked as coming from another programme instead of quietly omitting them. It also has
+three elective requirements the document allocates twelve credits to and never fills, which the view
+reports as unresolved rather than inventing candidates.
+
+`CS-REFERENCE` still carries the richest seeded account history, so it remains the default. What it
+cannot show is a declared credit total: its figure is unknown by design and no percentage is derived
+from it.
 
 ## Walkthrough order
 
@@ -52,8 +73,10 @@ fact. Nothing in the scenario establishes an offering, a room, a section or a re
 
 ## Caveats to say out loud, once each
 
-- The curriculum is a **reference import**, not a validated cohort; its credit total is unknown and
-  its degree percentage is withheld for that reason.
+- The curriculum is a **reference import**, not a validated cohort. For `CS-REFERENCE` the credit
+  total is unknown and the degree percentage is withheld for that reason; for `DS` and `IT-NET` the
+  total is the document's own, and the percentage is still withheld because the elective and
+  graduation rules are unverified.
 - The resource figures are **assumptions entered in a form**.
 - The allocation preview is a **greedy simulation**, not a timetable and not a registration decision.
 - The reference year and semester are **labels**, not a calendar.
