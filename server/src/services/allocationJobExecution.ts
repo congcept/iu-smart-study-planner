@@ -20,6 +20,7 @@ import { readAllocationPreview } from './allocationPreview';
 import { projectAllocationRunSummary } from './allocationRunProjection';
 import { verifyStoredAllocationRun } from './allocationRuns';
 import { SchoolResourceError } from './schoolResources';
+import { pauseBeforeRetry } from './retryBackoff';
 
 type StoredExecution = SimulationAllocationExecution & { run: SimulationAllocationRun | null };
 
@@ -226,7 +227,10 @@ async function executeOne(jobId: string, authorization?: ExecutionAuthorization)
         },
       );
     } catch (error) {
-      if (retryable(error) && attempt < 4) continue;
+      if (retryable(error) && attempt < 4) {
+        await pauseBeforeRetry(attempt);
+        continue;
+      }
       throw error;
     }
   }

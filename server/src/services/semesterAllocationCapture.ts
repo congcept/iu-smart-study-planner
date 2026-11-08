@@ -7,6 +7,7 @@ import {
 import { prisma } from '../db';
 import { SchoolResourceError } from './schoolResources';
 import { produceSemesterAllocationPreview } from './semesterAllocationPreview';
+import { pauseBeforeRetry } from './retryBackoff';
 import {
   recoverSemesterAllocationRunInTransaction,
   storeSemesterAllocationRunInTransaction,
@@ -60,7 +61,10 @@ export async function captureSemesterAllocationRun(
         const serialization =
           error.code === 'P2010' && ['40001', '40P01'].includes(String(error.meta?.code));
         const retryable = ['P2034', 'P2002'].includes(error.code) || serialization;
-        if (retryable && attempt < 4) continue;
+        if (retryable && attempt < 4) {
+          await pauseBeforeRetry(attempt);
+          continue;
+        }
         if (retryable || error.code === 'P2003')
           throw new SchoolResourceError(uncertainSaveMessage, 409);
       }

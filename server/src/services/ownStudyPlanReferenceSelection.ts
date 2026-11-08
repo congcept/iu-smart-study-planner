@@ -20,6 +20,7 @@ import { readOwnStudyPlanCoursesInTransaction } from './ownStudyPlanCourses';
 import { reviewOwnStudyPlanReferenceSlotInTransaction } from './ownStudyPlanReferenceReview';
 import { OwnStudyPlanSemestersError } from './ownStudyPlanSemesters';
 import { calculateTotals } from './plannedSemesters';
+import { pauseBeforeRetry } from './retryBackoff';
 
 const actorUuid = z
   .string()
@@ -367,7 +368,10 @@ export async function saveOwnStudyPlanReferenceSelection(
         error instanceof Prisma.PrismaClientKnownRequestError &&
         ['P2034', 'P2002'].includes(error.code)
       ) {
-        if (attempt < 4) continue;
+        if (attempt < 4) {
+          await pauseBeforeRetry(attempt);
+          continue;
+        }
         throw new OwnStudyPlanSemestersError(
           'Plan changed concurrently; retry the same request',
           409,
