@@ -52,3 +52,27 @@ credits contradict the catalogue is refused with `409`.
 The command was also run against a disposable database: `--check` then `--apply` produced
 `DS | 124 | 50 memberships | 1 cohort`, and the row was removed afterwards so the database stayed
 neutral for later suites.
+
+## Applied to the development database
+
+Data Science `K2025` is now imported into the local development database, which is what exercises the
+whole chain outside tests: signed PDF, transcription, verifier, importer, database, public reader.
+
+| Program        | Credits |     Cohorts | Members | Assigned |
+| -------------- | ------: | ----------: | ------: | -------: |
+| `CS-REFERENCE` | unknown |           0 |      56 |        0 |
+| `DS`           |     124 | 1 (`K2025`) |      50 |        0 |
+
+Read back through `GET /api/curricula/:id` rather than by querying tables: 50 courses, 32
+prerequisite edges (31 `HT`, 1 `TQ`), one four-credit free-elective requirement at year 3 semester 2,
+and fifteen pool options each declaring seven credits with no course count. The catalogue grew from
+56 to 74 courses, because eighteen Data Science identities were not previously seeded.
+
+**Nobody is assigned**, so the demonstration still starts exactly as documented. To reverse it:
+
+```sql
+DELETE FROM curriculums WHERE code = 'DS';
+```
+
+That removes the cohort link, memberships, placements, requirements and prerequisite edges by
+cascade; the global courses remain, which is correct, because courses are global.
