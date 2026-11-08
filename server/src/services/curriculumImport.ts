@@ -195,7 +195,8 @@ export async function importCurriculumManifest(input: unknown): Promise<Curricul
           data: manifest.prerequisites.map((edge) => ({
             curriculumId: curriculum.id,
             courseId: idOf(edge.course),
-            prerequisiteId: idOf(edge.prerequisite),
+            prerequisiteId: edge.external ? null : idOf(edge.prerequisite),
+            externalPrerequisite: edge.external ? edge.prerequisite : null,
             kind: edge.kind,
             alternativeGroup: edge.alternativeGroup,
           })),

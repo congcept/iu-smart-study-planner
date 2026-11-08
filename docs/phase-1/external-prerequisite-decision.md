@@ -55,6 +55,32 @@ The verifier already accepts an `alternativeGroup`; it needs the external branch
 requirement while keeping the code-shape, self-edge and cycle rules. Cycle detection stays over member
 edges only, since an external code has no node in this programme.
 
+## Implemented
+
+The rule is enforced in one place. `prerequisiteSatisfaction.ts` holds it — an edge is met by a
+completion of its member, or by a completion of the course carrying its external code, and an unknown
+code is never met — and every consumer calls it rather than reimplementing the check:
+
+| Consumer                    | What changed                                                                                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Completion cascade          | loads the student's completions and resolves external codes against the catalogue; an unmet external prerequisite refuses with `409` and the code in the details |
+| Archive import              | the same call, so a batch cannot import past it                                                                                                                  |
+| Progress-context lookup     | carries the external branch through instead of dropping it                                                                                                       |
+| Saved-plan reference review | counts an external requirement as a missing parent, keyed so an unknown code can never be satisfied                                                              |
+
+The legacy global prerequisite graph has no external branch, so both the cascade and the import
+normalize it to the same shape before calling the shared rule. The cascade's dependency map skips
+external edges, because an external code has no node in this programme.
+
+The manifest contract gained `external` on an edge, and the verifier refuses to mark a **member** as
+external, since that contradiction would silently move a real requirement out of the membership
+check. The importer writes `external_prerequisite` instead of a member id for those edges.
+
+**One gap, stated rather than hidden:** the reference view's response contract has no external branch,
+so `GET /api/curricula/:id` projects member edges only. An imported programme with external
+requirements would have them enforced but not shown. That is a UI-contract change, not an enforcement
+one, and it is the next step.
+
 ## What this does not do
 
 It does not decide whether a completion from a _different programme's_ course with the same code is

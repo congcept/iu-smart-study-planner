@@ -180,7 +180,10 @@ model CurriculumPrerequisite {
   id             String  @id @default(uuid())
   curriculumId   String  @map("curriculum_id")
   courseId       String  @map("course_id")
-  prerequisiteId String  @map("prerequisite_id")
+  // A requirement is satisfied either by a member of this curriculum, named here, or by a course
+  // from outside it, named below. Exactly one of the two is set, which the migration enforces.
+  prerequisiteId       String? @map("prerequisite_id")
+  externalPrerequisite String? @map("external_prerequisite")
   isCorequisite  Boolean @default(false) @map("is_corequisite")
   isStrict       Boolean @default(true) @map("is_strict")
   // The document's own label for the relationship: TQ (prerequisite), HT (prior study) or
@@ -191,7 +194,7 @@ model CurriculumPrerequisite {
   alternativeGroup  String? @map("alternative_group")
 
   course       CurriculumCourse @relation("CurriculumCoursePrerequisites", fields: [curriculumId, courseId], references: [curriculumId, courseId], onDelete: Cascade)
-  prerequisite CurriculumCourse @relation("CurriculumPrerequisiteFor", fields: [curriculumId, prerequisiteId], references: [curriculumId, courseId], onDelete: Cascade)
+  prerequisite CurriculumCourse? @relation("CurriculumPrerequisiteFor", fields: [curriculumId, prerequisiteId], references: [curriculumId, courseId], onDelete: Cascade)
 
   @@unique([curriculumId, courseId, prerequisiteId])
   @@index([curriculumId, prerequisiteId])

@@ -106,7 +106,13 @@ function manifest(changes: Record<string, unknown> = {}): Record<string, unknown
     ],
     requirements: [],
     prerequisites: [
-      { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT', alternativeGroup: null },
+      {
+        course: 'IT079IU',
+        prerequisite: 'IT069IU',
+        kind: 'HT',
+        alternativeGroup: null,
+        external: false,
+      },
     ],
   };
   return { ...base, ...changes };
@@ -440,7 +446,13 @@ describe('curriculum manifest verification', () => {
     const report = verifyCurriculumManifest(
       manifest({
         prerequisites: [
-          { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT', alternativeGroup: null },
+          {
+            course: 'IT079IU',
+            prerequisite: 'IT069IU',
+            kind: 'HT',
+            alternativeGroup: null,
+            external: false,
+          },
           { course: 'IT069IU', prerequisite: 'IT079IU', kind: 'HT', alternativeGroup: null },
         ],
       }),
@@ -452,7 +464,13 @@ describe('curriculum manifest verification', () => {
     const report = verifyCurriculumManifest(
       manifest({
         prerequisites: [
-          { course: 'IT079IU', prerequisite: 'IT069IU', kind: 'HT', alternativeGroup: null },
+          {
+            course: 'IT079IU',
+            prerequisite: 'IT069IU',
+            kind: 'HT',
+            alternativeGroup: null,
+            external: false,
+          },
           { course: 'IT069IU', prerequisite: 'IT079IU', kind: 'SH', alternativeGroup: null },
           { course: 'IT069IU', prerequisite: 'MA001IU', kind: 'HT', alternativeGroup: null },
         ],

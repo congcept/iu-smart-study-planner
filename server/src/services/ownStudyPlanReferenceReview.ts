@@ -101,13 +101,30 @@ export async function reviewOwnStudyPlanReferenceSlotInTransaction(
     : null;
   const edges = await tx.curriculumPrerequisite.findMany({
     where: { curriculumId, courseId: { in: refs.entries.map(({ courseId }) => courseId) } },
-    select: { courseId: true, prerequisiteId: true },
+    select: { courseId: true, prerequisiteId: true, externalPrerequisite: true },
   });
   const completed = new Set(records.map(({ courseId }) => courseId));
+  const externalCodes = edges.flatMap((edge) =>
+    edge.externalPrerequisite === null ? [] : [edge.externalPrerequisite],
+  );
+  const externalCourses = externalCodes.length
+    ? await tx.course.findMany({
+        where: { code: { in: externalCodes } },
+        select: { id: true, code: true },
+      })
+    : [];
+  const externalByCode = new Map(externalCourses.map((course) => [course.code, course.id]));
   const parents = new Map<string, Set<string>>();
   for (const edge of edges) {
+    // A requirement outside this curriculum is met only by a completion of that course, so it counts
+    // as a parent like any other. A code the catalogue does not know can never be met, which is why
+    // it keeps a marker of its own rather than being dropped.
+    const parent =
+      edge.prerequisiteId ??
+      externalByCode.get(edge.externalPrerequisite!) ??
+      `external:${edge.externalPrerequisite}`;
     const own = parents.get(edge.courseId) ?? new Set<string>();
-    own.add(edge.prerequisiteId);
+    own.add(parent);
     parents.set(edge.courseId, own);
   }
   const byId = new Map(members.map((member) => [member.courseId, member]));

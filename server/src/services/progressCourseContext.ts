@@ -14,6 +14,7 @@ export async function readProgressCourseContext(
       prerequisites: {
         select: {
           prerequisiteId: true,
+          externalPrerequisite: true,
           prerequisite: { select: { course: { select: { id: true, code: true, name: true } } } },
         },
       },
@@ -33,7 +34,8 @@ export async function readProgressCourseContext(
         placements: member.placements,
         prerequisites: member.prerequisites.map((edge) => ({
           prerequisiteId: edge.prerequisiteId,
-          prerequisite: edge.prerequisite.course,
+          externalPrerequisite: edge.externalPrerequisite,
+          prerequisite: edge.prerequisite?.course ?? null,
         })),
       },
     ]),

@@ -5,6 +5,7 @@ import { readStudentProgress } from './studentProgress';
 import { StudentRecordError } from './studentRecords';
 import { readProgressCourseContext, validateContextClaim } from './progressCourseContext';
 import { assertProgressWriteScope } from './progressWriteScope';
+import { loadExternalCourses, unmetPrerequisites } from './prerequisiteSatisfaction';
 
 export async function importStudentProgress(
   userId: string,
@@ -44,8 +45,16 @@ export async function importStudentProgress(
           const context = user.curriculumId
             ? await readProgressCourseContext(tx, user.curriculumId, incomingIds)
             : null;
+          // The legacy global graph has no external branch; normalize it to the same shape so one
+          // rule covers both sources.
           const prerequisitesFor = (id: string) =>
-            context ? context.get(id)!.prerequisites : coursesById.get(id)!.prerequisites;
+            context
+              ? context.get(id)!.prerequisites
+              : coursesById.get(id)!.prerequisites.map((edge) => ({
+                  prerequisiteId: edge.prerequisiteId,
+                  externalPrerequisite: null,
+                  prerequisite: edge.prerequisite,
+                }));
 
           const records = await tx.studentRecord.findMany({
             where: { userId },
@@ -68,12 +77,16 @@ export async function importStudentProgress(
           }
           const unmet = new Map<string, { id: string; code: string; name: string }>();
           for (const id of completedIds) {
-            for (const edge of prerequisitesFor(id)) {
-              // Every prerequisite is mandatory, including recommended/corequisite rows.
-              if (!finalCompletedIds.has(edge.prerequisiteId)) {
-                unmet.set(edge.prerequisiteId, edge.prerequisite);
-              }
-            }
+            const edges = prerequisitesFor(id);
+            const externalCourses = await loadExternalCourses(tx, edges);
+            // Every prerequisite is mandatory, including recommended/corequisite rows and one
+            // satisfied by a course from outside this curriculum.
+            for (const prerequisite of unmetPrerequisites(
+              edges,
+              finalCompletedIds,
+              externalCourses,
+            ))
+              unmet.set(prerequisite.id, prerequisite);
           }
           if (unmet.size > 0) {
             throw new StudentRecordError('Complete all prerequisites before importing', 409, [
@@ -88,14 +101,17 @@ export async function importStudentProgress(
           const dependencyCounts = new Map<string, number>();
           const dependents = new Map<string, string[]>();
           for (const id of newCompletedIds) {
-            const dependencies = prerequisitesFor(id).filter((edge) =>
-              newCompletedSet.has(edge.prerequisiteId),
+            // Only member prerequisites can unlock one another within a batch.
+            const dependencies = prerequisitesFor(id).flatMap((edge) =>
+              edge.prerequisiteId !== null && newCompletedSet.has(edge.prerequisiteId)
+                ? [edge.prerequisiteId]
+                : [],
             );
             dependencyCounts.set(id, dependencies.length);
-            for (const edge of dependencies) {
-              const ids = dependents.get(edge.prerequisiteId) ?? [];
+            for (const prerequisiteId of dependencies) {
+              const ids = dependents.get(prerequisiteId) ?? [];
               ids.push(id);
-              dependents.set(edge.prerequisiteId, ids);
+              dependents.set(prerequisiteId, ids);
             }
           }
           const orderedIds = newCompletedIds.filter((id) => dependencyCounts.get(id) === 0);
