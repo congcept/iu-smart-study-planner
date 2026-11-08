@@ -124,6 +124,11 @@ call site under time pressure is exactly how a rule ends up inconsistent. IT the
 unimportable, which is the correct state: importing it with only the in-programme branch would narrow
 the rule and block students who took the other route.
 
+**Decided 8 November 2026.** The enforcement question is now settled in
+`external-prerequisite-decision.md`: an external requirement is satisfied by a completion of that
+course in the student's own records, which is one rule for all four consumers rather than a shrug in
+each. The implementation is the remaining work, not the design.
+
 ## What this blocks
 
 The block arithmetic no longer blocks anything: the programme's own tables reconcile at 150, so an IT
