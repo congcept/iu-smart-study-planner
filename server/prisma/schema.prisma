@@ -170,6 +170,8 @@ model CurriculumRequirement {
 
 enum CurriculumRequirementKind {
   FREE_ELECTIVE
+  // A document may allocate elective credits without naming a single candidate course.
+  UNNAMED_ELECTIVE
 }
 
 // Both endpoints must be members of the same curriculum. Preserved flags are
