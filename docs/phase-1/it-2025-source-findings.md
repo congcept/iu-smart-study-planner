@@ -129,6 +129,40 @@ the rule and block students who took the other route.
 course in the student's own records, which is one rule for all four consumers rather than a shrug in
 each. The implementation is the remaining work, not the design.
 
+## Computer Engineering: blocks reconcile, schedule not yet transcribed
+
+The second specialisation shares block I (45), block II (35), block IV (6) and block V (20) with
+Network Engineering, and differs only in the specialised block, where its thirteen required courses
+also total exactly **32**:
+
+| Course                                      | Credits |
+| ------------------------------------------- | ------: |
+| `IT068IU` Principles of Electrical Circuits |       3 |
+| `IT098IU` Electrical Circuits Laboratory    |       1 |
+| `IT105IU` Digital System Design             |       3 |
+| `IT106IU` Digital System Design Laboratory  |       1 |
+| `IT115IU` Embedded Systems                  |       3 |
+| `IT127IU` Embedded Systems Laboratory       |       1 |
+| `IT128IU` Microprocessor Systems            |       3 |
+| `IT129IU` Microprocessor Systems Laboratory |       1 |
+| `IT110IU` Concepts in VLSI Design           |       3 |
+| `IT126IU` VLSI Design Laboratory            |       1 |
+| `IT103IU` Digital Signal Processing         |       4 |
+| `IT134IU` Internet of Things                |       4 |
+| `IT159IU` Artificial Intelligence           |       4 |
+
+45 + 35 + 32 + 12 + 6 + 20 = 150, so the blocks reconcile for this specialisation too.
+
+**A parsing gap, not a document gap.** `IT126IU` prints its credit with a blank lecture cell — one
+credit, zero lecture, one laboratory — so an extractor that expects three consecutive numbers skips
+it and the block comes out one credit short. That is the kind of error that looks like a document
+defect and is not.
+
+**Not transcribed.** Unlike its block table, this specialisation's schedule wraps names, cells and
+prerequisite text across fixed-width lines badly enough that a parser recovered 41 rows with
+misattributed semesters and wrong credit columns. Its placements and prerequisites need the same
+row-by-row treatment Network Engineering received, and are the next step rather than a guess.
+
 ## What this blocks
 
 The block arithmetic no longer blocks anything: the programme's own tables reconcile at 150, so an IT
