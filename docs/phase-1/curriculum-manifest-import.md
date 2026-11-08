@@ -68,10 +68,17 @@ prerequisite edges (31 `HT`, 1 `TQ`), one four-credit free-elective requirement 
 and fifteen pool options each declaring seven credits with no course count. The catalogue grew from
 56 to 74 courses, because eighteen Data Science identities were not previously seeded.
 
-**Nobody is assigned**, so the demonstration still starts exactly as documented. To reverse it:
+`IT-NET` adds five external prerequisite edges — `IT149IU` four times and `EE054IU` once — and three
+unnamed elective requirements. Read back through the public API it reports **43 courses, 30 member
+prerequisite edges and three `UNNAMED_ELECTIVE` requirements of four credits**: thirty rather than
+thirty-five, because the reference response has no external branch and projects member edges only.
+That is the gap named in `external-prerequisite-decision.md`, now visible in real data rather than
+described in prose.
+
+**Nobody is assigned**, so the demonstration still starts exactly as documented. To reverse any of it:
 
 ```sql
-DELETE FROM curriculums WHERE code = 'DS';
+DELETE FROM curriculums WHERE code IN ('DS', 'IT-NET');
 ```
 
 That removes the cohort link, memberships, placements, requirements and prerequisite edges by
