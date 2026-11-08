@@ -78,6 +78,7 @@ model Curriculum {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   courses                CurriculumCourse[]
+  cohorts                CurriculumCohort[]
   users                  User[]
   requirements           CurriculumRequirement[]
   resources              SchoolResource[]
@@ -87,6 +88,27 @@ model Curriculum {
   semesterAllocationJobs SimulationSemesterAllocationJob[]
 
   @@map("curriculums")
+}
+
+// A cohort is an admission year, and it is independent of every other cohort: a student admitted in
+// one year follows that year's plan for their whole degree, and a later plan supersedes nothing.
+// Structuring it here rather than on Curriculum means a year whose document is unchanged points at
+// one set of placements instead of carrying a copy that drifts from the original.
+model CurriculumCohort {
+  id           String   @id @default(uuid())
+  curriculumId String   @map("curriculum_id")
+  // Admission-year label as the school states it, for example "K2025".
+  cohort       String
+  // Provenance belongs to the document that governs this cohort, not to the shared structure.
+  sourceLabel  String?  @map("source_label")
+  sourceUrl    String?  @map("source_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  @@unique([curriculumId, cohort])
+  @@index([cohort])
+  @@map("curriculum_cohorts")
 }
 
 // Membership is unique; repeated elective appearances live in placements.

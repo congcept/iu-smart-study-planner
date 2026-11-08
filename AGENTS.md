@@ -226,6 +226,9 @@ the documents, not the code, are the blocker. Ten merged increments since the as
   yet, so no import may use one.
 - **Concurrency is not ordering**: the cycle check runs over prior-study and prerequisite edges only,
   because `IT067IU` and `IT099IU` name each other as concurrent, which is what concurrent means.
+- **Cohorts are independent** (`CurriculumCohort`): an admission year is governed by one structure,
+  and a year whose plan is unchanged points at the same structure instead of carrying a copy. Nothing
+  writes cohorts yet — the writer arrives with the first cohort import.
 
 The verifier found three defects in itself while being applied to real documents — elective
 arithmetic that split pools from requirements, exclusion treated as a calendar rather than a credit
