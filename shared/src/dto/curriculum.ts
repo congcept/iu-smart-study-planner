@@ -50,7 +50,7 @@ export interface CurriculumDetailDTO extends CurriculumSummaryDTO {
   courses: CurriculumCourseDTO[];
   requirements: {
     id: string;
-    kind: 'FREE_ELECTIVE';
+    kind: 'FREE_ELECTIVE' | 'UNNAMED_ELECTIVE';
     name: string;
     credits: number;
     academicYear: number | null;

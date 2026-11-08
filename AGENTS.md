@@ -226,6 +226,11 @@ the documents, not the code, are the blocker. Ten merged increments since the as
   yet, so no import may use one.
 - **Concurrency is not ordering**: the cycle check runs over prior-study and prerequisite edges only,
   because `IT067IU` and `IT099IU` name each other as concurrent, which is what concurrent means.
+- **Manifest import** (`import:curriculum-manifest --check | --apply`): writes a verified manifest
+  into a curriculum, its cohort link and its structure in one transaction, replacing placements,
+  requirements and prerequisites so a rerun converges. It refuses an unverified manifest, a course
+  whose credits contradict the catalogue, and production; it assigns nobody. Prerequisite rows now
+  carry the document's own `TQ`/`HT`/`SH` label and an optional `alternativeGroup`.
 - **Cohorts are independent** (`CurriculumCohort`): an admission year is governed by one structure,
   and a year whose plan is unchanged points at the same structure instead of carrying a copy. Nothing
   writes cohorts yet — the writer arrives with the first cohort import.

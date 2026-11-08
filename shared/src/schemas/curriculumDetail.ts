@@ -39,7 +39,7 @@ export const CurriculumDetailSchema = CurriculumSummarySchema.extend({
     z
       .object({
         id: uuid,
-        kind: z.literal('FREE_ELECTIVE'),
+        kind: z.enum(['FREE_ELECTIVE', 'UNNAMED_ELECTIVE']),
         name: z.string().min(1),
         credits: count,
         academicYear: z.number().int().positive().safe().nullable(),

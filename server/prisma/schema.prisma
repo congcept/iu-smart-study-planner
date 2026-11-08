@@ -170,6 +170,8 @@ model CurriculumRequirement {
 
 enum CurriculumRequirementKind {
   FREE_ELECTIVE
+  // A document may allocate elective credits without naming a single candidate course.
+  UNNAMED_ELECTIVE
 }
 
 // Both endpoints must be members of the same curriculum. Preserved flags are
@@ -181,6 +183,12 @@ model CurriculumPrerequisite {
   prerequisiteId String  @map("prerequisite_id")
   isCorequisite  Boolean @default(false) @map("is_corequisite")
   isStrict       Boolean @default(true) @map("is_strict")
+  // The document's own label for the relationship: TQ (prerequisite), HT (prior study) or
+  // SH (concurrent). Preserved because the three mean different things even where every edge is
+  // mandatory. Null for importers that only state presence.
+  kind              String? @map("kind")
+  // Edges sharing a group are alternatives: one of them satisfies the requirement.
+  alternativeGroup  String? @map("alternative_group")
 
   course       CurriculumCourse @relation("CurriculumCoursePrerequisites", fields: [curriculumId, courseId], references: [curriculumId, courseId], onDelete: Cascade)
   prerequisite CurriculumCourse @relation("CurriculumPrerequisiteFor", fields: [curriculumId, prerequisiteId], references: [curriculumId, courseId], onDelete: Cascade)

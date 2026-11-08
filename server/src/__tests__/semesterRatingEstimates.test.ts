@@ -88,6 +88,8 @@ describe('semester rating estimates (PostgreSQL)', () => {
           prerequisiteId: ids[0],
           isStrict: false,
           isCorequisite: true,
+          kind: null,
+          alternativeGroup: null,
           createdAt: new Date(),
         },
       ],
