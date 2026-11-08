@@ -45,6 +45,7 @@ const context = (courses: CurriculumCourseDTO[]): CurriculumDetailDTO => ({
   courses,
   requirements: [],
   prerequisites: [],
+  externalPrerequisites: [],
   ratingPrior: { mean: 2, source: 'CURRICULUM_SEED' },
 });
 const options = { maxCredits: 30, maxDifficulty: 5 };

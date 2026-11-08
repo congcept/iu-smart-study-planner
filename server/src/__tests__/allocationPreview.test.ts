@@ -58,6 +58,7 @@ const context = (courses: CurriculumCourseDTO[], isGpaPath = false): CurriculumD
   courses,
   requirements: [],
   prerequisites: [],
+  externalPrerequisites: [],
   ratingPrior: courses.length ? { mean: 2, source: 'CURRICULUM_SEED' } : null,
 });
 const scope = { curriculumId: ids[9], semester: 'FALL' as const, year: 2026 };

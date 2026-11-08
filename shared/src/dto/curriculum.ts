@@ -66,6 +66,14 @@ export interface CurriculumDetailDTO extends CurriculumSummaryDTO {
     isCorequisite: boolean;
     mandatory: true;
   }[];
+  /** Requirements satisfied by a course outside this programme; they name no member. */
+  externalPrerequisites: {
+    id: string;
+    courseId: string;
+    prerequisiteCode: string;
+    kind: 'TQ' | 'HT' | 'SH' | null;
+    alternativeGroup: string | null;
+  }[];
   ratingPrior: { mean: number; source: CurriculumPriorSource } | null;
 }
 

@@ -24,6 +24,7 @@ const context: CurriculumDetailDTO = {
   courses: [],
   requirements: [],
   prerequisites: [],
+  externalPrerequisites: [],
   ratingPrior: null,
 };
 const scope = { curriculumId: context.id, semester: 'FALL' as const, year: 2026 };

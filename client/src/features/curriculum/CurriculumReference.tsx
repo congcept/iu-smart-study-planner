@@ -11,6 +11,15 @@ export function CurriculumReference({ curriculum }: { curriculum: CurriculumDeta
       courseById.get(edge.prerequisiteId.toLowerCase())!.code,
     ]);
   }
+  // A requirement satisfied outside this programme is still mandatory, so it is listed rather than
+  // hidden; the marker says the course is not one of this curriculum's own.
+  for (const edge of curriculum.externalPrerequisites) {
+    const id = edge.courseId.toLowerCase();
+    parents.set(id, [
+      ...(parents.get(id) ?? []),
+      `${edge.prerequisiteCode} (from another programme)`,
+    ]);
+  }
   return (
     <section aria-label="Assigned curriculum reference" className="space-y-5">
       <div className="rounded-xl border border-gray-200 bg-white p-5">
