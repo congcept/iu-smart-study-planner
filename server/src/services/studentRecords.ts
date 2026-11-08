@@ -6,6 +6,7 @@ import { prisma } from '../db';
 import { readStudentProgress } from './studentProgress';
 import { readProgressCourseContext, validateContextClaim } from './progressCourseContext';
 import { StudentRecordError } from './studentRecordError';
+import { externalPrerequisiteCodes, unmetPrerequisites } from './prerequisiteSatisfaction';
 import { assertProgressWriteScope } from './progressWriteScope';
 
 export { StudentRecordError } from './studentRecordError';
@@ -47,7 +48,14 @@ export async function updateStudentRecord(
                 data.courseId,
               )!
             : null;
-          const prerequisites = context?.prerequisites ?? course.prerequisites;
+          // The legacy global graph has no external branch; normalize it to the same shape.
+          const prerequisites =
+            context?.prerequisites ??
+            course.prerequisites.map((edge) => ({
+              prerequisiteId: edge.prerequisiteId,
+              externalPrerequisite: null,
+              prerequisite: edge.prerequisite,
+            }));
           let electiveGroup = data.electiveGroup;
           if (context && data.status === CourseStatus.COMPLETED) {
             if (electiveGroup === undefined) {
@@ -64,19 +72,24 @@ export async function updateStudentRecord(
 
           if (data.status === CourseStatus.COMPLETED) {
             const completed = await tx.studentRecord.findMany({
-              where: {
-                userId: user.id,
-                status: CourseStatus.COMPLETED,
-                courseId: { in: prerequisites.map((edge) => edge.prerequisiteId) },
-              },
+              where: { userId: user.id, status: CourseStatus.COMPLETED },
               select: { courseId: true },
             });
             const completedIds = new Set(completed.map((record) => record.courseId));
-            // Product policy: every prerequisite is mandatory, including rows
-            // previously tagged as recommended or corequisite.
-            const unmet = prerequisites
-              .filter((edge) => !completedIds.has(edge.prerequisiteId))
-              .map((edge) => edge.prerequisite);
+            const externalCodes = externalPrerequisiteCodes(prerequisites);
+            const externalCourses = externalCodes.length
+              ? await tx.course.findMany({
+                  where: { code: { in: externalCodes } },
+                  select: { id: true, code: true, name: true },
+                })
+              : [];
+            // Product policy: every prerequisite is mandatory, including rows previously tagged as
+            // recommended or corequisite, and including one satisfied outside this curriculum.
+            const unmet = unmetPrerequisites(
+              prerequisites,
+              completedIds,
+              new Map(externalCourses.map((course) => [course.code, course])),
+            );
             if (unmet.length > 0) {
               throw new StudentRecordError('Complete all prerequisites first', 409, unmet);
             }
@@ -94,6 +107,8 @@ export async function updateStudentRecord(
                 });
             const dependents = new Map<string, string[]>();
             for (const edge of edges) {
+              // An external requirement names no member, so nothing in this curriculum depends on it.
+              if (edge.prerequisiteId === null) continue;
               const ids = dependents.get(edge.prerequisiteId) ?? [];
               ids.push(edge.courseId);
               dependents.set(edge.prerequisiteId, ids);

@@ -129,6 +129,9 @@ export const CurriculumManifestSchema = z
             course: code,
             prerequisite: code,
             kind: z.enum(['TQ', 'HT', 'SH']),
+            // The prerequisite is a course from outside this programme, satisfied by a completion of
+            // it wherever the record came from. It is not a member, so membership is not required.
+            external: z.boolean().default(false),
             // Edges that share a group name are alternatives: any one of them satisfies the
             // requirement. A null group is a single mandatory edge, which is the normal case.
             alternativeGroup: z.string().trim().min(1).max(40).nullable().default(null),
@@ -342,8 +345,14 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
   for (const [index, edge] of manifest.prerequisites.entries()) {
     const path = `prerequisites.${index}`;
     if (!byCode.has(edge.course)) fail('PREREQUISITE', path, `Unknown course ${edge.course}`);
-    if (!byCode.has(edge.prerequisite))
+    if (!edge.external && !byCode.has(edge.prerequisite))
       fail('PREREQUISITE', path, `Unknown prerequisite ${edge.prerequisite}`);
+    if (edge.external && byCode.has(edge.prerequisite))
+      fail(
+        'PREREQUISITE',
+        path,
+        `${edge.prerequisite} is a member, so it cannot be marked external`,
+      );
     if (edge.course === edge.prerequisite)
       fail('PREREQUISITE', path, `${edge.course} cannot precede itself`);
     // The same pair may appear once alone or once inside one alternative group, never both and
@@ -366,7 +375,8 @@ export function verifyCurriculumManifest(input: unknown): CurriculumManifestRepo
     // Concurrency says two courses are taken together, so it cannot order them. Only prior-study
     // and prerequisite edges may form a cycle; two courses naming each other as concurrent is
     // exactly what concurrent means.
-    if (edge.kind !== 'SH') {
+    // An external code has no node in this programme, so it never participates in ordering.
+    if (edge.kind !== 'SH' && !edge.external) {
       const ordered = ordering.get(edge.course) ?? new Set<string>();
       ordered.add(edge.prerequisite);
       ordering.set(edge.course, ordered);
