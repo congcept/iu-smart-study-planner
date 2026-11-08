@@ -20,6 +20,7 @@
     "inspect:cs-backfill": "ts-node src/scripts/inspectCsBackfill.ts",
     "backfill:cs-reference": "ts-node src/scripts/backfillCsReference.ts",
     "demo:scenario": "ts-node src/scripts/provisionDemoScenario.ts",
+    "import:curriculum-manifest": "ts-node src/scripts/importCurriculumManifest.ts",
     "allocation:run-one": "ts-node src/scripts/runAllocationJob.ts",
     "semester-allocation:run-one": "ts-node src/scripts/runSemesterAllocationJob.ts",
     "semester-allocation:profile": "node dist/scripts/profileSemesterAllocation.js",
