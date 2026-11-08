@@ -107,6 +107,23 @@ IT manifest. It is a real modelling gap rather than a document defect: an altern
 be satisfied by a course a student took outside the programme, and the contract has no way to say so
 yet.
 
+**Measured, then deferred.** The obvious model is a nullable `prerequisite_id` plus an
+`external_prerequisite` code with exactly one set, and it was started. It was abandoned after the
+typecheck showed what it reaches: the completion cascade, the progress-context lookup, the saved-plan
+reference review and the archive import all read `prerequisiteId` as a member identity.
+
+Filtering nulls is not the same decision in each place. In the archive import and the reference review
+an external requirement simply cannot be checked against this programme's records, so ignoring it is
+honest. In the completion cascade the same choice means a student can complete a course whose
+external prerequisite is unmet — which would be a rule the system does not enforce while appearing to.
+The alternative, checking the student's global records for that course code, is a different and larger
+change.
+
+So the contract question is answered and the enforcement question is not, and inventing one answer per
+call site under time pressure is exactly how a rule ends up inconsistent. IT therefore stays
+unimportable, which is the correct state: importing it with only the in-programme branch would narrow
+the rule and block students who took the other route.
+
 ## What this blocks
 
 The block arithmetic no longer blocks anything: the programme's own tables reconcile at 150, so an IT
