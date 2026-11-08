@@ -139,6 +139,10 @@ GitHub's quality job runs every PR/main push with disposable PostgreSQL only. Se
 
 - Conventional commits: `feat:`, `fix:`, `style:`, `refactor:`, `test:`, `chore:`
 - Do not commit/push unless explicitly instructed
+- Cut a feature branch from the remote trunk explicitly — `git checkout -B <branch> origin/main` —
+  not from whatever is checked out. A branch cut while an unmerged commit is ahead carries that
+  commit into every later PR: this happened twice in one session, once producing a PR whose diff was
+  three unrelated changes and once producing a duplicate PR whose only content was already merged
 - Push to `main` when asked
 
 ---
