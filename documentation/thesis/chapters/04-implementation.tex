@@ -39,8 +39,10 @@ The program model separates four ideas a single table would conflate. A \emph{co
 identity with a code, a name and a credit count. A \emph{membership} says the course belongs to a
 program and is unique per pair. A \emph{placement} says where the program lists the course --
 academic year, semester, elective group, selection count -- and is not unique, because the same
-course may be listed twice with different source order. A \emph{prerequisite edge} connects two
-memberships of the same program.
+course may be listed twice with different source order. A \emph{prerequisite edge} normally
+connects two memberships of the same program, and may instead name a course the program does not
+offer. Edges that share an alternative group mean at least one of them must be satisfied; an edge
+with no group is a single mandatory requirement.
 
 Keeping courses global and placement local is what makes multiple programs possible at all. A shared
 mathematics course exists once, so its rating average serves every program, while its year and
@@ -70,6 +72,15 @@ a reference attachment rather than a cohort assignment.
 Progress is one row per account and course, with a status and, where it applies, the elective group
 that claimed the course. The client keeps an optimistic view so the interface responds immediately,
 but the stored truth is the server's.
+
+An outside edge is a real requirement rather than an exemption. It is excluded from the dependency
+graph, because it has no member to order, and it is satisfied by a completion of that course in the
+student's own records wherever that record came from. Every consumer applies the same rule: the
+completion cascade refuses with the code named in the details, the import cannot slip a batch past
+it, the progress summary carries it through, and the saved-plan review counts it as a missing parent.
+A code that resolves to no course at all is never satisfied, so an unreadable requirement fails
+closed instead of open. Whether a completion earned under a different program should count is a
+transfer-credit question, and it is stated as one rather than decided by the reader.
 
 Completion is validated on the server against the program's mandatory prerequisite edges. Every
 declared edge is mandatory: a legacy corequisite or strictness column is preserved as provenance
