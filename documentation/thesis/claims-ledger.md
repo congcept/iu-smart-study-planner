@@ -25,9 +25,10 @@ cd client && npx vitest list | wc -l
 
 Counts drift with every increment. The chapter states a count, so re-run before submission.
 
-**Last re-verified:** 8 November 2026 on `main` at `34c1776` — 115 server suites / 3,050 tests and
-110 client files / 2,516 tests, both fully green. The chapter previously carried 3,001 over 110
-suites, which had gone stale within a day of being written.
+**Last re-verified:** 8 November 2026 on `main` — 120 server suites / 3,081 tests and 110 client
+files / 2,516 tests, both fully green. The chapter previously carried 3,001 over 110 suites and then
+3,050 over 115, each stale within a day of being written. The count moves faster than the chapter, so
+the chapter states it as a snapshot and this file dates the snapshot.
 
 ## Chapter 1 — Introduction
 
@@ -56,8 +57,8 @@ suites, which had gone stale within a day of being written.
 | Claim                                                                                                                                    | Evidence                                                                                    |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Five increments (foundation, context, grades, planning, administration)                                                                  | `AGENTS.md` phase tables; `docs/phase-1` … `docs/phase-4`                                   |
-| Nineteen schema migrations applied additively                                                                                            | `server/prisma/migrations/` (one directory per migration)                                   |
-| Twenty-three models, six enums                                                                                                           | `server/prisma/schema.prisma`                                                               |
+| Twenty-seven schema migrations applied additively                                                                                        | `server/prisma/migrations/` (one directory per migration)                                   |
+| Twenty-four models, six enums                                                                                                            | `server/prisma/schema.prisma`                                                               |
 | Reference source counts (9 slots, 72 rows, 71 coded placements, 56 unique courses, 15 repeats, 1 uncoded requirement, 3 elective groups) | `docs/phase-1/cs-reference-manifest.json` → `counts`                                        |
 | Credit total is unknown, not zero                                                                                                        | `Curriculum.totalCredits` nullable; `docs/phase-1/cs-reference-backfill.md`                 |
 | Import is verifier → preflight → idempotent `--apply`                                                                                    | `server/src/scripts/verifyCsReference.ts`, `inspectCsBackfill.ts`, `backfillCsReference.ts` |
@@ -96,7 +97,7 @@ suites, which had gone stale within a day of being written.
 
 | Claim                                                                | Evidence                                                                                    |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 3,050 server tests across 115 suites                                 | full Jest run, 8 Nov 2026                                                                   |
+| 3,081 server tests across 120 suites                                 | full Jest run, 8 Nov 2026                                                                   |
 | 2,516 client tests across 110 files                                  | full Vitest run, 8 Nov 2026                                                                 |
 | 10 startup lifecycle cases                                           | `npm run test:development`                                                                  |
 | Fail-first: 17 integration + 5 unit tests for the session-expiry fix | session-expiry PR body in `git log`                                                         |
@@ -105,7 +106,8 @@ suites, which had gone stale within a day of being written.
 | Largest internal result ≈ 6.05 MB                                    | `docs/phase-4/semester-allocation-profile.md`                                               |
 | Nine accessibility defects fixed                                     | `docs/ui-quality-pass.md`; PR bodies for the two accessibility increments                   |
 | One deliberate non-fix at 390 px                                     | `docs/ui-quality-pass.md`; `docs/october-2026-recap.md` "What is deliberately not done yet" |
-| Open flake, different suites failing per run                         | recorded in `AGENTS.md` checkpoint 2026-11-07 from two observed runs                        |
+| Concurrent-writer tests failed on CI, mechanism identified           | `AGENTS.md` open stability finding; `docs/phase-2/serializable-retry-backoff.md`            |
+| Retries were decorrelated rather than widened                        | `server/src/services/retryBackoff.ts`; `retryBackoff.test.ts`                               |
 
 ## Chapter 6 — Conclusion
 
@@ -113,16 +115,18 @@ suites, which had gone stale within a day of being written.
 | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Seven contributions                                                                | Chapters 3 and 4                                                                                                    |
 | No institutional validation                                                        | `docs/current-data-and-inputs-audit.md` §4A                                                                         |
-| One program populated; IT/DS sources conflict                                      | `docs/phase-1/cse-curriculum-sources.md`; audit §4A                                                                 |
+| Three program structures; two transcribed and verified                             | `docs/phase-1/it-network-2025-manifest.json`; `ds-2025-manifest-proposed-readings.json`; `itManifest.test.ts`       |
 | DS transcribes to 50 courses, 50 placements, 32 edges, blocks 38/27/32+11/16 = 124 | `docs/phase-1/ds-2025-manifest.md`; `ds-2025-manifest-proposed-readings.json`; `dsManifest.test.ts`                 |
 | DS is imported as a reference cohort, assigning nobody                             | `docs/phase-1/curriculum-manifest-import.md`; `server/src/services/curriculumImport.ts`; `curriculumImport.test.ts` |
-| IT blocks reconcile at 150 and are still not imported                              | `docs/phase-1/it-2025-source-findings.md`                                                                           |
-| An external prerequisite is modelled but not enforced                              | `docs/phase-1/it-2025-source-findings.md`, "Measured, then deferred"                                                |
+| IT Network Engineering is imported at 150, assigning nobody                        | `docs/phase-1/it-network-2025-manifest.md`; `curriculum-manifest-import.md`                                         |
+| An external prerequisite is enforced and published                                 | `server/src/services/prerequisiteSatisfaction.ts`; `docs/phase-1/external-prerequisites-in-view.md`                 |
 | DS cells `T149IU` and `MA026IU` contradict the rest of the document                | `docs/phase-1/ds-2025-manifest.md`; the faithful manifest fails verification on purpose                             |
 | `T149IU` is `IT149IU`, confirmed by the 2024 document                              | `docs/phase-1/ds-2025-manifest.md`, 2024 cross-check table                                                          |
 | IT scheduled rows total 150 but six semester labels contradict their rows          | `docs/phase-1/it-2025-source-findings.md`                                                                           |
-| IT general block is 45 credits per Bảng 4 and 40 per Bảng 6                        | `docs/phase-1/it-2025-source-findings.md`                                                                           |
+| IT block I is 45 credits; Bảng 6 is a group-wide summary, not this program's block | `docs/phase-1/it-2025-source-findings.md`                                                                           |
 | The artifact accepts mutually concurrent courses                                   | `server/src/services/curriculumManifest.ts`; `curriculumManifest.test.ts`                                           |
+| Cohorts are independent, so 2024 and 2025 students coexist                         | `CurriculumCohort` in `server/prisma/schema.prisma`; `docs/phase-1/it-2025-source-findings.md`                      |
+| The second specialisation is analysed but not transcribed, with a stated reason    | `docs/phase-1/it-2025-source-findings.md`, the ten-block placement question                                         |
 | No calendar or offering data                                                       | audit §4D                                                                                                           |
 | Assigned contexts are read-only                                                    | `docs/phase-2/account-curriculum-reference.md`                                                                      |
 | Resources and allocations are simulated                                            | `docs/phase-4/simulation-resource-persistence.md`                                                                   |
