@@ -47,6 +47,7 @@ const context = (courses: CurriculumCourseDTO[]): CurriculumDetailDTO => ({
   usage: 'REFERENCE_ONLY',
   courses,
   prerequisites: [],
+  externalPrerequisites: [],
   requirements: [],
   ratingPrior: courses.length ? { mean: 2, source: 'CURRICULUM_SEED' } : null,
 });

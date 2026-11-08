@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { prisma } from '../index';
 import { importCurriculumManifest } from '../services/curriculumImport';
 import { verifyCurriculumManifest } from '../services/curriculumManifest';
+import { readCurriculumContext } from '../services/curriculumContexts';
 
 const read = () =>
   JSON.parse(
@@ -72,6 +73,28 @@ describe('IT Network Engineering 2025 committed manifest', () => {
       new Set(['IT149IU', 'EE054IU']),
     );
     expect(external.every(({ alternativeGroup }) => alternativeGroup !== null)).toBe(true);
+  });
+
+  it('publishes the external requirements the reference response used to drop', async () => {
+    const { id } = await prisma.curriculum.findUniqueOrThrow({
+      where: { code: CODE },
+      select: { id: true },
+    });
+    const detail = await readCurriculumContext(id);
+    // Thirty edges name a member; the other five name courses this programme does not offer, and a
+    // reader that drops them reports a programme with five fewer requirements than it has.
+    expect(detail!.prerequisites).toHaveLength(30);
+    expect(detail!.externalPrerequisites).toHaveLength(5);
+    expect(detail!.externalPrerequisites.every(({ alternativeGroup }) => alternativeGroup)).toBe(
+      true,
+    );
+    expect(detail!.externalPrerequisites.map(({ prerequisiteCode }) => prerequisiteCode)).toEqual([
+      'EE054IU',
+      'IT149IU',
+      'IT149IU',
+      'IT149IU',
+      'IT149IU',
+    ]);
   });
 
   it('keeps physical training out of every block', async () => {

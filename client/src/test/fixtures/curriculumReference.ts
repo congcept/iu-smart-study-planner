@@ -60,6 +60,7 @@ export function curriculumReference(): CurriculumDetailDTO {
     ],
     requirements: [],
     prerequisites: [],
+    externalPrerequisites: [],
     ratingPrior: { mean: 2, source: 'CURRICULUM_SEED' },
   };
 }

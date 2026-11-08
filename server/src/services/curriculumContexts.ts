@@ -85,13 +85,14 @@ export async function readCurriculumSnapshot(
             },
           },
           prerequisites: {
-            // The reference response has no external branch yet, so only member edges are projected.
-            where: { prerequisiteId: { not: null } },
             orderBy: { prerequisite: { course: { code: 'asc' } } },
             select: {
               id: true,
               courseId: true,
               prerequisiteId: true,
+              externalPrerequisite: true,
+              kind: true,
+              alternativeGroup: true,
               isStrict: true,
               isCorequisite: true,
             },
@@ -135,7 +136,32 @@ export async function readCurriculumSnapshot(
       prerequisites.flatMap((edge) =>
         edge.prerequisiteId === null
           ? []
-          : [{ ...edge, prerequisiteId: edge.prerequisiteId, mandatory: true as const }],
+          : [
+              {
+                id: edge.id,
+                courseId: edge.courseId,
+                prerequisiteId: edge.prerequisiteId,
+                isStrict: edge.isStrict,
+                isCorequisite: edge.isCorequisite,
+                mandatory: true as const,
+              },
+            ],
+      ),
+    ),
+    externalPrerequisites: courses.flatMap(({ prerequisites }) =>
+      prerequisites.flatMap((edge) =>
+        edge.externalPrerequisite === null
+          ? []
+          : [
+              {
+                id: edge.id,
+                courseId: edge.courseId,
+                prerequisiteCode: edge.externalPrerequisite,
+                kind:
+                  edge.kind === 'TQ' || edge.kind === 'HT' || edge.kind === 'SH' ? edge.kind : null,
+                alternativeGroup: edge.alternativeGroup,
+              },
+            ],
       ),
     ),
   };

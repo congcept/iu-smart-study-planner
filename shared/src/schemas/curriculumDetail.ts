@@ -61,6 +61,19 @@ export const CurriculumDetailSchema = CurriculumSummarySchema.extend({
       })
       .strict(),
   ),
+  externalPrerequisites: z.array(
+    z
+      .object({
+        id: uuid,
+        courseId: uuid,
+        prerequisiteCode: z
+          .string()
+          .regex(/^[A-Z]{2,3}\d{3,4}IU$/, 'A course code must match the published IU form'),
+        kind: z.enum(['TQ', 'HT', 'SH']).nullable(),
+        alternativeGroup: z.string().min(1).nullable(),
+      })
+      .strict(),
+  ),
   ratingPrior: z
     .object({
       mean: z.number().finite().min(1).max(5),

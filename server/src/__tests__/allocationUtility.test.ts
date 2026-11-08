@@ -55,6 +55,7 @@ const context = (courses = [course(0), course(1), course(2)]): CurriculumDetailD
   courses,
   requirements: [],
   prerequisites: [],
+  externalPrerequisites: [],
   ratingPrior: { mean: 3, source: 'CURRICULUM_SEED' },
 });
 const edge = (child: number, parent: number, isStrict = true, isCorequisite = false) => ({
