@@ -96,6 +96,17 @@ Three shapes here are not in DS or CS:
 - Two rows combine courses into one cell: `EN008IU + EN007IU` and `EN012IU + EN011IU`, each four
   credits, where the catalogue holds them as separate two-credit courses.
 
+## A prerequisite that names a course outside the programme
+
+`IT149IU` (Fundamentals of Programming) appears in the schedule **only** inside prerequisite cells —
+never as a scheduled row and never in the block tables. Four requirements read "`IT116IU` or
+`IT149IU`", and `IT149IU` is not a member of this curriculum; it is a Data Science foundation course.
+
+The verifier requires both endpoints of an edge to be members, so this is the remaining blocker for an
+IT manifest. It is a real modelling gap rather than a document defect: an alternative may legitimately
+be satisfied by a course a student took outside the programme, and the contract has no way to say so
+yet.
+
 ## What this blocks
 
 The block arithmetic no longer blocks anything: the programme's own tables reconcile at 150, so an IT

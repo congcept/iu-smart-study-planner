@@ -110,7 +110,9 @@ export const CurriculumManifestSchema = z
       .array(
         z
           .object({
-            kind: z.literal('FREE_ELECTIVE'),
+            // A document may allocate elective credits without naming a single candidate course, as
+            // IT does for its three specialised slots. That is stated, not inferred.
+            kind: z.enum(['FREE_ELECTIVE', 'UNNAMED_ELECTIVE']),
             name: z.string().trim().min(1).max(200),
             credits,
             year: year.nullable(),

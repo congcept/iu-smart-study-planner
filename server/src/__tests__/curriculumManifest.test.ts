@@ -334,6 +334,54 @@ describe('curriculum manifest verification', () => {
     ).toBe(true);
   });
 
+  it('accepts elective slots the document allocates without naming a candidate', () => {
+    // The IT shape: three specialised slots of four credits each, no named options.
+    const it = manifest({
+      totalCredits: 18,
+      requirements: [1, 2, 3].map((slot) => ({
+        kind: 'UNNAMED_ELECTIVE' as const,
+        name: `Elective ${slot}`,
+        credits: 4,
+        year: 3,
+        semester: 1,
+        sourceOrder: slot,
+      })),
+    });
+    const blocks = blocksOf(it).map((block) =>
+      block.code === 'III' ? { ...block, electiveCredits: 12 } : block,
+    );
+    const placements = placementsOf(it).filter(({ group }) => group === null);
+    const report = verifyCurriculumManifest({ ...it, blocks, placements, totalCredits: 22 });
+    expect(report.blockers).toEqual([]);
+    expect(report.readiness).toBe(true);
+    expect(report.credits).toEqual({ declared: 22, blocks: 22, required: 10, elective: 12 });
+    expect(report.counts.requirements).toBe(3);
+  });
+
+  it('rejects unnamed elective slots that do not add up to the allocation', () => {
+    const it = manifest({
+      requirements: [1, 2].map((slot) => ({
+        kind: 'UNNAMED_ELECTIVE' as const,
+        name: `Elective ${slot}`,
+        credits: 4,
+        year: 3,
+        semester: 1,
+        sourceOrder: slot,
+      })),
+    });
+    const blocks = blocksOf(it).map((block) =>
+      block.code === 'III' ? { ...block, electiveCredits: 12 } : block,
+    );
+    const placements = placementsOf(it).filter(({ group }) => group === null);
+    const report = verifyCurriculumManifest({ ...it, blocks, placements, totalCredits: 22 });
+    expect(report.readiness).toBe(false);
+    expect(
+      report.issues.some(({ message }) =>
+        /pools declare 0 and requirements declare 8/.test(message),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects a pool that disagrees with the elective credits the block allocates', () => {
     const oversized = manifest();
     const placements = placementsOf(oversized).map((placement) =>
