@@ -6,6 +6,7 @@ import {
 } from '@iu-study-planner/shared';
 import { prisma } from '../db';
 import { SchoolResourceError } from './schoolResources';
+import { pauseBeforeRetry } from './retryBackoff';
 import {
   verifyStoredSemesterAllocationRun,
   projectSemesterAllocationRun,
@@ -164,7 +165,10 @@ export async function storeSemesterAllocationRun(
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         const serialization =
           error.code === 'P2010' && ['40001', '40P01'].includes(String(error.meta?.code));
-        if ((['P2034', 'P2002'].includes(error.code) || serialization) && attempt < 4) continue;
+        if ((['P2034', 'P2002'].includes(error.code) || serialization) && attempt < 4) {
+          await pauseBeforeRetry(attempt);
+          continue;
+        }
         if (['P2034', 'P2002', 'P2003'].includes(error.code) || serialization)
           throw new SchoolResourceError(
             'Could not confirm the simulation save; retry with the same request key',
