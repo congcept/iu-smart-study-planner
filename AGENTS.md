@@ -298,6 +298,17 @@ which is a plausible window on a contended runner, but that is a hypothesis and 
 gate has stayed green through every merge. No assertion, timeout or transaction budget was weakened
 to obtain a pass, and no `--forceExit` or `--detectOpenHandles` workaround was adopted.
 
+**One of those failures now has a mechanism, not just a symptom.** PR #171 failed with two suites at
+once — `adminAllocationJobs > deduplicates concurrent same-key enqueues` and `courseRatingApi > keeps
+concurrent votes from different accounts and courses consistent` — both returning `409` where `200`
+was expected. That status is not a business refusal: it is the final `throw` after a bounded
+Serializable retry loop exhausts every attempt (`courseRatings.ts:210`), used in both services. So
+"four concurrent writers must all succeed" is asserted against a loop that can legitimately give up
+under enough contention, and a loaded runner supplies that contention. Both suites pass 3/3 locally
+and the re-run passed unchanged. The bound is unchanged: one contention-sensitive run is not evidence
+for widening it, and the honest question is why every attempt collides rather than how many attempts
+to allow.
+
 Next: the demonstration scenario and walkthrough, then the thesis re-baseline
 (`00-abstract`, `05-results`, `06-conclusion` still describe the June prototype). Feature freeze
 applies after the 3 December progress check.
