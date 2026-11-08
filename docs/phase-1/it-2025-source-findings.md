@@ -158,6 +158,39 @@ credit, zero lecture, one laboratory — so an extractor that expects three cons
 it and the block comes out one credit short. That is the kind of error that looks like a document
 defect and is not.
 
+### The schedule reconciles at 150 but prints ten blocks for nine semesters
+
+Reading the Computer Engineering schedule row by row, its printed block totals are
+**17 + 20 + 20 + 15 + 16 + 16 + 7 + 16 + 13 + 10 = 150**, matching the block table exactly. The
+contents are:
+
+| #   | Total | Courses                                                                                          |
+| --- | ----: | ------------------------------------------------------------------------------------------------ |
+| 1   |    17 | `IT116IU`, `MA001IU`, `PE015IU`, `PE016IU`, `EN008IU`+`EN007IU`, `PT001IU` (excluded)            |
+| 2   |    20 | `IT069IU`, `MA033IU`, `MA003IU`, `PE017IU`, `EN012IU`+`EN011IU`, `PT002IU` (excluded), `PE021IU` |
+| 3   |    20 | `IT064IU`, `IT013IU`, `IT068IU`, `IT098IU`, `IT067IU`, `IT099IU`, `IT153IU`, `PH013IU`           |
+| 4   |    15 | `IT091IU`, `IT089IU`, `IT128IU`, `IT129IU`, `MA036IU`                                            |
+| 5   |    16 | `IT017IU`, `IT079IU`, Elective 1, `PH015IU`, `PH016IU`                                           |
+| 6   |    16 | `IT105IU`, `IT106IU`, `IT115IU`, `IT127IU`, Elective 2, `PE018IU`, `PE019IU`                     |
+| 7   |     7 | `IT174IU` internship                                                                             |
+| 8   |    16 | `IT110IU`, `IT126IU`, `IT103IU`, `IT159IU`, Elective 3                                           |
+| 9   |    13 | `IT083IU`, `IT134IU`, `IT120IU`, `PE020IU`                                                       |
+| 10  |    10 | `IT058IU` thesis                                                                                 |
+
+The table's own bracket labels disagree with its rows the way the Network Engineering table's did —
+the third block is labelled _17 tín chỉ_ while its rows total 20 — so the labels are not usable as
+placements.
+
+**The unresolved question.** The document states nine semesters, but its rows form **ten** blocks: the
+thirteen-credit block containing `IT083IU` (Special Study of the Field) and the ten-credit thesis block
+are separate, and the thesis requires the special study. Nine slots cannot hold ten blocks while
+keeping a mandatory earlier-semester prerequisite in an earlier semester. Either two blocks share a
+semester, or the thesis follows the ninth, and the document says neither.
+
+That is a placement question, not an arithmetic one, and it is the last thing standing between this
+specialisation and a manifest. It is recorded here rather than resolved by guessing, because guessing
+wrong puts a thesis prerequisite in its own semester.
+
 **Not transcribed.** Unlike its block table, this specialisation's schedule wraps names, cells and
 prerequisite text across fixed-width lines badly enough that a parser recovered 41 rows with
 misattributed semesters and wrong credit columns. Its placements and prerequisites need the same
