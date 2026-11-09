@@ -68,6 +68,11 @@ prerequisite edges (31 `HT`, 1 `TQ`), one four-credit free-elective requirement 
 and fifteen pool options each declaring seven credits with no course count. The catalogue grew from
 56 to 74 courses, because eighteen Data Science identities were not previously seeded.
 
+`IT-CE` is the second specialisation of the same programme: the same four blocks, a different
+specialised block of thirteen required courses, four external edges naming the same Data Science
+course, and three unnamed elective slots. Its placements follow a sequencing rule rather than a
+semester table, which its own manifest states.
+
 `IT-NET` adds five external prerequisite edges — `IT149IU` four times and `EE054IU` once — and three
 unnamed elective requirements. Read back through the public API it reports **43 courses, 30 member
 prerequisite edges and three `UNNAMED_ELECTIVE` requirements of four credits**: thirty rather than
@@ -78,7 +83,7 @@ described in prose.
 **Nobody is assigned**, so the demonstration still starts exactly as documented. To reverse any of it:
 
 ```sql
-DELETE FROM curriculums WHERE code IN ('DS', 'IT-NET');
+DELETE FROM curriculums WHERE code IN ('DS', 'IT-NET', 'IT-CE');
 ```
 
 That removes the cohort link, memberships, placements, requirements and prerequisite edges by
