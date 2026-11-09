@@ -180,6 +180,7 @@ export function AccountCurriculum({ userId }: { userId: string }) {
                 key={`${userId}:${visible.request}`}
                 userId={userId}
                 contextualGroups={contextualGroups(visible.curriculum).groups}
+                contextualTotalCredits={visible.curriculum.totalCredits}
               />
             </>
           )}

@@ -36,8 +36,11 @@ interface SemesterDisplay {
 export const CurriculumProgressMap = ({
   userId,
   contextualGroups: supplied,
+  contextualTotalCredits,
 }: {
   userId?: string;
+  /** The program's declared credit total, or null when the document states none. */
+  contextualTotalCredits?: number | null;
   /**
    * A program's own structure, already adapted to the map's shapes. Supplying it replaces the global
    * catalogue: an assigned student reads their curriculum, not the whole university's.
@@ -174,7 +177,10 @@ export const CurriculumProgressMap = ({
   }, [intensityMode]);
 
   useEffect(() => {
-    if (!recommendationsEnabled || !gpaReady) {
+    // The client scorer encodes one program's rules: a final-year fork keyed to a specific thesis
+    // code. Applying it to another program would recommend by a rule that program does not have, so
+    // inside a context the server's preview is the only recommender.
+    if (!recommendationsEnabled || !gpaReady || supplied) {
       setRecommendedIds(new Set());
       return;
     }
@@ -195,6 +201,7 @@ export const CurriculumProgressMap = ({
     groups,
     creditsPerSemester,
     gpaReady,
+    supplied,
   ]);
 
   const isCourseAvailable = useCallback(
@@ -346,7 +353,9 @@ export const CurriculumProgressMap = ({
     }
   }, [y4s2GpaMode, activeElectiveGroup, allElectiveGroups, groups]);
 
-  const REQUIRED_CREDITS = 130;
+  // The global catalogue's figure. A program supplies its own, and a document that states none stays
+  // unknown rather than borrowing this one.
+  const REQUIRED_CREDITS = supplied ? (contextualTotalCredits ?? null) : 130;
   // A soft nudge, not a cap: planning more than this is allowed, but worth
   // pointing out because it sits above the default course load.
   const PLANNED_CREDIT_SOFT_LIMIT = 24;
@@ -397,7 +406,7 @@ export const CurriculumProgressMap = ({
   }, [completedIdKeys, y4s2GpaMode]);
 
   const eta = useMemo(() => {
-    const remainingCredits = REQUIRED_CREDITS - completedCredits;
+    const remainingCredits = (REQUIRED_CREDITS ?? 0) - completedCredits;
     if (remainingCredits <= 0) return 'Completed';
     const semestersNeeded = Math.ceil(remainingCredits / creditsPerSemester);
     const now = new Date();
@@ -418,7 +427,7 @@ export const CurriculumProgressMap = ({
 
     const semLabels = ['', 'Spring', 'Summer', 'Fall'];
     return `${semLabels[sem]} ${year}`;
-  }, [completedCredits, creditsPerSemester]);
+  }, [completedCredits, creditsPerSemester, REQUIRED_CREDITS]);
 
   const frameRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -666,32 +675,35 @@ export const CurriculumProgressMap = ({
       )}
       {userId && <ArchivedProgressImport key={userId} userId={userId} courses={allCourses} />}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-5 bg-white rounded-xl p-5 border border-gray-200 overflow-hidden">
-        <div className="flex items-center gap-3">
-          <span className="text-base font-semibold text-gray-700">Recommendations</span>
-          <button
-            role="switch"
-            aria-label="Recommendations"
-            aria-checked={recommendationsEnabled}
-            onClick={() => {
-              setRecommendationsEnabled(!recommendationsEnabled);
-              playRecommendationsSound();
-            }}
-            className="relative w-12 h-11 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700"
-          >
-            <span
-              aria-hidden="true"
-              className={`absolute inset-x-0 top-2.5 h-6 rounded-full transition-colors duration-200 ${
-                recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-            />
-            <span
-              aria-hidden="true"
-              className={`absolute top-3.5 left-1 w-4 h-4 bg-white rounded-md shadow transition-transform duration-200 ${
-                recommendationsEnabled ? 'translate-x-6' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
+        {/* Inside a program the client scorer does not run, so its switch would be a dead control. */}
+        {!supplied && (
+          <div className="flex items-center gap-3">
+            <span className="text-base font-semibold text-gray-700">Recommendations</span>
+            <button
+              role="switch"
+              aria-label="Recommendations"
+              aria-checked={recommendationsEnabled}
+              onClick={() => {
+                setRecommendationsEnabled(!recommendationsEnabled);
+                playRecommendationsSound();
+              }}
+              className="relative w-12 h-11 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-700"
+            >
+              <span
+                aria-hidden="true"
+                className={`absolute inset-x-0 top-2.5 h-6 rounded-full transition-colors duration-200 ${
+                  recommendationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                }`}
+              />
+              <span
+                aria-hidden="true"
+                className={`absolute top-3.5 left-1 w-4 h-4 bg-white rounded-md shadow transition-transform duration-200 ${
+                  recommendationsEnabled ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         <IntensitySlider
           mode={intensityMode}
@@ -703,13 +715,16 @@ export const CurriculumProgressMap = ({
           <span>
             <span className="font-semibold">Program:</span>{' '}
             <span className="font-bold text-gray-900 tabular-nums">
-              {REQUIRED_YEARS} years, {REQUIRED_CREDITS} credits
+              {REQUIRED_YEARS} years,{' '}
+              {REQUIRED_CREDITS === null ? 'credit total unknown' : `${REQUIRED_CREDITS} credits`}
             </span>
           </span>
           <span>
             <span className="font-semibold">Completed:</span>{' '}
             <span className="font-bold text-green-700 tabular-nums">
-              {completedCredits} / {REQUIRED_CREDITS} credits
+              {REQUIRED_CREDITS === null
+                ? `${completedCredits} credits`
+                : `${completedCredits} / ${REQUIRED_CREDITS} credits`}
             </span>
           </span>
           <span>
