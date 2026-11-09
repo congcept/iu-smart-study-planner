@@ -191,10 +191,12 @@ That is a placement question, not an arithmetic one, and it is the last thing st
 specialisation and a manifest. It is recorded here rather than resolved by guessing, because guessing
 wrong puts a thesis prerequisite in its own semester.
 
-**Not transcribed.** Unlike its block table, this specialisation's schedule wraps names, cells and
+**Transcribed.** Unlike its block table, this specialisation's schedule wraps names, cells and
 prerequisite text across fixed-width lines badly enough that a parser recovered 41 rows with
-misattributed semesters and wrong credit columns. Its placements and prerequisites need the same
-row-by-row treatment Network Engineering received, and are the next step rather than a guess.
+misattributed semesters and wrong credit columns. Its placements and prerequisites needed the same
+row-by-row treatment Network Engineering received, and the manifest
+`it-computer-engineering-2025-manifest.json` is the result: 48 courses, 39 edges, verified with no
+blockers.
 
 ## What this blocks
 
@@ -210,5 +212,8 @@ manifest can be built. Three questions remain, and none of them is arithmetic:
 ## Verified before shipping
 
 `python3` arithmetic over the transcribed rows reproduces all the figures above; the row total of
-150 is a computation, not a reading. No IT data is stored, no curriculum is created, and no reader
-is touched.
+150 is a computation, not a reading.
+
+Both specialisations now have committed manifests, and both pass the verifier with no blockers. A
+manifest is a transcription, not an activation: importing one attaches a structure and assigns no
+account.
