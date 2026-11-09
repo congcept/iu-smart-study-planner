@@ -20,9 +20,21 @@ vi.mock('../CurriculumProgressSummary', () => ({ CurriculumProgressSummary: () =
 vi.mock('@/lib/api', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/curriculumApi', () => ({ getCurriculumReference: vi.fn() }));
 vi.mock('../CurriculumProgressMap', () => ({
-  CurriculumProgressMap: ({ userId }: { userId: string }) => {
-    legacy.mount(userId);
-    return <p>Legacy map for {userId}</p>;
+  CurriculumProgressMap: ({
+    userId,
+    contextualGroups,
+  }: {
+    userId: string;
+    contextualGroups?: unknown[];
+  }) => {
+    legacy.mount(userId, contextualGroups);
+    return (
+      <p>
+        {contextualGroups
+          ? `Contextual map for ${userId} with ${contextualGroups.length} groups`
+          : `Legacy map for ${userId}`}
+      </p>
+    );
   },
 }));
 const session = vi.mocked(getSession),
@@ -51,19 +63,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe('account curriculum reference', () => {
-  it('shows scoped placement, difficulty, nonfork policy and no legacy editing', async () => {
+  it('gives an assigned account the map built from its own program, above the record', async () => {
     render(view());
     await screen.findByRole('region', { name: 'Assigned curriculum reference' });
     expect(reference).toHaveBeenCalledWith(referenceId);
     expect(session).toHaveBeenCalledTimes(2);
-    expect(legacy.mount).not.toHaveBeenCalled();
+    // The map is the primary surface now; its source is the program, not the global catalogue.
+    expect(legacy.mount).toHaveBeenCalledWith(ownerId, expect.any(Array));
+    expect(await screen.findByText(/Contextual map for/)).toBeInTheDocument();
     expect(screen.getByText(/Year 1 · Semester 1 · Group A/)).toBeInTheDocument();
     expect(screen.getByText(/Difficulty 2.0 \/ 5 · No ratings yet/)).toBeInTheDocument();
     expect(screen.getByText(/does not use a GPA-based thesis path/)).toBeInTheDocument();
+    // The boundary is stated instead of the feature being withheld.
     expect(
-      screen.getByText(/Course completion editing and degree progress are not available/),
+      screen.getByText(/Placements and prerequisites are a verified transcription/),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /complete/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/no degree percentage is derived/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Review saved courses in Planner' })).toHaveAttribute(
       'href',
       '/planner',
@@ -143,7 +158,8 @@ describe('account curriculum reference', () => {
     expect(screen.queryByText('SIM · Simulated reference')).not.toBeInTheDocument();
     await act(async () => pending.reject(new Error('expired')));
     await screen.findByRole('alert');
-    expect(legacy.mount).not.toHaveBeenCalled();
+    // The map was mounted from the program, and a failed refresh never falls back to the catalogue.
+    expect(legacy.mount.mock.calls.every(([, groups]) => Array.isArray(groups))).toBe(true);
   });
   it('removes legacy map before resolving a changed assigned context on focus', async () => {
     session.mockResolvedValueOnce(referenceSession(null));
@@ -246,13 +262,13 @@ describe('account curriculum reference', () => {
     expect(screen.getByText('No reference placement recorded.')).toBeInTheDocument();
     expect(screen.getByText('Free elective · 3 credits')).toBeInTheDocument();
   });
-  it('shows an honest empty reference', async () => {
+  it('shows an honest empty reference and an empty map rather than the catalogue', async () => {
     const data = curriculumReference();
     data.courses = [];
     data.ratingPrior = null;
     reference.mockResolvedValue(data);
     render(view());
     await screen.findByText('No courses are included in this reference yet.');
-    expect(legacy.mount).not.toHaveBeenCalled();
+    expect(legacy.mount).toHaveBeenCalledWith(ownerId, []);
   });
 });

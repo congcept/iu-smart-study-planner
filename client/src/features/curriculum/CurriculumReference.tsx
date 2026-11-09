@@ -30,9 +30,10 @@ export function CurriculumReference({ curriculum }: { curriculum: CurriculumDeta
           {curriculum.school} · {curriculum.degree}
         </p>
         <p className="mt-3 max-w-prose text-sm text-gray-700">
-          This reference view is read-only. Course completion editing and degree progress are not
-          available here yet. Placements show curriculum year and semester, rather than confirmed
-          class offerings.
+          This is the program record: every course the curriculum lists, including any with no
+          placement. Completion and planning happen on the map. Placements show curriculum year and
+          semester, rather than confirmed class offerings, and no degree percentage is derived while
+          the program's elective and graduation rules remain unverified.
         </p>
         <p className="mt-3 text-sm text-gray-700">
           {curriculum.isGpaPath

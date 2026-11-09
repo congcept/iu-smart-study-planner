@@ -429,4 +429,33 @@ describe('zoom limits', () => {
     expect(percent()).toBe('200%');
     expect(document.activeElement).toBe(zoomIn);
   });
+
+  describe('a program context', () => {
+    it('renders a program’s own structure and total instead of the global catalogue', async () => {
+      render(
+        <CurriculumProgressMap
+          contextualGroups={[{ year: 1, semester: 1, courses: [course('IT116IU')] }]}
+          contextualTotalCredits={150}
+        />,
+      );
+      await screen.findByRole('button', { name: /^IT116IU .*: Mark complete$/ });
+      // The global catalogue is never fetched when a program supplies its own structure.
+      expect(getCurriculum).not.toHaveBeenCalled();
+      expect(screen.getByText(/4 years, 150 credits/)).toBeInTheDocument();
+      // The client scorer encodes one program's final-year rule, so it is not offered here.
+      expect(screen.queryByRole('switch', { name: 'Recommendations' })).not.toBeInTheDocument();
+    });
+
+    it('reports an unknown total rather than borrowing the global figure', async () => {
+      render(
+        <CurriculumProgressMap
+          contextualGroups={[{ year: 1, semester: 1, courses: [course('IT116IU')] }]}
+          contextualTotalCredits={null}
+        />,
+      );
+      await screen.findByRole('button', { name: /^IT116IU .*: Mark complete$/ });
+      expect(screen.getByText(/credit total unknown/)).toBeInTheDocument();
+      expect(screen.queryByText(/130 credits/)).not.toBeInTheDocument();
+    });
+  });
 });

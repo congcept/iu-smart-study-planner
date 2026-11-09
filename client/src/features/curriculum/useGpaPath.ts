@@ -28,12 +28,16 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseSnapshot(value: unknown, userId: string): GpaSnapshot {
+function parseSnapshot(value: unknown, userId: string, assignedContext: boolean): GpaSnapshot {
   if (!isObject(value) || !isObject(value.summary)) throw new Error('Invalid GPA summary');
   if (value.scope !== undefined) {
     const scope = StudentGradeScopeSchema.parse(value.scope);
-    if (scope.userId !== userId.toLowerCase() || scope.curriculumId !== null)
-      throw new Error('Wrong legacy GPA scope');
+    // The legacy manual fork belongs to an account with no program context. Inside one, the server's
+    // own path is the only authority, so an assigned scope is expected rather than refused.
+    if (scope.userId !== userId.toLowerCase()) throw new Error('Wrong GPA scope');
+    if (scope.curriculumId !== null && !assignedContext) throw new Error('Wrong legacy GPA scope');
+    if (scope.curriculumId === null && assignedContext)
+      throw new Error('Missing curriculum context for a contextual GPA read');
   }
   const { gpaPath, gpa100, gradedCredits, gradedCourseCount } = value.summary;
   if (
@@ -69,7 +73,8 @@ function parseSnapshot(value: unknown, userId: string): GpaSnapshot {
   };
 }
 
-export function useGpaPath(userId?: string) {
+export function useGpaPath(userId?: string, options: { assignedContext?: boolean } = {}) {
+  const assignedContext = options.assignedContext === true;
   const ownerId = userId ?? null;
   const [state, setState] = useState<GpaPathState>(() => initialState(ownerId));
   const generation = useRef(0);
@@ -100,15 +105,24 @@ export function useGpaPath(userId?: string) {
       try {
         // Defer invocation so even a synchronous adapter failure cannot settle
         // before the pending-request reference is installed.
-        const snapshot = parseSnapshot(await Promise.resolve().then(getStudentGrades), userId);
+        const snapshot = parseSnapshot(
+          await Promise.resolve().then(getStudentGrades),
+          userId,
+          assignedContext,
+        );
         if (isCurrent())
           setState((current) => ({
             ownerId: userId,
             status: 'ready',
-            mode:
-              snapshot.mode ??
-              (current.ownerId === userId && current.manual ? (current.mode ?? 'above') : 'above'),
-            manual: snapshot.mode === null,
+            // Inside a program there is no manual fallback: an unknown path stays unknown so the
+            // map defers its path-dependent choices instead of inventing one.
+            mode: assignedContext
+              ? snapshot.mode
+              : (snapshot.mode ??
+                (current.ownerId === userId && current.manual
+                  ? (current.mode ?? 'above')
+                  : 'above')),
+            manual: assignedContext ? false : snapshot.mode === null,
             gpa100: snapshot.gpa100,
             missingGradeCount: snapshot.missingGradeCount,
           }));
@@ -120,7 +134,9 @@ export function useGpaPath(userId?: string) {
     })();
     pending.current = { ownerId: userId, generation: request, promise };
     return promise;
-  }, [userId]);
+    // The context kind is part of the request: switching between the global catalogue and a program
+    // changes what the reply must satisfy, so it must invalidate the previous read.
+  }, [userId, assignedContext]);
 
   const invalidatePending = useCallback(() => {
     mounted.current = false;

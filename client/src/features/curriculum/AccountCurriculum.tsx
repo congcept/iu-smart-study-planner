@@ -7,6 +7,7 @@ import { getCurriculumReference } from '@/lib/curriculumApi';
 import { useFocusAfterDisable } from '@/lib/useFocusAfterDisable';
 import { CurriculumProgressMap } from './CurriculumProgressMap';
 import { CurriculumReference } from './CurriculumReference';
+import { contextualGroups } from './contextualGroups';
 import { CurriculumProgressSummary } from './CurriculumProgressSummary';
 
 type State = { ownerId: string; request: number } & (
@@ -153,8 +154,34 @@ export function AccountCurriculum({ userId }: { userId: string }) {
         <>
           {visible.curriculum && (
             <>
-              <CurriculumProgressSummary userId={userId} curriculumId={visible.curriculum.id} />
-              <CurriculumReference curriculum={visible.curriculum} />
+              {/* The structure is verified; offerings, calendar and the degree percentage are not,
+                  and the banner says so instead of the screen withholding the feature. */}
+              <section
+                aria-label="What this curriculum shows"
+                className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
+              >
+                <p>
+                  <strong>{visible.curriculum.code}</strong>: {visible.curriculum.name}. Placements
+                  and prerequisites are a verified transcription of the published curriculum. Course
+                  offerings, meeting times, rooms and the graduation percentage are not known, so a
+                  placement is a catalogue fact rather than an offered section.
+                </p>
+              </section>
+              <details className="rounded-xl border border-gray-200 bg-white p-4" open>
+                <summary className="cursor-pointer font-semibold text-gray-900">
+                  Full program record
+                </summary>
+                <div className="mt-4 space-y-6">
+                  <CurriculumProgressSummary userId={userId} curriculumId={visible.curriculum.id} />
+                  <CurriculumReference curriculum={visible.curriculum} />
+                </div>
+              </details>
+              <CurriculumProgressMap
+                key={`${userId}:${visible.request}`}
+                userId={userId}
+                contextualGroups={contextualGroups(visible.curriculum).groups}
+                contextualTotalCredits={visible.curriculum.totalCredits}
+              />
             </>
           )}
           <Link
