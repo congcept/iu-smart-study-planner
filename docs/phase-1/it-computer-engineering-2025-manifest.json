@@ -1,0 +1,1186 @@
+{
+  "program": {
+    "code": "IT-CE",
+    "name": "Information Technology (Computer Engineering)",
+    "school": "School of Computer Science and Engineering",
+    "degree": "Bachelor of Engineering in Information Technology",
+    "programUrl": "https://hcmiu.edu.vn/chuong-trinh-dao-tao/dao-tao-dai-hoc/khoa-cong-nghe-thong-tin/",
+    "cohort": "K2025"
+  },
+  "source": {
+    "label": "Information Technology 2025 signed curriculum, Computer Engineering specialisation",
+    "url": "https://hcmiu.edu.vn/wp-content/uploads/2026/04/CTDT-Khoa-2025_Nganh-Cong-nghe-Thong-Tin-Signed.pdf",
+    "sha256": "4e62d2293da6fc6310aeb4ffa3f72c2826de901ae8ade6e32beb7dac01b97584",
+    "pages": "6-7 (block table), 25-34 (Bảng 8 course table), 35-41 (Bảng 10 schedule)",
+    "retrievedOn": "2026-11-08"
+  },
+  "totalCredits": 150,
+  "excluded": [
+    {
+      "kind": "PHYSICAL_TRAINING",
+      "code": "PT001IU",
+      "credits": 3,
+      "reason": "Printed in parentheses and excluded from the credit total; still scheduled in semester I"
+    },
+    {
+      "kind": "PHYSICAL_TRAINING",
+      "code": "PT002IU",
+      "credits": 3,
+      "reason": "Printed in parentheses and excluded from the credit total; still scheduled in semester II"
+    }
+  ],
+  "blocks": [
+    {
+      "code": "I",
+      "name": "General education",
+      "requiredCredits": 45,
+      "electiveCredits": 0,
+      "requiredCourses": [
+        "PE015IU",
+        "PE016IU",
+        "PE017IU",
+        "PE018IU",
+        "PE019IU",
+        "PE021IU",
+        "EN008IU",
+        "EN007IU",
+        "EN012IU",
+        "EN011IU",
+        "MA001IU",
+        "MA003IU",
+        "MA033IU",
+        "MA036IU",
+        "IT153IU",
+        "PH013IU",
+        "PH015IU",
+        "PH016IU"
+      ]
+    },
+    {
+      "code": "II",
+      "name": "Major foundation",
+      "requiredCredits": 35,
+      "electiveCredits": 0,
+      "requiredCourses": [
+        "IT064IU",
+        "IT116IU",
+        "IT067IU",
+        "IT099IU",
+        "IT069IU",
+        "IT013IU",
+        "IT091IU",
+        "IT017IU",
+        "IT089IU",
+        "IT079IU"
+      ]
+    },
+    {
+      "code": "III",
+      "name": "Specialised knowledge",
+      "requiredCredits": 32,
+      "electiveCredits": 12,
+      "requiredCourses": [
+        "IT068IU",
+        "IT098IU",
+        "IT105IU",
+        "IT106IU",
+        "IT115IU",
+        "IT127IU",
+        "IT128IU",
+        "IT129IU",
+        "IT110IU",
+        "IT126IU",
+        "IT103IU",
+        "IT134IU",
+        "IT159IU"
+      ]
+    },
+    {
+      "code": "IV",
+      "name": "Supporting knowledge",
+      "requiredCredits": 6,
+      "electiveCredits": 0,
+      "requiredCourses": ["PE020IU", "IT120IU"]
+    },
+    {
+      "code": "V",
+      "name": "Internship and thesis",
+      "requiredCredits": 20,
+      "electiveCredits": 0,
+      "requiredCourses": ["IT174IU", "IT083IU", "IT058IU"]
+    }
+  ],
+  "courses": [
+    {
+      "code": "PE015IU",
+      "name": "Philosophy Marx - Lenin",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "PE016IU",
+      "name": "Marxist-Leninist Political Economy",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "PE017IU",
+      "name": "Scientific Socialism",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "PE018IU",
+      "name": "History of Vietnamese Communist Party",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "PE019IU",
+      "name": "Ho Chi Minh's Thoughts",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "PE021IU",
+      "name": "General Law",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "EN008IU",
+      "name": "Academic English 1 (listening skill)",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "EN007IU",
+      "name": "Academic English 1 (writing skill)",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "EN012IU",
+      "name": "Academic English 2 (speaking skill)",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "EN011IU",
+      "name": "Academic English 2 (writing skill)",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "MA001IU",
+      "name": "Calculus 1",
+      "credits": 4,
+      "lecture": 4,
+      "lab": 0
+    },
+    {
+      "code": "MA003IU",
+      "name": "Calculus 2",
+      "credits": 4,
+      "lecture": 4,
+      "lab": 0
+    },
+    {
+      "code": "MA033IU",
+      "name": "Linear Algebra",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "MA036IU",
+      "name": "Probability and Statistics",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT153IU",
+      "name": "Discrete Mathematics",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "PH013IU",
+      "name": "Physics 1",
+      "credits": 2,
+      "lecture": 2,
+      "lab": 0
+    },
+    {
+      "code": "PH015IU",
+      "name": "Physics 3",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "PH016IU",
+      "name": "Physics 3 Laboratory",
+      "credits": 1,
+      "lecture": 0,
+      "lab": 1
+    },
+    {
+      "code": "PT001IU",
+      "name": "Physical Training 1",
+      "credits": 3,
+      "lecture": 0,
+      "lab": 3
+    },
+    {
+      "code": "PT002IU",
+      "name": "Physical Training 2",
+      "credits": 3,
+      "lecture": 0,
+      "lab": 3
+    },
+    {
+      "code": "IT064IU",
+      "name": "Introduction to Computing",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT116IU",
+      "name": "C/C++ Programming",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT067IU",
+      "name": "Digital Logic Design",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT099IU",
+      "name": "Digital Logic Design Laboratory",
+      "credits": 1,
+      "lecture": 0,
+      "lab": 1
+    },
+    {
+      "code": "IT069IU",
+      "name": "Object-Oriented Programming",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT013IU",
+      "name": "Algorithms and Data Structures",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT091IU",
+      "name": "Computer Networks",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT017IU",
+      "name": "Operating System",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT089IU",
+      "name": "Computer Architecture",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT079IU",
+      "name": "Principles of Database Management",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT068IU",
+      "name": "Principle of Electrical Engineering I",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT098IU",
+      "name": "Principle of Electrical Engineering I Laboratory",
+      "credits": 1,
+      "lecture": 0,
+      "lab": 1
+    },
+    {
+      "code": "IT105IU",
+      "name": "Digital System Design",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT106IU",
+      "name": "Digital System Design Laboratory",
+      "credits": 1,
+      "lecture": 0,
+      "lab": 1
+    },
+    {
+      "code": "IT115IU",
+      "name": "Embedded Systems",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT127IU",
+      "name": "Embedded Systems Laboratory",
+      "credits": 1,
+      "lecture": 0,
+      "lab": 1
+    },
+    {
+      "code": "IT128IU",
+      "name": "Micro-processing Systems",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT129IU",
+      "name": "Micro-processing Systems Laboratory",
+      "credits": 1,
+      "lecture": 0,
+      "lab": 1
+    },
+    {
+      "code": "IT110IU",
+      "name": "Concepts in VLSI Design",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT126IU",
+      "name": "Concepts in VLSI Design Laboratory",
+      "credits": 1,
+      "lecture": 0,
+      "lab": 1
+    },
+    {
+      "code": "IT103IU",
+      "name": "Digital Signal Processing",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT134IU",
+      "name": "Internet of Things",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "IT159IU",
+      "name": "Artificial Intelligence",
+      "credits": 4,
+      "lecture": 3,
+      "lab": 1
+    },
+    {
+      "code": "PE020IU",
+      "name": "Engineering Ethics and Professional Skills",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT120IU",
+      "name": "Entrepreneurship",
+      "credits": 3,
+      "lecture": 3,
+      "lab": 0
+    },
+    {
+      "code": "IT174IU",
+      "name": "Internship for engineers",
+      "credits": 7,
+      "lecture": 0,
+      "lab": 7
+    },
+    {
+      "code": "IT083IU",
+      "name": "Special Study of the Field",
+      "credits": 3,
+      "lecture": 0,
+      "lab": 3
+    },
+    {
+      "code": "IT058IU",
+      "name": "Thesis",
+      "credits": 10,
+      "lecture": 0,
+      "lab": 10
+    }
+  ],
+  "placements": [
+    {
+      "code": "IT116IU",
+      "year": 1,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 0
+    },
+    {
+      "code": "MA001IU",
+      "year": 1,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 1
+    },
+    {
+      "code": "PE015IU",
+      "year": 1,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 2
+    },
+    {
+      "code": "PE016IU",
+      "year": 1,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 3
+    },
+    {
+      "code": "EN008IU",
+      "year": 1,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 4
+    },
+    {
+      "code": "EN007IU",
+      "year": 1,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 5
+    },
+    {
+      "code": "PT001IU",
+      "year": 1,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 6
+    },
+    {
+      "code": "IT069IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 7
+    },
+    {
+      "code": "MA033IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 8
+    },
+    {
+      "code": "MA003IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 9
+    },
+    {
+      "code": "PE017IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 10
+    },
+    {
+      "code": "EN012IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 11
+    },
+    {
+      "code": "EN011IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 12
+    },
+    {
+      "code": "PT002IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 13
+    },
+    {
+      "code": "PE021IU",
+      "year": 1,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 14
+    },
+    {
+      "code": "IT064IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 15
+    },
+    {
+      "code": "IT013IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 16
+    },
+    {
+      "code": "IT068IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 17
+    },
+    {
+      "code": "IT098IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 18
+    },
+    {
+      "code": "IT067IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 19
+    },
+    {
+      "code": "IT099IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 20
+    },
+    {
+      "code": "IT153IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 21
+    },
+    {
+      "code": "PH013IU",
+      "year": 2,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 22
+    },
+    {
+      "code": "IT091IU",
+      "year": 2,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 23
+    },
+    {
+      "code": "IT089IU",
+      "year": 2,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 24
+    },
+    {
+      "code": "IT128IU",
+      "year": 2,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 25
+    },
+    {
+      "code": "IT129IU",
+      "year": 2,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 26
+    },
+    {
+      "code": "MA036IU",
+      "year": 2,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 27
+    },
+    {
+      "code": "IT017IU",
+      "year": 3,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 28
+    },
+    {
+      "code": "IT079IU",
+      "year": 3,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 29
+    },
+    {
+      "code": "PH015IU",
+      "year": 3,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 30
+    },
+    {
+      "code": "PH016IU",
+      "year": 3,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 31
+    },
+    {
+      "code": "IT105IU",
+      "year": 3,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 32
+    },
+    {
+      "code": "IT106IU",
+      "year": 3,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 33
+    },
+    {
+      "code": "IT115IU",
+      "year": 3,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 34
+    },
+    {
+      "code": "IT127IU",
+      "year": 3,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 35
+    },
+    {
+      "code": "PE018IU",
+      "year": 3,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 36
+    },
+    {
+      "code": "PE019IU",
+      "year": 3,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 37
+    },
+    {
+      "code": "IT174IU",
+      "year": 3,
+      "semester": 3,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 38
+    },
+    {
+      "code": "IT110IU",
+      "year": 4,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 39
+    },
+    {
+      "code": "IT126IU",
+      "year": 4,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 40
+    },
+    {
+      "code": "IT103IU",
+      "year": 4,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 41
+    },
+    {
+      "code": "IT159IU",
+      "year": 4,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 42
+    },
+    {
+      "code": "IT083IU",
+      "year": 4,
+      "semester": 1,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 43
+    },
+    {
+      "code": "IT134IU",
+      "year": 4,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 44
+    },
+    {
+      "code": "IT120IU",
+      "year": 4,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 45
+    },
+    {
+      "code": "PE020IU",
+      "year": 4,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 46
+    },
+    {
+      "code": "IT058IU",
+      "year": 4,
+      "semester": 2,
+      "group": null,
+      "selectCount": null,
+      "selectCredits": null,
+      "sourceOrder": 47
+    }
+  ],
+  "requirements": [
+    {
+      "kind": "UNNAMED_ELECTIVE",
+      "name": "Elective 1",
+      "credits": 4,
+      "year": 3,
+      "semester": 1,
+      "sourceOrder": 0
+    },
+    {
+      "kind": "UNNAMED_ELECTIVE",
+      "name": "Elective 2",
+      "credits": 4,
+      "year": 3,
+      "semester": 2,
+      "sourceOrder": 1
+    },
+    {
+      "kind": "UNNAMED_ELECTIVE",
+      "name": "Elective 3",
+      "credits": 4,
+      "year": 4,
+      "semester": 1,
+      "sourceOrder": 2
+    }
+  ],
+  "prerequisites": [
+    {
+      "course": "PE016IU",
+      "prerequisite": "PE015IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "EN011IU",
+      "prerequisite": "EN007IU",
+      "kind": "TQ",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "EN011IU",
+      "prerequisite": "EN008IU",
+      "kind": "TQ",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "EN012IU",
+      "prerequisite": "EN008IU",
+      "kind": "TQ",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "EN012IU",
+      "prerequisite": "EN007IU",
+      "kind": "TQ",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "MA003IU",
+      "prerequisite": "MA001IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "PE017IU",
+      "prerequisite": "PE015IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT069IU",
+      "prerequisite": "IT116IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT069IU",
+      "prerequisite": "IT149IU",
+      "kind": "HT",
+      "external": true,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT153IU",
+      "prerequisite": "IT116IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT153IU",
+      "prerequisite": "IT149IU",
+      "kind": "HT",
+      "external": true,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT091IU",
+      "prerequisite": "IT116IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT091IU",
+      "prerequisite": "IT149IU",
+      "kind": "HT",
+      "external": true,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT079IU",
+      "prerequisite": "IT116IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT079IU",
+      "prerequisite": "IT149IU",
+      "kind": "HT",
+      "external": true,
+      "alternativeGroup": "programming"
+    },
+    {
+      "course": "IT013IU",
+      "prerequisite": "IT069IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT098IU",
+      "prerequisite": "IT068IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT067IU",
+      "prerequisite": "IT099IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT099IU",
+      "prerequisite": "IT067IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT128IU",
+      "prerequisite": "IT067IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT128IU",
+      "prerequisite": "IT129IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT129IU",
+      "prerequisite": "IT128IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT017IU",
+      "prerequisite": "IT089IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT017IU",
+      "prerequisite": "IT013IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "PH015IU",
+      "prerequisite": "PH013IU",
+      "kind": "TQ",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "PH015IU",
+      "prerequisite": "PH016IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "PH016IU",
+      "prerequisite": "PH015IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT105IU",
+      "prerequisite": "IT067IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT105IU",
+      "prerequisite": "IT106IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT106IU",
+      "prerequisite": "IT105IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT115IU",
+      "prerequisite": "IT128IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT115IU",
+      "prerequisite": "IT127IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT127IU",
+      "prerequisite": "IT115IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT110IU",
+      "prerequisite": "IT067IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT110IU",
+      "prerequisite": "IT126IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT126IU",
+      "prerequisite": "IT110IU",
+      "kind": "SH",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT159IU",
+      "prerequisite": "IT069IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT134IU",
+      "prerequisite": "IT091IU",
+      "kind": "HT",
+      "external": false,
+      "alternativeGroup": null
+    },
+    {
+      "course": "IT058IU",
+      "prerequisite": "IT083IU",
+      "kind": "TQ",
+      "external": false,
+      "alternativeGroup": null
+    }
+  ]
+}

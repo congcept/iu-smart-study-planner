@@ -181,7 +181,20 @@ The table's own bracket labels disagree with its rows the way the Network Engine
 the third block is labelled _17 tín chỉ_ while its rows total 20 — so the labels are not usable as
 placements.
 
-**The unresolved question.** The document states nine semesters, but its rows form **ten** blocks: the
+**Resolved: the blocks are separations, not semesters.** The ten blocks group courses by kind; they are
+not ten terms. A student plans their own sequence subject to one ordering rule: the special study is
+taken before the thesis, and the thesis occupies the final semester alongside whatever else remains.
+That single rule is encodable, so the placement question below is answered by it rather than by the
+document, and the manifest carries the rule as its basis.
+
+The manifest therefore places the special study in year four semester one and the thesis in year four
+semester two, with the remaining specialised courses alongside the thesis. Block eight and the special
+study share the first semester of the final year, which is why that term carries nineteen credits in
+the transcription; the document does not specify a distribution and this is the one the rule implies.
+
+_The question as originally recorded, retained because it explains the rule:_
+
+The document states nine semesters, but its rows form **ten** blocks: the
 thirteen-credit block containing `IT083IU` (Special Study of the Field) and the ten-credit thesis block
 are separate, and the thesis requires the special study. Nine slots cannot hold ten blocks while
 keeping a mandatory earlier-semester prerequisite in an earlier semester. Either two blocks share a
