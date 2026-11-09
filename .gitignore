@@ -280,3 +280,6 @@ Thesis_Format_Guideline.docx
 
 # Reproducible workspace installation
 !/package-lock.json
+
+# Agent tooling state created in the working tree; never part of the project
+.commandcode/
