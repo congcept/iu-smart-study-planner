@@ -95,39 +95,49 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('confirmed progress scope in the store', () => {
-  it('keeps assigned hydration read-only without rewriting legacy cache or archive', async () => {
+  it('hydrates an assigned scope and sends it as the precondition instead of locking edits', async () => {
     localStorage.setItem(cacheKey, JSON.stringify(initial.completedIds));
     localStorage.setItem(`planned_courses:${alice}`, JSON.stringify([planned]));
     localStorage.setItem(archiveKey, JSON.stringify(backup));
     get.mockResolvedValueOnce(response(merged, curriculum));
     useAppStore.getState().setProgressOwner(alice);
     await useAppStore.getState().loadProgress();
-    expect(snapshot()).toEqual({ completedIds: {}, plannedIds: [] });
-    expect(useAppStore.getState().progressScope).toBeNull();
-    expect(useAppStore.getState().progressStatus).toBe('error');
-    expect(useAppStore.getState().progressError).toContain('curriculum');
+    expect(snapshot()).toEqual(merged);
+    expect(useAppStore.getState().progressScope).toEqual({
+      userId: alice,
+      curriculumId: curriculum,
+    });
+    expect(useAppStore.getState().progressStatus).toBe('ready');
+    expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
+    // The owner-keyed cache is the unassigned cache; an assigned snapshot must not overwrite it, or
+    // detaching would resurrect the wrong selections.
     expect(localStorage.getItem(cacheKey)).toBe(JSON.stringify(initial.completedIds));
     expect(localStorage.getItem(`planned_courses:${alice}`)).toBe(JSON.stringify([planned]));
     expect(localStorage.getItem(archiveKey)).toBe(JSON.stringify(backup));
-    expect(localStorage.getItem(`server_progress_cache:${alice}`)).toBeNull();
-    await attemptAllWrites();
-    expect(save).not.toHaveBeenCalled();
-    expect(importProgress).not.toHaveBeenCalled();
+    save.mockResolvedValueOnce({ ...merged, uncompletedCourseIds: [] });
+    get.mockResolvedValueOnce(response(merged, curriculum));
+    await useAppStore.getState().toggleCoursePlanned(planned);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedScope: { userId: alice, curriculumId: curriculum },
+      }),
+    );
   });
 
-  it('archives original legacy disk selections after an assigned block returns to confirmed null', async () => {
-    localStorage.setItem(cacheKey, JSON.stringify(backup.completedIds));
+  it('keeps the original legacy disk selections recoverable after visiting an assigned context', async () => {
+    localStorage.setItem(cacheKey, JSON.stringify(initial.completedIds));
     localStorage.setItem(`planned_courses:${alice}`, JSON.stringify([planned]));
-    get.mockResolvedValueOnce(response(initial, curriculum)).mockResolvedValueOnce(response());
+    get.mockResolvedValueOnce(response(merged, curriculum)).mockResolvedValueOnce(response());
     useAppStore.getState().setProgressOwner(alice);
     await useAppStore.getState().loadProgress();
-    expect(snapshot()).toEqual({ completedIds: {}, plannedIds: [] });
-    expect(localStorage.getItem(archiveKey)).toBeNull();
+    expect(snapshot()).toEqual(merged);
+    // An assigned snapshot does not prove the server holds the legacy selections, so the marker that
+    // suppresses archiving stays unset and detaching still preserves them.
+    expect(localStorage.getItem(`server_progress_cache:${alice}`)).toBeNull();
     await useAppStore.getState().loadProgress();
-    const original = { ...backup, plannedIds: [planned] };
+    const original = { completedIds: initial.completedIds, plannedIds: [planned] };
     expect(JSON.parse(localStorage.getItem(archiveKey)!)).toEqual(original);
     expect(useAppStore.getState().browserProgressBackup).toEqual(original);
-    expect(snapshot()).toEqual(initial);
     expect(useAppStore.getState().progressScope).toEqual(expectedScope);
   });
 
@@ -204,7 +214,7 @@ describe('confirmed progress scope in the store', () => {
   });
 
   it.each(['completion', 'import'] as const)(
-    'locks %s when successful POST confirmation shows an assignment, preserving cache and archive',
+    'adopts an assignment discovered when confirming %s, keeping the cache and archive intact',
     async (kind) => {
       await signIn();
       get.mockResolvedValueOnce(response(merged, curriculum));
@@ -212,21 +222,26 @@ describe('confirmed progress scope in the store', () => {
       importProgress.mockResolvedValueOnce(merged);
       if (kind === 'completion') await useAppStore.getState().toggleCoursePlanned(planned);
       else await useAppStore.getState().importBrowserProgress();
-      expect(snapshot()).toEqual({ completedIds: {}, plannedIds: [] });
-      expect(useAppStore.getState().progressScope).toBeNull();
-      expect(useAppStore.getState().progressStatus).toBe('error');
+      expect(snapshot()).toEqual(merged);
+      expect(useAppStore.getState().progressScope).toEqual({
+        userId: alice,
+        curriculumId: curriculum,
+      });
+      expect(useAppStore.getState().progressStatus).toBe('ready');
+      // The unassigned cache is never written from a contextual confirmation.
       expect(localStorage.getItem(cacheKey)).toBe(JSON.stringify(initial.completedIds));
-      expect(localStorage.getItem(archiveKey)).toBe(JSON.stringify(backup));
+      // A confirmed import retires its archive because its selections are now stored; a completion
+      // leaves it, since the archive was never the thing being saved.
+      expect(localStorage.getItem(archiveKey)).toBe(
+        kind === 'import' ? null : JSON.stringify(backup),
+      );
       expect(useAppStore.getState().pendingCompletionIds.size).toBe(0);
       expect(get).toHaveBeenCalledTimes(2);
-      const writes = save.mock.calls.length + importProgress.mock.calls.length;
-      await attemptAllWrites();
-      expect(save.mock.calls.length + importProgress.mock.calls.length).toBe(writes);
     },
   );
 
   it.each(['completion', 'import'] as const)(
-    'locks %s recovery if its scoped snapshot now belongs to an assigned curriculum',
+    'adopts an assignment found in the scoped recovery of a failed %s',
     async (kind) => {
       await signIn();
       get.mockResolvedValueOnce(response(merged, curriculum));
@@ -237,14 +252,17 @@ describe('confirmed progress scope in the store', () => {
         importProgress.mockRejectedValueOnce(new Error('Connection lost'));
         await useAppStore.getState().importBrowserProgress();
       }
-      expect(snapshot()).toEqual({ completedIds: {}, plannedIds: [] });
-      expect(useAppStore.getState().progressScope).toBeNull();
-      expect(useAppStore.getState().progressStatus).toBe('error');
+      // Recovery is what proves the server state, so the assigned snapshot becomes the store's scope
+      // and its selections are published rather than discarded.
+      expect(snapshot()).toEqual(merged);
+      expect(useAppStore.getState().progressScope).toEqual({
+        userId: alice,
+        curriculumId: curriculum,
+      });
+      expect(useAppStore.getState().progressStatus).toBe('ready');
       expect(localStorage.getItem(cacheKey)).toBe(JSON.stringify(initial.completedIds));
       expect(localStorage.getItem(archiveKey)).toBe(JSON.stringify(backup));
-      const writes = save.mock.calls.length + importProgress.mock.calls.length;
-      await attemptAllWrites();
-      expect(save.mock.calls.length + importProgress.mock.calls.length).toBe(writes);
+      expect(useAppStore.getState().pendingCompletionIds.size).toBe(0);
     },
   );
 

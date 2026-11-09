@@ -33,8 +33,18 @@ interface SemesterDisplay {
   electiveCredits: number;
 }
 
-export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
-  const [groups, setGroups] = useState<YearSemesterGroup[]>([]);
+export const CurriculumProgressMap = ({
+  userId,
+  contextualGroups: supplied,
+}: {
+  userId?: string;
+  /**
+   * A program's own structure, already adapted to the map's shapes. Supplying it replaces the global
+   * catalogue: an assigned student reads their curriculum, not the whole university's.
+   */
+  contextualGroups?: YearSemesterGroup[];
+}) => {
+  const [groups, setGroups] = useState<YearSemesterGroup[]>(supplied ?? []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [intensityMode, setIntensityMode] = useState<IntensityMode>('normal');
@@ -43,6 +53,12 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const progressErrorRef = useRef<HTMLDivElement>(null);
 
   const loadCurriculum = useCallback(async () => {
+    if (supplied) {
+      setGroups(supplied);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -57,7 +73,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [supplied]);
 
   useEffect(() => {
     void loadCurriculum();
@@ -99,7 +115,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
   const electiveTriggerRef = useRef<HTMLElement | null>(null);
   const electivePanelId = useId();
   const electivePanelHeadingId = `${electivePanelId}-heading`;
-  const gpaPolicy = useGpaPath(userId);
+  const gpaPolicy = useGpaPath(userId, { assignedContext: Boolean(supplied) });
   const y4s2GpaMode = gpaPolicy.mode;
   const gpaReady = gpaPolicy.status === 'ready';
   // An unresolved GPA path must not hide the curriculum. It pauses editing and
@@ -630,7 +646,7 @@ export const CurriculumProgressMap = ({ userId }: { userId?: string }) => {
           Demo selections stay in this browser and are not added to an account when you sign in.
         </p>
       )}
-      {gpaPathUnresolved && (
+      {gpaPathUnresolved && !supplied && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
           <GpaPathControls policy={gpaPolicy} />
           <p className="mt-2 text-sm text-gray-700">

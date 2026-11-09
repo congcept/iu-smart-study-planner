@@ -193,11 +193,27 @@ describe('authoritative progress hydration', () => {
 });
 
 describe('confirmed owner and curriculum scope', () => {
+  it('refuses a snapshot belonging to another account', async () => {
+    const cached = { completedIds: { [legacyId]: 'Group 1' }, plannedIds: [legacyPlanId] };
+    localStorage.setItem('completed_courses:alice', JSON.stringify(cached.completedIds));
+    useAppStore.getState().setProgressOwner('alice');
+    getProgress.mockResolvedValueOnce({
+      scope: { userId: 'bob', curriculumId: null },
+      progress: { completedIds: { assigned: null }, plannedIds: [] },
+    });
+    await useAppStore.getState().loadProgress();
+    expect(snapshot()).toEqual(emptyProgress);
+    expect(useAppStore.getState().progressScope).toBeNull();
+    expect(useAppStore.getState().progressStatus).toBe('error');
+    await useAppStore.getState().toggleCourseComplete('blocked');
+    expect(saveProgress).not.toHaveBeenCalled();
+  });
+
   it.each([
-    { userId: 'bob', curriculumId: null },
+    { userId: 'alice', curriculumId: null },
     { userId: 'alice', curriculumId: '00000000-0000-4000-8000-000000000003' },
   ])(
-    'blocks legacy hydration for scope %j without caching or archiving its selections',
+    'hydrates scope %j and sends it as the write precondition without touching the legacy cache',
     async (scope) => {
       const cached = { completedIds: { [legacyId]: 'Group 1' }, plannedIds: [legacyPlanId] };
       localStorage.setItem('completed_courses:alice', JSON.stringify(cached.completedIds));
@@ -209,16 +225,20 @@ describe('confirmed owner and curriculum scope', () => {
       });
       await useAppStore.getState().loadProgress();
       expect(getProgress).toHaveBeenCalledWith('alice');
-      expect(snapshot()).toEqual(emptyProgress);
-      expect(useAppStore.getState().progressScope).toBeNull();
-      expect(useAppStore.getState().progressStatus).toBe('error');
+      expect(snapshot()).toEqual({ completedIds: { assigned: null }, plannedIds: [] });
+      expect(useAppStore.getState().progressScope).toEqual(scope);
+      expect(useAppStore.getState().progressStatus).toBe('ready');
+      // The owner-keyed cache belongs to the unassigned context: it is written for a null scope and
+      // never rewritten by an assigned one, which would corrupt what detaching restores.
       expect(JSON.parse(localStorage.getItem('completed_courses:alice')!)).toEqual(
-        cached.completedIds,
+        scope.curriculumId === null ? { assigned: null } : cached.completedIds,
       );
-      expect(localStorage.getItem('server_progress_cache:alice')).toBeNull();
-      expect(localStorage.getItem('browser_progress_backup:alice')).toBeNull();
+      // Only an unassigned snapshot proves the server holds this account's legacy selections.
+      expect(localStorage.getItem('server_progress_cache:alice')).toBe(
+        scope.curriculumId === null ? 'true' : null,
+      );
       await useAppStore.getState().toggleCourseComplete('blocked');
-      expect(saveProgress).not.toHaveBeenCalled();
+      expect(saveProgress).toHaveBeenCalledWith(expect.objectContaining({ expectedScope: scope }));
     },
   );
 
@@ -258,7 +278,7 @@ describe('confirmed owner and curriculum scope', () => {
     expect(useAppStore.getState().progressScope).toEqual({ userId: 'alice', curriculumId: null });
   });
 
-  it('clears old selections and blocks edits when the curriculum changes after a committed write', async () => {
+  it('adopts the new curriculum when a committed write is confirmed under it', async () => {
     const before = { completedIds: { original: 'Group 1' }, plannedIds: [] };
     await signIn(before);
     saveProgress.mockResolvedValueOnce(
@@ -269,16 +289,29 @@ describe('confirmed owner and curriculum scope', () => {
       progress: { completedIds: { assigned: null }, plannedIds: [] },
     });
     await useAppStore.getState().toggleCourseComplete('course');
-    expect(snapshot()).toEqual(emptyProgress);
-    expect(useAppStore.getState().progressScope).toBeNull();
-    expect(useAppStore.getState().progressStatus).toBe('error');
+    expect(snapshot()).toEqual({ completedIds: { assigned: null }, plannedIds: [] });
+    expect(useAppStore.getState().progressScope).toEqual({
+      userId: 'alice',
+      curriculumId: '00000000-0000-4000-8000-000000000003',
+    });
+    expect(useAppStore.getState().progressStatus).toBe('ready');
     expect(useAppStore.getState().pendingCompletionIds.size).toBe(0);
+    // The legacy cache still holds the unassigned selections, so detaching restores them.
     expect(JSON.parse(localStorage.getItem('completed_courses:alice')!)).toEqual(
       before.completedIds,
     );
-    await useAppStore.getState().toggleCourseComplete('blocked');
-    expect(saveProgress).toHaveBeenCalledTimes(1);
-    expect(getProgress).toHaveBeenCalledTimes(2);
+    saveProgress.mockResolvedValueOnce(confirmed({ completedIds: {}, plannedIds: [] }));
+    getProgress.mockResolvedValueOnce({
+      scope: { userId: 'alice', curriculumId: '00000000-0000-4000-8000-000000000003' },
+      progress: { completedIds: {}, plannedIds: [] },
+    });
+    await useAppStore.getState().toggleCourseComplete('after');
+    expect(saveProgress).toHaveBeenCalledTimes(2);
+    expect(saveProgress).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        expectedScope: { userId: 'alice', curriculumId: '00000000-0000-4000-8000-000000000003' },
+      }),
+    );
   });
 });
 

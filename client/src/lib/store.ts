@@ -63,7 +63,14 @@ const savePlannedIds = (ids: string[], userId: string | null) => {
   localStorage.setItem(storageKey(PLAN_KEY, userId), JSON.stringify(ids));
 };
 
-function cacheProgress(progress: StudentProgressDTO, userId: string | null) {
+// The browser cache is keyed by owner alone, so it holds the unassigned selections only. Caching an
+// assigned snapshot there would overwrite that owner's legacy selections and resurrect them on detach.
+function cacheProgress(
+  progress: StudentProgressDTO,
+  userId: string | null,
+  scope: AccountWriteScopeDTO | null = null,
+) {
+  if (userId && scope?.curriculumId) return;
   try {
     saveCompletedIds(progress.completedIds, userId);
     savePlannedIds(progress.plannedIds, userId);
@@ -96,11 +103,13 @@ function importErrorMessage(error: unknown) {
   return courses.length ? `${message} Related courses: ${courses.join(', ')}.` : message;
 }
 
-// The legacy map is editable only after an owner-scoped snapshot confirms no assignment.
+// A snapshot is usable only for the account that asked for it. A different curriculum is not a
+// rejection: the server returns the selection snapshot already filtered to that curriculum's members,
+// and the scope it reports becomes the precondition every later write must match.
 class ProgressScopeChangedError extends Error {}
 
 function legacyProgress(snapshot: ScopedStudentProgressDTO, userId: string): StudentProgressDTO {
-  if (snapshot.scope.userId !== userId || snapshot.scope.curriculumId !== null) {
+  if (snapshot.scope.userId !== userId) {
     const message = 'Your curriculum changed. Reload your curriculum to review saved progress.';
     useAppStore.setState((state) => ({
       progressScope: null,
@@ -116,10 +125,7 @@ function legacyProgress(snapshot: ScopedStudentProgressDTO, userId: string): Stu
 }
 
 function editableScope(state: AppState): AccountWriteScopeDTO | null {
-  return state.progressScope?.userId === state.progressOwnerId &&
-    state.progressScope.curriculumId === null
-    ? state.progressScope
-    : null;
+  return state.progressScope?.userId === state.progressOwnerId ? state.progressScope : null;
 }
 
 async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []) {
@@ -162,20 +168,25 @@ async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []
     ownerVersion === version &&
     loadVersion === request &&
     useAppStore.getState().progressOwnerId === userId;
-  const reconcile = (progress: StudentProgressDTO) => {
-    cacheProgress(progress, userId);
+  // A confirmed snapshot is authoritative for both selections and scope: adopting the scope it reports
+  // is what keeps the next write's precondition current instead of stale.
+  const applyProgress = (progress: StudentProgressDTO, scope: AccountWriteScopeDTO | null) => {
+    cacheProgress(progress, userId, scope);
     useAppStore.setState((current) => ({
       completedIds: progress.completedIds,
       plannedIds: progress.plannedIds,
+      progressScope: scope,
       completionVersion: current.completionVersion + 1,
     }));
   };
+  const reconcile = (snapshot: ScopedStudentProgressDTO) =>
+    applyProgress(legacyProgress(snapshot, userId), snapshot.scope);
   try {
     await saveCourseProgress({ ...data, expectedScope: expectedScope! });
     if (!isCurrent()) return;
     const snapshot = await getScopedStudentProgress(userId);
     if (!isCurrent()) return;
-    reconcile(legacyProgress(snapshot, userId));
+    reconcile(snapshot);
     useAppStore.setState({ pendingCompletionIds: new Set(), progressStatus: 'ready' });
   } catch (error) {
     if (!isCurrent()) return;
@@ -183,13 +194,13 @@ async function mutateProgress(data: CompleteCourseDTO, cascadeIds: string[] = []
       useAppStore.setState({ pendingCompletionIds: new Set() });
       return;
     }
-    reconcile(before);
+    applyProgress(before, expectedScope);
     useAppStore.setState({ progressError: progressErrorMessage(error) });
     // A lost response may follow a committed write. Recover before another edit.
     try {
       const snapshot = await getScopedStudentProgress(userId);
       if (!isCurrent()) return;
-      reconcile(legacyProgress(snapshot, userId));
+      reconcile(snapshot);
       useAppStore.setState({ progressStatus: 'ready' });
     } catch {
       if (isCurrent()) useAppStore.setState({ progressStatus: 'error' });
@@ -295,11 +306,13 @@ export const useAppStore = create<AppState>((set, get) => ({
           browserProgressBackup = null;
           browserProgressBackupError = null;
         }
-        localStorage.setItem(markerKey, 'true');
+        // Only an unassigned snapshot proves the server holds this account's legacy selections.
+        // Learning it inside a curriculum must not retire the chance to archive the old ones on detach.
+        if (!snapshot.scope.curriculumId) localStorage.setItem(markerKey, 'true');
       } catch {
         // Server progress remains usable when browser storage is unavailable.
       }
-      cacheProgress(progress, userId);
+      cacheProgress(progress, userId, snapshot.scope);
       set((state) => ({
         ...progress,
         progressScope: snapshot.scope,
@@ -336,14 +349,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const request = ++loadVersion;
     const isCurrent = () =>
       ownerVersion === version && loadVersion === request && get().progressOwnerId === userId;
-    const reconcile = (progress: StudentProgressDTO) => {
-      cacheProgress(progress, userId);
+    const applyProgress = (progress: StudentProgressDTO, scope: AccountWriteScopeDTO | null) => {
+      cacheProgress(progress, userId, scope);
       set((current) => ({
         completedIds: progress.completedIds,
         plannedIds: progress.plannedIds,
+        progressScope: scope,
         completionVersion: current.completionVersion + 1,
       }));
     };
+    const reconcile = (snapshot: ScopedStudentProgressDTO) =>
+      applyProgress(legacyProgress(snapshot, userId), snapshot.scope);
     set({
       progressStatus: 'loading',
       progressError: null,
@@ -355,7 +371,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!isCurrent()) return;
       const snapshot = await getScopedStudentProgress(userId);
       if (!isCurrent()) return;
-      reconcile(legacyProgress(snapshot, userId));
+      reconcile(snapshot);
       try {
         localStorage.removeItem(`browser_progress_backup:${userId}`);
       } catch {
@@ -380,7 +396,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         const snapshot = await getScopedStudentProgress(userId);
         if (!isCurrent()) return;
-        reconcile(legacyProgress(snapshot, userId));
+        reconcile(snapshot);
         set({ progressStatus: 'ready', progressImportStatus: 'error' });
       } catch {
         if (isCurrent()) set({ progressStatus: 'error', progressImportStatus: 'error' });

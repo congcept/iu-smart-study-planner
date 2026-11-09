@@ -32,9 +32,9 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
-const hook = (userId: string | undefined = 'one') =>
+const hook = (userId: string | undefined = 'one', assignedContext = false) =>
   renderHook<ReturnType<typeof useGpaPath>, { owner: string | undefined }>(
-    ({ owner }) => useGpaPath(owner),
+    ({ owner }) => useGpaPath(owner, { assignedContext }),
     { initialProps: { owner: userId } },
   );
 
@@ -51,6 +51,11 @@ describe('account-scoped server GPA path', () => {
   const ownerId = '11111111-1111-4111-8111-111111111111';
   const otherId = '22222222-2222-4222-8222-222222222222';
   const scope = { userId: ownerId, curriculumId: null, isGpaPath: true };
+  const assigned = {
+    userId: ownerId,
+    curriculumId: '33333333-3333-4333-8333-333333333333',
+    isGpaPath: false,
+  };
   it.each(['numeric', 'null'] as const)(
     'accepts the matching unassigned %s scope',
     async (kind) => {
@@ -368,5 +373,28 @@ describe('account-scoped server GPA path', () => {
       pending.resolve(scored());
     });
     expect(getGrades).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts the program context and takes its path from the server', async () => {
+    getGrades.mockResolvedValueOnce({ ...scored(90, 'ALTERNATIVE'), scope: assigned });
+    const { result } = hook(ownerId, true);
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.mode).toBe('below');
+    expect(result.current.manual).toBe(false);
+  });
+
+  it('leaves an unknown contextual path unresolved instead of inventing a manual one', async () => {
+    getGrades.mockResolvedValueOnce({ ...empty, scope: assigned });
+    const { result } = hook(ownerId, true);
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    // No manual fallback inside a program: the map defers its path-dependent choices instead.
+    expect(result.current.mode).toBeNull();
+    expect(result.current.manual).toBe(false);
+  });
+
+  it('refuses a contextual read that returns no curriculum', async () => {
+    getGrades.mockResolvedValueOnce({ ...scored(), scope });
+    const { result } = hook(ownerId, true);
+    await waitFor(() => expect(result.current.status).toBe('error'));
   });
 });

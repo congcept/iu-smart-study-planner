@@ -125,28 +125,37 @@ describe('explicit account-owned archive imports', () => {
     expect(useAppStore.getState().browserProgressBackup).toBeNull();
   });
 
-  it('retains its archive and locks legacy edits when post-import confirmation detects a new curriculum', async () => {
+  it('adopts a curriculum discovered by post-import confirmation and keeps editing available', async () => {
     await signIn();
-    importProgress.mockResolvedValueOnce(merged);
     getProgress.mockResolvedValueOnce({
       scope: { userId: 'alice', curriculumId: '00000000-0000-4000-8000-000000000004' },
       progress: merged,
     });
     await useAppStore.getState().importBrowserProgress();
-    expect(snapshot()).toEqual({ completedIds: {}, plannedIds: [] });
-    expect(useAppStore.getState().progressScope).toBeNull();
-    expect(useAppStore.getState().progressStatus).toBe('error');
-    expect(useAppStore.getState().progressImportStatus).toBe('error');
-    expect(useAppStore.getState().browserProgressBackup).toEqual(backup);
-    expect(localStorage.getItem('browser_progress_backup:alice')).toBe(JSON.stringify(backup));
+    expect(snapshot()).toEqual(merged);
+    expect(useAppStore.getState().progressScope).toEqual({
+      userId: 'alice',
+      curriculumId: '00000000-0000-4000-8000-000000000004',
+    });
+    expect(useAppStore.getState().progressStatus).toBe('ready');
+    expect(useAppStore.getState().progressImportStatus).toBe('success');
+    // A confirmed import retires its archive; the unassigned cache is untouched by the new scope.
+    expect(localStorage.getItem('browser_progress_backup:alice')).toBeNull();
     expect(JSON.parse(localStorage.getItem('completed_courses:alice')!)).toEqual(
       initial.completedIds,
     );
-    await useAppStore.getState().importBrowserProgress();
+    // Editing continues under the adopted scope instead of locking.
+    saveProgress.mockResolvedValueOnce({ ...merged, uncompletedCourseIds: [] });
+    getProgress.mockResolvedValueOnce({
+      scope: { userId: 'alice', curriculumId: '00000000-0000-4000-8000-000000000004' },
+      progress: merged,
+    });
     await useAppStore.getState().toggleCoursePlanned(planned);
-    expect(importProgress).toHaveBeenCalledTimes(1);
-    expect(saveProgress).not.toHaveBeenCalled();
-    expect(getProgress).toHaveBeenCalledTimes(2);
+    expect(saveProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedScope: { userId: 'alice', curriculumId: '00000000-0000-4000-8000-000000000004' },
+      }),
+    );
   });
 
   it('blocks duplicate imports, normal course edits, and reloads while importing', async () => {
