@@ -88,24 +88,26 @@ The objectives of this work are:
 The artifact is a work in progress toward an institutionally valid planner, and the thesis is
 explicit about where that line sits.
 
-\textbf{Within scope.} Three program structures. The reference program is the curriculum as its
-author read it from the current published page. Data Science and Information Technology (Network
-Engineering) were transcribed from their signed 2025 documents and are stored as reference
-structures of 124 and 150 credits; both pass a verifier that proves the blocks, totals, prerequisite
-membership and cycles are self-consistent, and neither assigns an account. The model also supports
-several cohorts of one program, so a structure governs an admission year instead of being overwritten
-by the next revision. Simulated students, simulated resource configurations and simulated
-allocations. Numeric grading on a 0--100 scale. Engineering evidence: automated tests, continuous
-integration, reproducibility, measured profiling of the allocation models, and a browser
-accessibility audit.
+\textbf{Within scope.} Four program structures. The reference program is the curriculum as its
+author read it from the current published page. Data Science, Information Technology (Network
+Engineering) and Information Technology (Computer Engineering) were transcribed from their signed
+2025 documents and are stored as reference structures of 124, 150 and 150 credits; all three pass a
+verifier that proves the blocks, totals, prerequisite membership and cycles are self-consistent, and
+none assigns an account. The model also supports several cohorts of one program, so a structure
+governs an admission year instead of being overwritten by the next revision. Simulated students,
+simulated resource configurations and simulated allocations. Numeric grading on a 0--100 scale.
+Engineering evidence: automated tests, continuous integration, reproducibility, measured profiling of
+the allocation models, and a browser accessibility audit.
 
 \textbf{Outside scope.} Institutional validation of any program. A structure is a reference
 transcription of one document, not a claim that a student admitted in a given year is governed by
-it. For the reference program the credit total is unknown by design; for the other two it is the
+it. For the reference program the credit total is unknown by design; for the other three it is the
 document's own figure, and no graduation percentage is derived from any of them while the elective
-and degree rules remain unverified. A second specialisation of the same program is analysed to its
-block table but not transcribed, because its schedule prints ten blocks for the nine semesters it
-claims and the placement of the thesis is genuinely ambiguous in the document. Course offerings, meeting times, rooms, laboratory suitability and staff
+and degree rules remain unverified. Where a document does not state a fact the transcription needs,
+the manifest records the rule it used instead: Computer Engineering never states the semester of its
+thesis, so its placements follow the sequencing a student would apply --- special study before
+thesis, thesis in the final term --- rather than presenting an inference as a quotation.
+Course offerings, meeting times, rooms, laboratory suitability and staff
 qualification, none of which were available, so calendar validity is not claimed. Editing of a
 student's record inside an assigned program context, which requires context-keyed client caches
 and a claim-transfer policy that were deliberately left out. A real deployment with a public

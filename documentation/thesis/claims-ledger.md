@@ -126,7 +126,7 @@ the chapter states it as a snapshot and this file dates the snapshot.
 | IT block I is 45 credits; Bảng 6 is a group-wide summary, not this program's block | `docs/phase-1/it-2025-source-findings.md`                                                                           |
 | The artifact accepts mutually concurrent courses                                   | `server/src/services/curriculumManifest.ts`; `curriculumManifest.test.ts`                                           |
 | Cohorts are independent, so 2024 and 2025 students coexist                         | `CurriculumCohort` in `server/prisma/schema.prisma`; `docs/phase-1/it-2025-source-findings.md`                      |
-| The second specialisation is analysed but not transcribed, with a stated reason    | `docs/phase-1/it-2025-source-findings.md`, the ten-block placement question                                         |
+| The second specialisation is imported; placements follow a stated sequencing rule  | `docs/phase-1/it-computer-engineering-2025-manifest.md`; `itComputerEngineeringManifest.test.ts`                    |
 | No calendar or offering data                                                       | audit §4D                                                                                                           |
 | Assigned contexts are read-only                                                    | `docs/phase-2/account-curriculum-reference.md`                                                                      |
 | Resources and allocations are simulated                                            | `docs/phase-4/simulation-resource-persistence.md`                                                                   |

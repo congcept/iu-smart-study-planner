@@ -40,11 +40,12 @@ fact. Nothing in the scenario establishes an offering, a room, a section or a re
 Three structures are available, and they are not equivalent. Choosing one is a demonstration choice,
 so it is worth choosing deliberately rather than taking the first row.
 
-| Curriculum     | Credits | Source                                              | Attach it when                                                                          |
-| -------------- | ------: | --------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `CS-REFERENCE` | unknown | read by the author from the current page            | showing the program the seeded demo data already references                             |
-| `DS`           |     124 | transcribed from the signed 2025 document, verified | showing a **known** credit total and a declared cohort                                  |
-| `IT-NET`       |     150 | transcribed from the signed 2025 document, verified | showing external prerequisites, and the elective allocation the document leaves unnamed |
+| Curriculum     | Credits | Source                                              | Attach it when                                                                           |
+| -------------- | ------: | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `CS-REFERENCE` | unknown | read by the author from the current page            | showing the program the seeded demo data already references                              |
+| `DS`           |     124 | transcribed from the signed 2025 document, verified | showing a **known** credit total and a declared cohort                                   |
+| `IT-NET`       |     150 | transcribed from the signed 2025 document, verified | showing external prerequisites, and the elective allocation the document leaves unnamed  |
+| `IT-CE`        |     150 | transcribed from the signed 2025 document, verified | showing a second specialisation of one programme, whose placements rest on a stated rule |
 
 The third is the strongest of the three to demonstrate, for a reason that is visible on screen: IT
 Network Engineering has requirements satisfied by courses it does not offer, so the reference view
@@ -74,7 +75,8 @@ from it.
 ## Caveats to say out loud, once each
 
 - The curriculum is a **reference import**, not a validated cohort. For `CS-REFERENCE` the credit
-  total is unknown and the degree percentage is withheld for that reason; for `DS` and `IT-NET` the
+  total is unknown and the degree percentage is withheld for that reason; for `DS`, `IT-NET` and
+  `IT-CE` the
   total is the document's own, and the percentage is still withheld because the elective and
   graduation rules are unverified.
 - The resource figures are **assumptions entered in a form**.
